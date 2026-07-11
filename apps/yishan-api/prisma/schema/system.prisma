@@ -19,6 +19,22 @@ model SysOption {
   @@map("sys_option")
 }
 
+model SysRegion {
+  code       Int      @id @map("code")
+  name       String   @map("name") @db.VarChar(50)
+  level      Int      @map("level") @db.TinyInt
+  parentCode Int      @default(0) @map("parent_code")
+  sortOrder  Int      @default(0) @map("sort_order")
+  status     Int      @default(1) @map("status") @db.TinyInt
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  @@index([parentCode], map: "idx_sys_region_parent")
+  @@index([level], map: "idx_sys_region_level")
+  @@index([status], map: "idx_sys_region_status")
+  @@map("sys_region")
+}
+
 model SysUser {
   id            Int       @id @default(autoincrement()) @map("id")
   username      String?   @unique @map("username") @db.VarChar(50)
@@ -63,10 +79,15 @@ model SysUser {
   menusCreated SysMenu[] @relation("MenuCreator")
   menusUpdated SysMenu[] @relation("MenuUpdater")
 
-  dictTypesCreated SysDictType[] @relation("DictTypeCreator")
-  dictTypesUpdated SysDictType[] @relation("DictTypeUpdater")
-  dictDatasCreated SysDictData[] @relation("DictDataCreator")
-  dictDatasUpdated SysDictData[] @relation("DictDataUpdater")
+  dictTypesCreated   SysDictType[]   @relation("DictTypeCreator")
+  dictTypesUpdated   SysDictType[]   @relation("DictTypeUpdater")
+  dictDatasCreated   SysDictData[]   @relation("DictDataCreator")
+  dictDatasUpdated   SysDictData[]   @relation("DictDataUpdater")
+  attachmentsCreated SysAttachment[] @relation("AttachmentCreator")
+  attachmentsUpdated SysAttachment[] @relation("AttachmentUpdater")
+
+  attachmentFoldersCreated SysAttachmentFolder[] @relation("AttachmentFolderCreator")
+  attachmentFoldersUpdated SysAttachmentFolder[] @relation("AttachmentFolderUpdater")
 
   // Portal reverse relations
   portalCategoriesCreated PortalCategory[] @relation("PortalCategoryCreator")
@@ -75,15 +96,8 @@ model SysUser {
   portalArticlesUpdated   PortalArticle[]  @relation("PortalArticleUpdater")
   portalPagesCreated      PortalPage[]     @relation("PortalPageCreator")
   portalPagesUpdated      PortalPage[]     @relation("PortalPageUpdater")
-  // PortalTemplate 反向关系（用于模板的创建与更新人）
   portalTemplatesCreated  PortalTemplate[] @relation("PortalTemplateCreator")
   portalTemplatesUpdated  PortalTemplate[] @relation("PortalTemplateUpdater")
-
-  attachmentsCreated SysAttachment[] @relation("AttachmentCreator")
-  attachmentsUpdated SysAttachment[] @relation("AttachmentUpdater")
-
-  attachmentFoldersCreated SysAttachmentFolder[] @relation("AttachmentFolderCreator")
-  attachmentFoldersUpdated SysAttachmentFolder[] @relation("AttachmentFolderUpdater")
 
   loginLogs     SysLoginLog[] @relation("UserLoginLogs")
   shopAddresses ShopAddress[]
@@ -91,15 +105,16 @@ model SysUser {
   shopOrders    ShopOrder[]
 
   // Injected from plugin schemas
-  crmHospitalAccount    CrmHospital?           @relation("CrmHospitalAccount")
-  crmCustomersOwned     CrmCustomer[]          @relation("CrmCustomerOwner")
-  crmCustomerRemarks    CrmCustomerRemark[]    @relation("CrmCustomerRemarkUser")
-  crmCustomerBrowses    CrmCustomerBrowse[]    @relation("CrmCustomerBrowseUser")
-  crmDispatchReplies    CrmDispatchReply[]     @relation("CrmDispatchReplyUser")
-  crmDispatchFollowLogs CrmDispatchFollowLog[] @relation("CrmDispatchFollowLogUser")
-  crmMembersOwned       CrmMemberCustomer[]    @relation("CrmMemberOwner")
-  crmMemberRemarks      CrmMemberRemark[]      @relation("CrmMemberRemarkUser")
-  crmMemberBrowses      CrmMemberBrowse[]      @relation("CrmMemberBrowseUser")
+  crmHospitalAccountLegacy CrmHospital?           @relation("CrmHospitalAccountLegacy")
+  crmHospitalAccounts      CrmHospitalAccount[]   @relation("CrmHospitalAccountUser")
+  crmCustomersOwned        CrmCustomer[]          @relation("CrmCustomerOwner")
+  crmCustomerRemarks       CrmCustomerRemark[]    @relation("CrmCustomerRemarkUser")
+  crmCustomerBrowses       CrmCustomerBrowse[]    @relation("CrmCustomerBrowseUser")
+  crmDispatchReplies       CrmDispatchReply[]     @relation("CrmDispatchReplyUser")
+  crmDispatchFollowLogs    CrmDispatchFollowLog[] @relation("CrmDispatchFollowLogUser")
+  crmMembersOwned          CrmMemberCustomer[]    @relation("CrmMemberOwner")
+  crmMemberRemarks         CrmMemberRemark[]      @relation("CrmMemberRemarkUser")
+  crmMemberBrowses         CrmMemberBrowse[]      @relation("CrmMemberBrowseUser")
 
   @@index([status], map: "idx_status")
   @@index([createdAt], map: "idx_created_at")

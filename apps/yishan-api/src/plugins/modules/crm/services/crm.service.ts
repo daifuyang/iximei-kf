@@ -8,8 +8,6 @@ export type PageQuery = {
   endTime?: string
 }
 
-type PrismaClientLike = typeof prisma
-
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 10
 const SUPER_ADMIN_ID = 1
@@ -58,13 +56,6 @@ function normalizeContractPhotos(value: unknown) {
 
 function isSuperAdmin(userId: number) {
   return userId === SUPER_ADMIN_ID
-}
-
-async function getHospitalForUser(client: PrismaClientLike, userId: number) {
-  return await (client as any).crmHospital.findFirst({
-    where: { accountUserId: userId, deletedAt: null },
-    select: { id: true },
-  })
 }
 
 async function generateVipNumber(client: any, modelName: 'crmCustomer' | 'crmMemberCustomer') {
@@ -125,18 +116,33 @@ export class CrmService {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: { account: { select: { id: true, username: true, email: true, status: true } } },
+        include: {
+          account: { select: { id: true, username: true, email: true, status: true } },
+          accounts: { where: { deletedAt: null }, select: { id: true, role: true } },
+        },
       }),
       (prisma as any).crmHospital.count({ where }),
     ])
-    return { list, total, page, pageSize }
+    const result = list.map((hospital: any) => ({
+      ...hospital,
+      accountCount: hospital.accounts?.length || 0,
+    }))
+    return { list: result, total, page, pageSize }
   }
 
   static async getHospital(id: number) {
-    return await (prisma as any).crmHospital.findFirst({
+    const hospital = await (prisma as any).crmHospital.findFirst({
       where: { id, deletedAt: null },
-      include: { account: { select: { id: true, username: true, email: true, status: true } } },
+      include: {
+        account: { select: { id: true, username: true, email: true, status: true } },
+        accounts: { where: { deletedAt: null }, select: { id: true, role: true } },
+      },
     })
+    if (!hospital) return null
+    return {
+      ...hospital,
+      accountCount: hospital.accounts?.length || 0,
+    }
   }
 
   static async saveHospital(input: any, currentUserId: number, id?: number) {
@@ -410,9 +416,12 @@ export class CrmService {
       ]
     }
     if (!isSuperAdmin(currentUserId)) {
-      const hospital = await getHospitalForUser(prisma, currentUserId)
-      if (hospital) {
-        where.hospitalId = hospital.id
+      const hospitalIds = await this.getAccessibleHospitalIds(currentUserId)
+      if (hospitalIds === null) {
+      } else if (hospitalIds.length === 0) {
+        return { list: [], total: 0, page, pageSize }
+      } else {
+        where.hospitalId = { in: hospitalIds }
       }
     }
     const [list, total] = await Promise.all([
@@ -445,8 +454,8 @@ export class CrmService {
     })
     if (!dispatch) return null
     if (!isSuperAdmin(currentUserId)) {
-      const hospital = await getHospitalForUser(prisma, currentUserId)
-      if (hospital && dispatch.hospitalId !== hospital.id) return null
+      const hospitalIds = await this.getAccessibleHospitalIds(currentUserId)
+      if (hospitalIds !== null && !hospitalIds.includes(dispatch.hospitalId)) return null
     }
     return dispatch
   }
@@ -497,6 +506,152 @@ export class CrmService {
 
   static async listRegions(parentId = 0) {
     return await (prisma as any).crmRegion.findMany({ where: { parentId: Number(parentId) }, orderBy: { areaId: 'asc' } })
+  }
+
+  static async getAccessibleHospitalIds(userId: number): Promise<number[] | null> {
+    if (isSuperAdmin(userId)) return null
+    const rows = await (prisma as any).crmHospitalAccount.findMany({
+      where: {
+        userId,
+        status: 1,
+        deletedAt: null,
+        hospital: { deletedAt: null, status: 1 },
+      },
+      select: { hospitalId: true },
+    })
+    return rows.map((item: any) => item.hospitalId)
+  }
+
+  static async listHospitalAccounts(hospitalId: number) {
+    return await (prisma as any).crmHospitalAccount.findMany({
+      where: { hospitalId, deletedAt: null },
+      include: {
+        user: { select: { id: true, username: true, realName: true, phone: true, email: true, status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  static async createHospitalAccount(hospitalId: number, input: any, currentUserId: number) {
+    const { username, phone, realName, email, password, role, remark } = input
+    if (!username) throw new Error('用户名不能为空')
+    if (!phone) throw new Error('手机号不能为空')
+    if (!password) throw new Error('密码不能为空')
+    if (!['owner', 'admin', 'member'].includes(role)) throw new Error('无效的角色')
+    const crypto = await import('node:crypto')
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex')
+    return await (prisma as any).$transaction(async (tx: any) => {
+      const user = await tx.sysUser.create({
+        data: {
+          username,
+          phone,
+          realName,
+          email,
+          passwordHash,
+          status: 1,
+          creatorId: currentUserId,
+          updaterId: currentUserId,
+        },
+      })
+      const account = await tx.crmHospitalAccount.create({
+        data: {
+          hospitalId,
+          userId: user.id,
+          role: role || 'member',
+          status: 1,
+          remark,
+          creatorId: currentUserId,
+          updaterId: currentUserId,
+        },
+      })
+      return { ...account, user: { id: user.id, username: user.username, realName: user.realName, phone: user.phone, email: user.email, status: String(user.status) } }
+    })
+  }
+
+  static async assignHospitalAccount(hospitalId: number, input: any, currentUserId: number) {
+    const { userId, role, remark } = input
+    if (!userId) throw new Error('用户ID不能为空')
+    if (!['owner', 'admin', 'member'].includes(role)) throw new Error('无效的角色')
+    const existing = await (prisma as any).crmHospitalAccount.findFirst({
+      where: { hospitalId, userId, deletedAt: null },
+    })
+    if (existing) throw new Error('该用户已是医院账号')
+    const user = await (prisma as any).sysUser.findFirst({ where: { id: userId, deletedAt: null } })
+    if (!user) throw new Error('用户不存在')
+    return await (prisma as any).crmHospitalAccount.create({
+      data: {
+        hospitalId,
+        userId,
+        role,
+        status: 1,
+        remark,
+        creatorId: currentUserId,
+        updaterId: currentUserId,
+      },
+    })
+  }
+
+  static async updateHospitalAccount(hospitalId: number, userId: number, input: any, currentUserId: number) {
+    const { role, status, remark, username, realName, phone, email, password } = input
+    if (role && !['owner', 'admin', 'member'].includes(role)) throw new Error('无效的角色')
+    const existing = await (prisma as any).crmHospitalAccount.findFirst({
+      where: { hospitalId, userId, deletedAt: null },
+    })
+    if (!existing) throw new Error('医院账号关系不存在')
+    if (existing.role === 'owner' && role && role !== 'owner' && status !== 0) {
+      const ownerCount = await (prisma as any).crmHospitalAccount.count({
+        where: { hospitalId, role: 'owner', deletedAt: null },
+      })
+      if (ownerCount <= 1) throw new Error('不能取消最后一个负责人身份')
+    }
+
+    // 同步更新 sys_user 上的账号信息(若前端传入)
+    const userUpdates: any = {}
+    if (username !== undefined) userUpdates.username = username
+    if (realName !== undefined) userUpdates.realName = realName
+    if (phone !== undefined) userUpdates.phone = phone
+    if (email !== undefined) userUpdates.email = email
+    if (password !== undefined && password !== '') {
+      const crypto = await import('node:crypto')
+      userUpdates.passwordHash = crypto.createHash('sha256').update(password).digest('hex')
+    }
+    if (Object.keys(userUpdates).length > 0) {
+      if (username !== undefined) {
+        const dup = await (prisma as any).sysUser.findFirst({
+          where: { username, deletedAt: null, NOT: { id: userId } },
+        })
+        if (dup) throw new Error('账号已被其他用户使用')
+      }
+      userUpdates.updaterId = currentUserId
+      await (prisma as any).sysUser.update({ where: { id: userId }, data: userUpdates })
+    }
+
+    return await (prisma as any).crmHospitalAccount.update({
+      where: { id: existing.id },
+      data: {
+        ...(role ? { role } : {}),
+        ...(status !== undefined ? { status: Number(status) } : {}),
+        ...(remark !== undefined ? { remark } : {}),
+        updaterId: currentUserId,
+      },
+    })
+  }
+
+  static async deleteHospitalAccount(hospitalId: number, userId: number, currentUserId: number) {
+    const existing = await (prisma as any).crmHospitalAccount.findFirst({
+      where: { hospitalId, userId, deletedAt: null },
+    })
+    if (!existing) throw new Error('医院账号关系不存在')
+    if (existing.role === 'owner') {
+      const ownerCount = await (prisma as any).crmHospitalAccount.count({
+        where: { hospitalId, role: 'owner', deletedAt: null },
+      })
+      if (ownerCount <= 1) throw new Error('不能解除最后一个负责人')
+    }
+    return await (prisma as any).crmHospitalAccount.update({
+      where: { id: existing.id },
+      data: { deletedAt: new Date(), updaterId: currentUserId },
+    })
   }
 
   static async bindWechatOpenid(hospitalId: number, signature: string, openid: string) {

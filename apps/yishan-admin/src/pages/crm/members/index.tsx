@@ -54,7 +54,7 @@ const MemberPage: React.FC = () => {
           return { data: res.data || [], success: res.success, total: res.pagination?.total || 0 };
         }}
         columns={columns}
-        toolBarRender={() => [<Button key="new" type="primary" icon={<PlusOutlined />} onClick={() => showForm()}>新建会员</Button>]}
+        toolBarRender={() => [<Button key="new" type="primary" icon={<PlusOutlined />} onClick={() => showForm()}>新建</Button>]}
       />
       <Modal title={editing ? '编辑会员' : '新建会员'} open={open} onOk={async () => {
         const values = await form.validateFields();

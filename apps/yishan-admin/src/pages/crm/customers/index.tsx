@@ -62,7 +62,7 @@ const CustomerPage: React.FC = () => {
           return { data: res.data || [], success: res.success, total: res.pagination?.total || 0 };
         }}
         columns={columns}
-        toolBarRender={() => [<Button key="new" type="primary" icon={<PlusOutlined />} onClick={() => showForm()}>新建客户</Button>]}
+        toolBarRender={() => [<Button key="new" type="primary" icon={<PlusOutlined />} onClick={() => showForm()}>新建</Button>]}
       />
       <Modal title={editing ? '编辑客户' : '新建客户'} open={open} onOk={submit} onCancel={() => setOpen(false)} width={820} destroyOnHidden>
         <Form form={form} layout="vertical">

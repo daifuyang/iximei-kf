@@ -26,6 +26,26 @@ export async function searchHospitals(params?: any) {
   return request(`${base}/hospitals/search/options`, { method: 'GET', params });
 }
 
+export async function getHospitalAccounts(hospitalId: number) {
+  return request(`${base}/hospitals/${hospitalId}/accounts`, { method: 'GET' });
+}
+
+export async function createHospitalAccount(hospitalId: number, data: any) {
+  return request(`${base}/hospitals/${hospitalId}/accounts`, { method: 'POST', data });
+}
+
+export async function assignHospitalAccount(hospitalId: number, data: any) {
+  return request(`${base}/hospitals/${hospitalId}/accounts/assign`, { method: 'POST', data });
+}
+
+export async function updateHospitalAccount(hospitalId: number, userId: number, data: any) {
+  return request(`${base}/hospitals/${hospitalId}/accounts/${userId}`, { method: 'PUT', data });
+}
+
+export async function deleteHospitalAccount(hospitalId: number, userId: number) {
+  return request(`${base}/hospitals/${hospitalId}/accounts/${userId}`, { method: 'DELETE' });
+}
+
 export async function getCustomerStatuses() {
   return request(`${base}/customers/statuses`, { method: 'GET' });
 }

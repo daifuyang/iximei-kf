@@ -36,7 +36,8 @@ model CrmHospital {
   deletedAt            DateTime? @map("deleted_at") @db.DateTime(0)
   version              Int       @default(1) @map("version")
 
-  account   SysUser?     @relation("CrmHospitalAccount", fields: [accountUserId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+  account    SysUser?           @relation("CrmHospitalAccountLegacy", fields: [accountUserId], references: [id], onUpdate: NoAction, onDelete: SetNull, map: "fk_crm_hospital_account_user_legacy")
+  accounts   CrmHospitalAccount[] @relation("CrmHospitalAccountHospital")
   dispatches CrmDispatch[]
 
   @@index([hospitalName], map: "idx_crm_hospital_name")
@@ -272,14 +273,38 @@ model CrmRegion {
   @@map("crm_region")
 }
 
+model CrmHospitalAccount {
+  id         Int       @id @default(autoincrement()) @map("id")
+  hospitalId Int       @map("hospital_id")
+  userId     Int       @map("user_id")
+  role       String    @default("member") @map("role") @db.VarChar(20)
+  status     Int       @default(1) @map("status") @db.TinyInt
+  remark     String?   @map("remark") @db.VarChar(255)
+  creatorId  Int       @map("creator_id")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updaterId  Int       @map("updater_id")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt  DateTime? @map("deleted_at") @db.DateTime(0)
+
+  hospital CrmHospital @relation("CrmHospitalAccountHospital", fields: [hospitalId], references: [id], onDelete: Cascade)
+  user     SysUser    @relation("CrmHospitalAccountUser", fields: [userId], references: [id], onDelete: Cascade, map: "fk_crm_hospital_account_user")
+
+  @@unique([hospitalId, userId], map: "uniq_crm_hospital_account")
+  @@index([hospitalId], map: "idx_crm_hospital_account_hospital")
+  @@index([userId], map: "idx_crm_hospital_account_user")
+  @@index([status], map: "idx_crm_hospital_account_status")
+  @@map("crm_hospital_account")
+}
+
 model SysUser {
-  crmHospitalAccount    CrmHospital?            @relation("CrmHospitalAccount")
-  crmCustomersOwned     CrmCustomer[]           @relation("CrmCustomerOwner")
-  crmCustomerRemarks    CrmCustomerRemark[]     @relation("CrmCustomerRemarkUser")
-  crmCustomerBrowses    CrmCustomerBrowse[]     @relation("CrmCustomerBrowseUser")
-  crmDispatchReplies    CrmDispatchReply[]      @relation("CrmDispatchReplyUser")
-  crmDispatchFollowLogs CrmDispatchFollowLog[]  @relation("CrmDispatchFollowLogUser")
-  crmMembersOwned       CrmMemberCustomer[]     @relation("CrmMemberOwner")
-  crmMemberRemarks      CrmMemberRemark[]       @relation("CrmMemberRemarkUser")
-  crmMemberBrowses      CrmMemberBrowse[]       @relation("CrmMemberBrowseUser")
+  crmHospitalAccountLegacy CrmHospital?         @relation("CrmHospitalAccountLegacy")
+  crmHospitalAccounts     CrmHospitalAccount[]  @relation("CrmHospitalAccountUser")
+  crmCustomersOwned       CrmCustomer[]          @relation("CrmCustomerOwner")
+  crmCustomerRemarks      CrmCustomerRemark[]    @relation("CrmCustomerRemarkUser")
+  crmCustomerBrowses      CrmCustomerBrowse[]    @relation("CrmCustomerBrowseUser")
+  crmDispatchReplies      CrmDispatchReply[]     @relation("CrmDispatchReplyUser")
+  crmDispatchFollowLogs   CrmDispatchFollowLog[] @relation("CrmDispatchFollowLogUser")
+  crmMembersOwned         CrmMemberCustomer[]    @relation("CrmMemberOwner")
+  crmMemberRemarks        CrmMemberRemark[]      @relation("CrmMemberRemarkUser")
+  crmMemberBrowses        CrmMemberBrowse[]      @relation("CrmMemberBrowseUser")
 }
