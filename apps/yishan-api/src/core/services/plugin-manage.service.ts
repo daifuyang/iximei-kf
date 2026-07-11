@@ -1,8 +1,8 @@
 import { ResourceErrorCode } from '../../constants/business-codes/resource.js'
 import { BusinessError } from '../../exceptions/business-error.js'
-import { HookEmitReport, PluginRuntime } from '../../plugins-runtime/index.js'
-import { RegisteredPlugin } from '../../plugins-runtime/types.js'
-import { PersistedPluginRuntimeState } from '../../plugins-runtime/persistence.js'
+import { HookEmitReport, PluginRuntime } from '../plugin-runtime/index.js'
+import { RegisteredPlugin } from '../plugin-runtime/types.js'
+import { PersistedPluginRuntimeState } from '../plugin-runtime/persistence.js'
 import { PluginMenuSyncService, type SyncStrategy, type ConflictDetail } from './plugin-menu-sync.service.js'
 
 export interface PluginMenuItemResponse {

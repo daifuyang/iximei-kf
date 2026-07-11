@@ -12,4 +12,4 @@ title: 系统管理
 - 应用管理与插件管理
 - 定时任务说明与令牌配置（`CRON_TOKEN`）
 
-核心实现位于 `src/core/services/*` 与 `src/core/routes/api/v1/admin/*`。插件管理相关能力还依赖 `src/plugins-runtime` 与插件 manifest。
+核心实现位于 `src/core/services/*` 与 `src/core/routes/api/v1/admin/*`。插件管理相关能力还依赖 `src/core/plugin-runtime` 与插件 manifest。

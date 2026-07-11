@@ -14,6 +14,6 @@ title: 插件与中间件
 - Sensible：`src/core/plugins/external/sensible.ts`，通用 HTTP 错误工具
 - 密码策略：`src/core/plugins/app/password-manager.ts`，提供 `passwordManager.hash/compare` 基于 scrypt
 
-业务插件模块位于 `src/plugins/modules/*`，由 `src/plugins-runtime` 负责发现、注册、生命周期和持久化。
+业务插件模块位于 `src/plugins/modules/*`，由 `src/core/plugin-runtime` 负责发现、注册、生命周期和持久化。
 
 结合这些插件，系统提供了统一的类型、鉴权、错误处理、缓存与文档能力。

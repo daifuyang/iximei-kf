@@ -1,13 +1,48 @@
 import Fastify from 'fastify'
-import adminPostsPlugin from '../src/plugins/modules/portal/routes/v1/admin/posts/index.ts'
-import registerPostSchemas from '../src/plugins/modules/portal/schemas/post.ts'
-import registerCommonSchemas from '../src/plugins/modules/portal/schemas/common.ts'
+import { existsSync } from 'node:fs'
 import errorHandlerPlugin from '../src/core/plugins/external/error-handler.ts'
-import { PostService } from '../src/plugins/modules/portal/services/post.service.ts'
-import { ValidationErrorCode } from '../src/plugins/modules/portal/constants/business-codes/validation.ts'
-import { PostErrorCode } from '../src/plugins/modules/portal/constants/business-codes/post.ts'
-import { BusinessError } from '../src/plugins/modules/portal/exceptions/business-error.ts'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
+
+const portalPluginExists = existsSync('src/plugins/modules/portal')
+const portalDescribe = portalPluginExists ? describe : describe.skip
+
+let adminPostsPlugin: any
+let registerPostSchemas: any
+let registerCommonSchemas: any
+let PostService: any
+let ValidationErrorCode: any
+let PostErrorCode: any
+let BusinessError: any
+
+beforeAll(async () => {
+  if (!portalPluginExists) return
+
+  const [
+    adminPostsModule,
+    postSchemasModule,
+    commonSchemasModule,
+    postServiceModule,
+    validationCodesModule,
+    postCodesModule,
+    businessErrorModule,
+  ] = await Promise.all([
+    import('../src/plugins/modules/portal/routes/v1/admin/posts/index.ts'),
+    import('../src/plugins/modules/portal/schemas/post.ts'),
+    import('../src/plugins/modules/portal/schemas/common.ts'),
+    import('../src/plugins/modules/portal/services/post.service.ts'),
+    import('../src/plugins/modules/portal/constants/business-codes/validation.ts'),
+    import('../src/plugins/modules/portal/constants/business-codes/post.ts'),
+    import('../src/plugins/modules/portal/exceptions/business-error.ts'),
+  ])
+
+  adminPostsPlugin = adminPostsModule.default
+  registerPostSchemas = postSchemasModule.default
+  registerCommonSchemas = commonSchemasModule.default
+  PostService = postServiceModule.PostService
+  ValidationErrorCode = validationCodesModule.ValidationErrorCode
+  PostErrorCode = postCodesModule.PostErrorCode
+  BusinessError = businessErrorModule.BusinessError
+})
 
 async function buildApp() {
   const app = Fastify({ logger: false })
@@ -24,7 +59,7 @@ beforeEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('Admin Posts routes', () => {
+portalDescribe('Admin Posts routes', () => {
   it('GET / 应返回分页的岗位列表', async () => {
     const app = await buildApp()
 

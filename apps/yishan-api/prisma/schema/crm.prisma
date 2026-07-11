@@ -38,7 +38,7 @@ model CrmHospital {
   deletedAt            DateTime? @map("deleted_at") @db.DateTime(0)
   version              Int       @default(1) @map("version")
 
-  account    SysUser?      @relation("CrmHospitalAccount", fields: [accountUserId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+  account   SysUser?     @relation("CrmHospitalAccount", fields: [accountUserId], references: [id], onUpdate: NoAction, onDelete: SetNull)
   dispatches CrmDispatch[]
 
   @@index([hospitalName], map: "idx_crm_hospital_name")
@@ -64,32 +64,32 @@ model CrmCustomerStatus {
 }
 
 model CrmCustomer {
-  id          Int       @id @default(autoincrement()) @map("id")
-  numberId    String    @unique @map("number_id") @db.VarChar(20)
-  name        String    @map("name") @db.VarChar(50)
-  gender      Int       @default(0) @map("gender") @db.TinyInt
-  birthday    DateTime? @map("birthday") @db.Date
-  telphone    String?   @map("telphone") @db.VarChar(20)
-  mobile      String?   @map("mobile") @db.VarChar(20)
-  qq          String?   @map("qq") @db.VarChar(20)
-  wechat      String?   @map("wechat") @db.VarChar(50)
-  provinceId  Int?      @map("province_id")
-  cityId      Int?      @map("city_id")
-  districtId  Int?      @map("district_id")
-  address     String?   @map("address") @db.VarChar(255)
-  plastic     String?   @map("plastic") @db.VarChar(255)
-  statusId    Int       @map("status_id")
-  remark      String?   @map("remark") @db.Text
-  ownerUserId Int       @map("owner_user_id")
-  creatorId   Int       @map("creator_id")
-  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(0)
-  updaterId   Int       @map("updater_id")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
-  deletedAt   DateTime? @map("deleted_at") @db.DateTime(0)
-  version     Int       @default(1) @map("version")
+  id           Int       @id @default(autoincrement()) @map("id")
+  numberId     String    @unique @map("number_id") @db.VarChar(20)
+  name         String    @map("name") @db.VarChar(50)
+  gender       Int       @default(0) @map("gender") @db.TinyInt
+  birthday     DateTime? @map("birthday") @db.Date
+  telphone     String?   @map("telphone") @db.VarChar(20)
+  mobile       String?   @map("mobile") @db.VarChar(20)
+  qq           String?   @map("qq") @db.VarChar(20)
+  wechat       String?   @map("wechat") @db.VarChar(50)
+  provinceId   Int?      @map("province_id")
+  cityId       Int?      @map("city_id")
+  districtId   Int?      @map("district_id")
+  address      String?   @map("address") @db.VarChar(255)
+  plastic      String?   @map("plastic") @db.VarChar(255)
+  statusId     Int       @map("status_id")
+  remark       String?   @map("remark") @db.Text
+  ownerUserId  Int       @map("owner_user_id")
+  creatorId    Int       @map("creator_id")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updaterId    Int       @map("updater_id")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt    DateTime? @map("deleted_at") @db.DateTime(0)
+  version      Int       @default(1) @map("version")
 
-  status     CrmCustomerStatus   @relation(fields: [statusId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  owner      SysUser             @relation("CrmCustomerOwner", fields: [ownerUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  status     CrmCustomerStatus @relation(fields: [statusId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  owner      SysUser          @relation("CrmCustomerOwner", fields: [ownerUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   dispatches CrmDispatch[]
   remarks    CrmCustomerRemark[]
   browses    CrmCustomerBrowse[]
@@ -110,7 +110,7 @@ model CrmCustomerRemark {
   createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   customer CrmCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  user     SysUser     @relation("CrmCustomerRemarkUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  user     SysUser    @relation("CrmCustomerRemarkUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([customerId], map: "idx_crm_customer_remark_customer")
   @@index([userId], map: "idx_crm_customer_remark_user")
@@ -125,7 +125,7 @@ model CrmCustomerBrowse {
   createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   customer CrmCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  user     SysUser     @relation("CrmCustomerBrowseUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  user     SysUser    @relation("CrmCustomerBrowseUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([customerId], map: "idx_crm_customer_browse_customer")
   @@index([userId], map: "idx_crm_customer_browse_user")
@@ -163,9 +163,9 @@ model CrmDispatch {
   deletedAt     DateTime? @map("deleted_at") @db.DateTime(0)
   version       Int       @default(1) @map("version")
 
-  customer CrmCustomer            @relation(fields: [customerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  hospital CrmHospital            @relation(fields: [hospitalId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  status   CrmDispatchStatus      @relation(fields: [statusId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  customer CrmCustomer       @relation(fields: [customerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  hospital CrmHospital       @relation(fields: [hospitalId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  status   CrmDispatchStatus @relation(fields: [statusId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   replies  CrmDispatchReply[]
   logs     CrmDispatchFollowLog[]
 
@@ -185,7 +185,7 @@ model CrmDispatchReply {
   createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   dispatch CrmDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
-  user     SysUser     @relation("CrmDispatchReplyUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  user     SysUser    @relation("CrmDispatchReplyUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([dispatchId], map: "idx_crm_dispatch_reply_dispatch")
   @@index([userId], map: "idx_crm_dispatch_reply_user")
@@ -200,7 +200,7 @@ model CrmDispatchFollowLog {
   createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   dispatch CrmDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
-  user     SysUser     @relation("CrmDispatchFollowLogUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  user     SysUser    @relation("CrmDispatchFollowLogUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([dispatchId], map: "idx_crm_dispatch_log_dispatch")
   @@index([userId], map: "idx_crm_dispatch_log_user")
@@ -224,7 +224,7 @@ model CrmMemberCustomer {
   deletedAt   DateTime? @map("deleted_at") @db.DateTime(0)
   version     Int       @default(1) @map("version")
 
-  owner   SysUser           @relation("CrmMemberOwner", fields: [ownerUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  owner   SysUser          @relation("CrmMemberOwner", fields: [ownerUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
   remarks CrmMemberRemark[]
   browses CrmMemberBrowse[]
 
@@ -243,7 +243,7 @@ model CrmMemberRemark {
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   member CrmMemberCustomer @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  user   SysUser           @relation("CrmMemberRemarkUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  user   SysUser          @relation("CrmMemberRemarkUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([memberId], map: "idx_crm_member_remark_member")
   @@index([userId], map: "idx_crm_member_remark_user")
@@ -258,7 +258,7 @@ model CrmMemberBrowse {
   createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
 
   member CrmMemberCustomer @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  user   SysUser           @relation("CrmMemberBrowseUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  user   SysUser          @relation("CrmMemberBrowseUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([memberId], map: "idx_crm_member_browse_member")
   @@index([userId], map: "idx_crm_member_browse_user")

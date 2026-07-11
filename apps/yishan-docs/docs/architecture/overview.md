@@ -32,8 +32,8 @@ apps/yishan-api/src
 │  ├─ routes/       # 核心 API 路由：认证、用户、角色、菜单、系统配置等
 │  ├─ schemas/      # TypeBox schema
 │  ├─ services/     # 核心领域服务
-│  └─ models/       # Prisma 访问封装
-├─ plugins-runtime/ # 插件运行时：发现、注册、生命周期、持久化
+│  ├─ models/       # Prisma 访问封装
+│  └─ plugin-runtime/ # 插件运行时：发现、注册、生命周期、持久化
 ├─ plugins/modules/ # 业务插件模块，如 portal、hello
 ├─ config/
 ├─ constants/

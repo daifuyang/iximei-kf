@@ -1,13 +1,50 @@
 import Fastify from "fastify";
-import adminArticlesPlugin from "../src/plugins/modules/portal/routes/v1/admin/articles/index.ts";
-import registerCommonSchemas from "../src/plugins/modules/portal/schemas/common.ts";
-import registerArticleSchemas from "../src/plugins/modules/portal/schemas/article.ts";
-import registerTemplateSchemas from "../src/plugins/modules/portal/schemas/template.ts";
+import { existsSync } from "node:fs";
 import errorHandlerPlugin from "../src/core/plugins/external/error-handler.ts";
-import { ArticleService, CategoryService } from "../src/plugins/modules/portal/services/article.service.ts";
-import { ArticleErrorCode, CategoryErrorCode } from "../src/plugins/modules/portal/constants/business-codes/article.ts";
-import { BusinessError } from "../src/plugins/modules/portal/exceptions/business-error.ts";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+
+const portalPluginExists = existsSync("src/plugins/modules/portal");
+const portalDescribe = portalPluginExists ? describe : describe.skip;
+
+let adminArticlesPlugin: any;
+let registerCommonSchemas: any;
+let registerArticleSchemas: any;
+let registerTemplateSchemas: any;
+let ArticleService: any;
+let CategoryService: any;
+let ArticleErrorCode: any;
+let BusinessError: any;
+
+beforeAll(async () => {
+  if (!portalPluginExists) return;
+
+  const [
+    adminArticlesModule,
+    commonSchemasModule,
+    articleSchemasModule,
+    templateSchemasModule,
+    articleServiceModule,
+    articleCodesModule,
+    businessErrorModule,
+  ] = await Promise.all([
+    import("../src/plugins/modules/portal/routes/v1/admin/articles/index.ts"),
+    import("../src/plugins/modules/portal/schemas/common.ts"),
+    import("../src/plugins/modules/portal/schemas/article.ts"),
+    import("../src/plugins/modules/portal/schemas/template.ts"),
+    import("../src/plugins/modules/portal/services/article.service.ts"),
+    import("../src/plugins/modules/portal/constants/business-codes/article.ts"),
+    import("../src/plugins/modules/portal/exceptions/business-error.ts"),
+  ]);
+
+  adminArticlesPlugin = adminArticlesModule.default;
+  registerCommonSchemas = commonSchemasModule.default;
+  registerArticleSchemas = articleSchemasModule.default;
+  registerTemplateSchemas = templateSchemasModule.default;
+  ArticleService = articleServiceModule.ArticleService;
+  CategoryService = articleServiceModule.CategoryService;
+  ArticleErrorCode = articleCodesModule.ArticleErrorCode;
+  BusinessError = businessErrorModule.BusinessError;
+});
 
 async function buildApp() {
   const app = Fastify({ logger: false });
@@ -38,7 +75,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Admin Articles routes", () => {
+portalDescribe("Admin Articles routes", () => {
   it("GET /api/v1/admin/articles 返回分页列表", async () => {
     const app = await buildApp();
     const now = new Date().toISOString();

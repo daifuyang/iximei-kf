@@ -21,7 +21,7 @@ apps/yishan-api/src/plugins/modules/<module-name>/
 启动时 `src/app.ts` 会：
 
 - 扫描 `src/plugins/modules/*/manifest.ts`
-- 注册 manifest 到 `plugins-runtime`
+- 注册 manifest 到 `src/core/plugin-runtime`
 - 执行 load/enable 生命周期
 - 同步插件菜单到系统菜单
 - 将插件状态持久化到插件相关表

@@ -1,9 +1,16 @@
 import { SysOptionModel } from "../models/sys-option.model.js";
-import { PortalTemplateModel } from "../../plugins/modules/portal/models/portal-template.model.js";
 import { BusinessError } from "../../exceptions/business-error.js";
 import { TemplateErrorCode } from "../../constants/business-codes/template.js";
 
 export type SystemOptionKey = string;
+
+interface PortalTemplateRecord {
+  type: number;
+}
+
+interface PortalTemplateModelLike {
+  getTemplateRawById(id: number): Promise<PortalTemplateRecord | null>;
+}
 
 const safeParseJsonObject = (text: string | null | undefined): Record<string, any> | null => {
   if (typeof text !== "string") return null;
@@ -26,6 +33,41 @@ const sanitizeQiniuConfigValue = (value: string | null): string | null => {
   return JSON.stringify(out);
 };
 
+const loadPortalTemplateModel = (): PortalTemplateModelLike | null => {
+  const modelPath = "../../plugins/modules/portal/models/portal-template.model.js";
+
+  try {
+    require.resolve(modelPath);
+  } catch (error: any) {
+    if (error?.code === "MODULE_NOT_FOUND") return null;
+    throw error;
+  }
+
+  const mod = require(modelPath) as {
+    PortalTemplateModel?: PortalTemplateModelLike;
+  };
+  return mod.PortalTemplateModel ?? null;
+};
+
+const validateDefaultTemplateOption = async (key: SystemOptionKey, value: string) => {
+  if (key !== "defaultArticleTemplateId" && key !== "defaultPageTemplateId") return;
+
+  const portalTemplateModel = loadPortalTemplateModel();
+  if (!portalTemplateModel) {
+    throw new BusinessError(TemplateErrorCode.TEMPLATE_NOT_FOUND, "模板功能不可用");
+  }
+
+  const num = parseInt(String(value), 10);
+  const t = await portalTemplateModel.getTemplateRawById(num);
+  if (!t) throw new BusinessError(TemplateErrorCode.TEMPLATE_NOT_FOUND, "模板不存在");
+  if (key === "defaultArticleTemplateId" && t.type !== 1) {
+    throw new BusinessError(TemplateErrorCode.TEMPLATE_TYPE_MISMATCH, "模板类型不匹配：需要文章模板");
+  }
+  if (key === "defaultPageTemplateId" && t.type !== 2) {
+    throw new BusinessError(TemplateErrorCode.TEMPLATE_TYPE_MISMATCH, "模板类型不匹配：需要页面模板");
+  }
+};
+
 export class SystemOptionService {
   static async getOption(key: SystemOptionKey): Promise<string | null> {
     return await SysOptionModel.getOptionValue(key);
@@ -38,18 +80,7 @@ export class SystemOptionService {
   }
 
   static async setOption(key: SystemOptionKey, value: string, userId: number): Promise<string> {
-    // 针对模板类参数进行严格校验
-    if (key === "defaultArticleTemplateId" || key === "defaultPageTemplateId") {
-      const num = parseInt(String(value), 10);
-      const t = await PortalTemplateModel.getTemplateRawById(num);
-      if (!t) throw new BusinessError(TemplateErrorCode.TEMPLATE_NOT_FOUND, "模板不存在");
-      if (key === "defaultArticleTemplateId" && t.type !== 1) {
-        throw new BusinessError(TemplateErrorCode.TEMPLATE_TYPE_MISMATCH, "模板类型不匹配：需要文章模板");
-      }
-      if (key === "defaultPageTemplateId" && t.type !== 2) {
-        throw new BusinessError(TemplateErrorCode.TEMPLATE_TYPE_MISMATCH, "模板类型不匹配：需要页面模板");
-      }
-    }
+    await validateDefaultTemplateOption(key, value);
 
     if (key === "qiniuConfig") {
       const currentRaw = await SysOptionModel.getOptionValue(key);

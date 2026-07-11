@@ -1,5 +1,5 @@
 import { prismaManager } from '../../utils/prisma.js'
-import { PluginManifest, PluginMenuItem } from '../../plugins-runtime/types.js'
+import { PluginManifest, PluginMenuItem } from '../plugin-runtime/types.js'
 
 export type SyncStrategy = 'strict' | 'safe'
 

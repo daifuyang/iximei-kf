@@ -1,10 +1,10 @@
 import 'dotenv/config'
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path';
 import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload'
 import { FastifyPluginAsync, FastifyServerOptions } from 'fastify'
-import { createPluginRuntime } from './plugins-runtime'
-import type { PluginRuntime } from './plugins-runtime'
+import { createPluginRuntime, DEFAULT_DISABLED_PLUGIN_MODULES, listPluginModules } from './core/plugin-runtime'
+import type { PluginRuntime } from './core/plugin-runtime'
 import { PluginMenuSyncService } from './core/services/plugin-menu-sync.service.js'
 import { PLUGIN_ADMIN_CONFIG } from './config/index.js'
 import { prismaManager } from './utils/prisma.js'
@@ -17,7 +17,7 @@ const options: AppOptions = {
   pluginTimeout: Number(process.env.FASTIFY_PLUGIN_TIMEOUT) || 60000,
 }
 
-const disabledPluginModules = new Set(['hello', 'portal', 'shop', 'kf'])
+const disabledPluginModules = new Set<string>(DEFAULT_DISABLED_PLUGIN_MODULES)
 const disabledPluginMenuNames = Array.from(disabledPluginModules)
 const pluginAdminMenuPath = '/system/plugins'
 
@@ -127,12 +127,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
 
   const modulesDir = join(__dirname, 'plugins/modules')
   if (existsSync(modulesDir)) {
-    const moduleNames = readdirSync(modulesDir)
-      .filter((name) => statSync(join(modulesDir, name)).isDirectory())
-      .filter((name) => !disabledPluginModules.has(name))
-
-    for (const moduleName of moduleNames) {
-      const moduleRoot = join(modulesDir, moduleName)
+    for (const { moduleName, moduleRoot } of listPluginModules(modulesDir, disabledPluginModules)) {
       const moduleExternalPlugins = join(moduleRoot, 'plugins/external')
       const moduleAppPlugins = join(moduleRoot, 'plugins/app')
       const moduleRoutes = join(moduleRoot, 'routes')
