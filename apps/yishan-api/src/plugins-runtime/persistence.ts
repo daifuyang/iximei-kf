@@ -30,6 +30,51 @@ function mapManifestToRecord(manifest: PluginManifest): PluginPersistenceRecord 
 export class PluginPersistenceRepository {
   constructor(private readonly client: PluginClient = prismaManager.getClient()) {}
 
+  async deletePluginsExcept(keepPluginIds: string[], keepNames: string[]): Promise<number> {
+    const plugins = await this.client.sysPlugin.findMany({
+      where: {
+        NOT: {
+          OR: [
+            { pluginId: { in: keepPluginIds } },
+            { name: { in: keepNames } }
+          ]
+        }
+      },
+      select: { id: true }
+    })
+
+    const pluginIds = plugins.map((plugin) => plugin.id)
+    if (pluginIds.length === 0) {
+      return 0
+    }
+
+    const installs = await this.client.sysPluginInstall.findMany({
+      where: { pluginId: { in: pluginIds } },
+      select: { id: true }
+    })
+    const installIds = installs.map((install) => install.id)
+
+    await this.client.$transaction([
+      this.client.sysPluginSyncLog.deleteMany({
+        where: { pluginInstallId: { in: installIds } }
+      }),
+      this.client.sysPluginInstall.deleteMany({
+        where: { pluginId: { in: pluginIds } }
+      }),
+      this.client.sysPluginConfigSnapshot.deleteMany({
+        where: { pluginId: { in: pluginIds } }
+      }),
+      this.client.sysPluginVersion.deleteMany({
+        where: { pluginId: { in: pluginIds } }
+      }),
+      this.client.sysPlugin.deleteMany({
+        where: { id: { in: pluginIds } }
+      })
+    ])
+
+    return pluginIds.length
+  }
+
   async upsertManifest(manifest: PluginManifest): Promise<void> {
     const data = mapManifestToRecord(manifest)
 
@@ -265,6 +310,15 @@ export class PluginPersistenceService {
       await this.repository.updateRuntimeState(pluginId, name, state, enabled, error)
     } catch (persistError) {
       this.markDegraded(persistError, 'update runtime state failed')
+    }
+  }
+
+  async deletePluginsExcept(keepPluginIds: string[], keepNames: string[]): Promise<number> {
+    try {
+      return await this.repository.deletePluginsExcept(keepPluginIds, keepNames)
+    } catch (error) {
+      this.markDegraded(error, 'delete stale plugin records failed')
+      return 0
     }
   }
 

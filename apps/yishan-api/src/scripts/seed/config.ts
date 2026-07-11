@@ -202,7 +202,7 @@ export const systemMenusSeed: MenuSeedNode = {
   name: '系统管理',
   path: '/system',
   type: 0,
-  sortOrder: 1,
+  sortOrder: 999,
   icon: 'setting',
   children: [
     { name: '用户管理', path: '/system/user', type: 1, sortOrder: 1, component: './system/user' },
@@ -220,7 +220,13 @@ export const systemMenusSeed: MenuSeedNode = {
 };
 
 export const sysOptionsSeed: SysOptionSeed[] = [
-  { key: 'basicConfig', value: '{}' }, // 站点基本配置
+  {
+    key: 'basicConfig',
+    value: JSON.stringify({
+      siteName: '熙爱美客服派单系统',
+      siteTitle: '熙爱美客服派单系统',
+    }),
+  },
   { key: 'systemStorage', value: '0' },
   { key: 'qiniuConfig', value: '{}' },
   { key: 'aliyunOssConfig', value: '{}' },

@@ -18,7 +18,7 @@ export default function BrandLogo() {
           color: '#1D2129',
         }}
       >
-        「移山」
+        熙爱美
       </span>
     </div>
   );

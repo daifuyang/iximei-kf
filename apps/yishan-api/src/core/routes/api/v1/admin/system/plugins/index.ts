@@ -2,16 +2,23 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ResponseUtil } from '../../../../../../../utils/response.js'
 import { PluginManageService } from '../../../../../../services/plugin-manage.service.js'
 import { SyncStrategy } from '../../../../../../services/plugin-menu-sync.service.js'
+import { PLUGIN_ADMIN_CONFIG } from '../../../../../../../config/index.js'
+import { ResourceErrorCode } from '../../../../../../../constants/business-codes/resource.js'
 
 const VALID_STRATEGIES: SyncStrategy[] = ['strict', 'safe']
 
 const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   const getService = () => new PluginManageService(fastify.pluginRuntime)
+  const pluginAdminGuard = async (_request: unknown, reply: Parameters<typeof ResponseUtil.error>[0]) => {
+    if (!PLUGIN_ADMIN_CONFIG.enabled) {
+      return ResponseUtil.error(reply, ResourceErrorCode.RESOURCE_NOT_FOUND, '插件管理仅开发环境开放')
+    }
+  }
 
   fastify.get(
     '/hooks/reports',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '获取插件 Hook 执行报告',
         tags: ['system']
@@ -27,7 +34,7 @@ const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '获取插件列表',
         tags: ['system']
@@ -42,7 +49,7 @@ const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/:name',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '获取插件详情',
         tags: ['system']
@@ -57,7 +64,7 @@ const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/:name/sync-logs',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '获取插件菜单同步历史',
         tags: ['system']
@@ -74,7 +81,7 @@ const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/:name/enable',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '启用插件（可选 syncStrategy: strict | safe）',
         tags: ['system']
@@ -92,7 +99,7 @@ const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/:name/sync',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '手动同步插件菜单（插件需已启用）',
         tags: ['system']
@@ -110,7 +117,7 @@ const adminSystemPlugins: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     '/:name/disable',
     {
-      preHandler: fastify.authenticate,
+      preHandler: [fastify.authenticate, pluginAdminGuard],
       schema: {
         summary: '停用插件',
         tags: ['system']

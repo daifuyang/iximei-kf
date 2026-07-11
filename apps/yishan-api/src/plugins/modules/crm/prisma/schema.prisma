@@ -1,0 +1,285 @@
+// Iximei CRM domain.
+
+model CrmHospital {
+  id                   Int       @id @default(autoincrement()) @map("id")
+  accountUserId        Int?      @unique @map("account_user_id")
+  hospitalName         String    @unique @map("hospital_name") @db.VarChar(100)
+  provinceId           Int?      @map("province_id")
+  cityId               Int?      @map("city_id")
+  districtId           Int?      @map("district_id")
+  hospitalAddress      String?   @map("hospital_address") @db.VarChar(255)
+  hospitalPhone        String?   @map("hospital_phone") @db.VarChar(50)
+  hospitalSelling      String?   @map("hospital_selling") @db.VarChar(255)
+  hospitalWebsite      String?   @map("hospital_website") @db.VarChar(255)
+  hospitalNature       Int       @default(-1) @map("hospital_nature") @db.TinyInt
+  doctorName           String?   @map("doctor_name") @db.VarChar(50)
+  doctorPhone          String?   @map("doctor_phone") @db.VarChar(50)
+  doctorQq             String?   @map("doctor_qq") @db.VarChar(50)
+  receptionName        String?   @map("reception_name") @db.VarChar(50)
+  receptionPhone       String?   @map("reception_phone") @db.VarChar(50)
+  receptionQq          String?   @map("reception_qq") @db.VarChar(50)
+  busStation           String?   @map("bus_station") @db.VarChar(100)
+  busAddress           String?   @map("bus_address") @db.VarChar(255)
+  subwayStation        String?   @map("subway_station") @db.VarChar(100)
+  subwayAddress        String?   @map("subway_address") @db.VarChar(255)
+  taxiFare             String?   @map("taxi_fare") @db.VarChar(50)
+  vipDiscount          String?   @map("vip_discount") @db.VarChar(255)
+  returnPoint          String?   @map("return_point") @db.VarChar(50)
+  hospitalIntroduction String?   @map("hospital_introduction") @db.Text
+  contractPhotos       Json?     @map("contract_photos")
+  wechatOpenid         String?   @map("wechat_openid") @db.VarChar(64)
+  status               Int       @default(1) @map("status") @db.TinyInt
+  creatorId            Int       @map("creator_id")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updaterId            Int       @map("updater_id")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt            DateTime? @map("deleted_at") @db.DateTime(0)
+  version              Int       @default(1) @map("version")
+
+  account   SysUser?     @relation("CrmHospitalAccount", fields: [accountUserId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+  dispatches CrmDispatch[]
+
+  @@index([hospitalName], map: "idx_crm_hospital_name")
+  @@index([provinceId, cityId, districtId], map: "idx_crm_hospital_region")
+  @@index([status], map: "idx_crm_hospital_status")
+  @@index([deletedAt], map: "idx_crm_hospital_deleted_at")
+  @@map("crm_hospital")
+}
+
+model CrmCustomerStatus {
+  id        Int      @id @default(autoincrement()) @map("id")
+  name      String   @map("name") @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+  status    Int      @default(1) @map("status") @db.TinyInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  customers CrmCustomer[]
+
+  @@unique([name], map: "uniq_crm_customer_status_name")
+  @@index([status, sortOrder], map: "idx_crm_customer_status")
+  @@map("crm_customer_status")
+}
+
+model CrmCustomer {
+  id           Int       @id @default(autoincrement()) @map("id")
+  numberId     String    @unique @map("number_id") @db.VarChar(20)
+  name         String    @map("name") @db.VarChar(50)
+  gender       Int       @default(0) @map("gender") @db.TinyInt
+  birthday     DateTime? @map("birthday") @db.Date
+  telphone     String?   @map("telphone") @db.VarChar(20)
+  mobile       String?   @map("mobile") @db.VarChar(20)
+  qq           String?   @map("qq") @db.VarChar(20)
+  wechat       String?   @map("wechat") @db.VarChar(50)
+  provinceId   Int?      @map("province_id")
+  cityId       Int?      @map("city_id")
+  districtId   Int?      @map("district_id")
+  address      String?   @map("address") @db.VarChar(255)
+  plastic      String?   @map("plastic") @db.VarChar(255)
+  statusId     Int       @map("status_id")
+  remark       String?   @map("remark") @db.Text
+  ownerUserId  Int       @map("owner_user_id")
+  creatorId    Int       @map("creator_id")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updaterId    Int       @map("updater_id")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt    DateTime? @map("deleted_at") @db.DateTime(0)
+  version      Int       @default(1) @map("version")
+
+  status     CrmCustomerStatus @relation(fields: [statusId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  owner      SysUser          @relation("CrmCustomerOwner", fields: [ownerUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  dispatches CrmDispatch[]
+  remarks    CrmCustomerRemark[]
+  browses    CrmCustomerBrowse[]
+
+  @@index([ownerUserId], map: "idx_crm_customer_owner")
+  @@index([statusId], map: "idx_crm_customer_status")
+  @@index([mobile], map: "idx_crm_customer_mobile")
+  @@index([createdAt], map: "idx_crm_customer_created")
+  @@index([deletedAt], map: "idx_crm_customer_deleted_at")
+  @@map("crm_customer")
+}
+
+model CrmCustomerRemark {
+  id         Int      @id @default(autoincrement()) @map("id")
+  customerId Int      @map("customer_id")
+  userId     Int      @map("user_id")
+  content    String   @map("content") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  customer CrmCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     SysUser    @relation("CrmCustomerRemarkUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([customerId], map: "idx_crm_customer_remark_customer")
+  @@index([userId], map: "idx_crm_customer_remark_user")
+  @@map("crm_customer_remark")
+}
+
+model CrmCustomerBrowse {
+  id         Int      @id @default(autoincrement()) @map("id")
+  customerId Int      @map("customer_id")
+  userId     Int      @map("user_id")
+  action     String   @default("view") @map("action") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  customer CrmCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     SysUser    @relation("CrmCustomerBrowseUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([customerId], map: "idx_crm_customer_browse_customer")
+  @@index([userId], map: "idx_crm_customer_browse_user")
+  @@map("crm_customer_browse")
+}
+
+model CrmDispatchStatus {
+  id        Int      @id @default(autoincrement()) @map("id")
+  name      String   @map("name") @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+  status    Int      @default(1) @map("status") @db.TinyInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  dispatches CrmDispatch[]
+
+  @@unique([name], map: "uniq_crm_dispatch_status_name")
+  @@index([status, sortOrder], map: "idx_crm_dispatch_status")
+  @@map("crm_dispatch_status")
+}
+
+model CrmDispatch {
+  id            Int       @id @default(autoincrement()) @map("id")
+  customerId    Int       @map("customer_id")
+  hospitalId    Int       @map("hospital_id")
+  statusId      Int       @map("status_id")
+  image         String?   @map("image") @db.VarChar(500)
+  receiveQq     String?   @map("receive_qq") @db.VarChar(50)
+  receiveWechat String?   @map("receive_wechat") @db.VarChar(50)
+  finishedAt    DateTime? @map("finished_at") @db.DateTime(0)
+  creatorId     Int       @map("creator_id")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updaterId     Int       @map("updater_id")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt     DateTime? @map("deleted_at") @db.DateTime(0)
+  version       Int       @default(1) @map("version")
+
+  customer CrmCustomer       @relation(fields: [customerId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  hospital CrmHospital       @relation(fields: [hospitalId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  status   CrmDispatchStatus @relation(fields: [statusId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  replies  CrmDispatchReply[]
+  logs     CrmDispatchFollowLog[]
+
+  @@index([customerId], map: "idx_crm_dispatch_customer")
+  @@index([hospitalId], map: "idx_crm_dispatch_hospital")
+  @@index([statusId], map: "idx_crm_dispatch_status")
+  @@index([createdAt], map: "idx_crm_dispatch_created")
+  @@index([deletedAt], map: "idx_crm_dispatch_deleted_at")
+  @@map("crm_dispatch")
+}
+
+model CrmDispatchReply {
+  id         Int      @id @default(autoincrement()) @map("id")
+  dispatchId Int      @map("dispatch_id")
+  userId     Int      @map("user_id")
+  content    String   @map("content") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  dispatch CrmDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  user     SysUser    @relation("CrmDispatchReplyUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([dispatchId], map: "idx_crm_dispatch_reply_dispatch")
+  @@index([userId], map: "idx_crm_dispatch_reply_user")
+  @@map("crm_dispatch_reply")
+}
+
+model CrmDispatchFollowLog {
+  id         Int      @id @default(autoincrement()) @map("id")
+  dispatchId Int      @map("dispatch_id")
+  userId     Int      @map("user_id")
+  content    String   @map("content") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  dispatch CrmDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  user     SysUser    @relation("CrmDispatchFollowLogUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([dispatchId], map: "idx_crm_dispatch_log_dispatch")
+  @@index([userId], map: "idx_crm_dispatch_log_user")
+  @@map("crm_dispatch_follow_log")
+}
+
+model CrmMemberCustomer {
+  id          Int       @id @default(autoincrement()) @map("id")
+  numberId    String    @unique @map("number_id") @db.VarChar(20)
+  name        String    @map("name") @db.VarChar(50)
+  gender      Int       @default(0) @map("gender") @db.TinyInt
+  birthday    DateTime? @map("birthday") @db.Date
+  address     String?   @map("address") @db.VarChar(255)
+  mobile      String?   @map("mobile") @db.VarChar(20)
+  project     String?   @map("project") @db.VarChar(255)
+  ownerUserId Int       @map("owner_user_id")
+  creatorId   Int       @map("creator_id")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updaterId   Int       @map("updater_id")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt   DateTime? @map("deleted_at") @db.DateTime(0)
+  version     Int       @default(1) @map("version")
+
+  owner   SysUser          @relation("CrmMemberOwner", fields: [ownerUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  remarks CrmMemberRemark[]
+  browses CrmMemberBrowse[]
+
+  @@index([ownerUserId], map: "idx_crm_member_owner")
+  @@index([mobile], map: "idx_crm_member_mobile")
+  @@index([createdAt], map: "idx_crm_member_created")
+  @@index([deletedAt], map: "idx_crm_member_deleted_at")
+  @@map("crm_member_customer")
+}
+
+model CrmMemberRemark {
+  id        Int      @id @default(autoincrement()) @map("id")
+  memberId  Int      @map("member_id")
+  userId    Int      @map("user_id")
+  content   String   @map("content") @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  member CrmMemberCustomer @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user   SysUser          @relation("CrmMemberRemarkUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([memberId], map: "idx_crm_member_remark_member")
+  @@index([userId], map: "idx_crm_member_remark_user")
+  @@map("crm_member_remark")
+}
+
+model CrmMemberBrowse {
+  id        Int      @id @default(autoincrement()) @map("id")
+  memberId  Int      @map("member_id")
+  userId    Int      @map("user_id")
+  action    String   @default("view") @map("action") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  member CrmMemberCustomer @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user   SysUser          @relation("CrmMemberBrowseUser", fields: [userId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([memberId], map: "idx_crm_member_browse_member")
+  @@index([userId], map: "idx_crm_member_browse_user")
+  @@map("crm_member_browse")
+}
+
+model CrmRegion {
+  areaId   Int    @id @map("area_id")
+  areaName String @map("area_name") @db.VarChar(50)
+  parentId Int    @default(0) @map("parent_id")
+
+  @@index([parentId], map: "idx_crm_region_parent")
+  @@map("crm_region")
+}
+
+model SysUser {
+  crmHospitalAccount    CrmHospital?            @relation("CrmHospitalAccount")
+  crmCustomersOwned     CrmCustomer[]           @relation("CrmCustomerOwner")
+  crmCustomerRemarks    CrmCustomerRemark[]     @relation("CrmCustomerRemarkUser")
+  crmCustomerBrowses    CrmCustomerBrowse[]     @relation("CrmCustomerBrowseUser")
+  crmDispatchReplies    CrmDispatchReply[]      @relation("CrmDispatchReplyUser")
+  crmDispatchFollowLogs CrmDispatchFollowLog[]  @relation("CrmDispatchFollowLogUser")
+  crmMembersOwned       CrmMemberCustomer[]     @relation("CrmMemberOwner")
+  crmMemberRemarks      CrmMemberRemark[]       @relation("CrmMemberRemarkUser")
+  crmMemberBrowses      CrmMemberBrowse[]       @relation("CrmMemberBrowseUser")
+}

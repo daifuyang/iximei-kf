@@ -13,11 +13,11 @@ async function buildApp() {
   })
 
   const runtime = createPluginRuntime()
-  runtime.register({ pluginId: 'test/demo-plugin', name: 'demo-plugin', version: '1.0.0', coreCompatibility: '^1.0.0' })
-  runtime.lifecycle.load('demo-plugin')
-  runtime.lifecycle.enable('demo-plugin')
-  await runtime.persistence.syncManifest({ pluginId: 'test/demo-plugin', name: 'demo-plugin', version: '1.0.0', coreCompatibility: '^1.0.0' })
-  await runtime.persistence.updateRuntimeState('test/demo-plugin', 'demo-plugin', 'enabled', true)
+  runtime.register({ pluginId: 'iximei/crm', name: 'crm', version: '1.0.0', coreCompatibility: '^1.0.0' })
+  runtime.lifecycle.load('crm')
+  runtime.lifecycle.enable('crm')
+  await runtime.persistence.syncManifest({ pluginId: 'iximei/crm', name: 'crm', version: '1.0.0', coreCompatibility: '^1.0.0' })
+  await runtime.persistence.updateRuntimeState('iximei/crm', 'crm', 'enabled', true)
   runtime.hooks.on('plugin:test', async () => undefined)
   await runtime.hooks.emit({ name: 'plugin:test', payload: { ok: true } })
 
@@ -40,16 +40,17 @@ describe('Admin system plugins routes', () => {
     const body = res.json()
     expect(body.success).toBe(true)
     expect(Array.isArray(body.data)).toBe(true)
-    expect(body.data[0].name).toBe('demo-plugin')
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].name).toBe('crm')
 
     await app.close()
   })
 
   it('GET /:name returns details and missing returns not found', async () => {
     const app = await buildApp()
-    const ok = await app.inject({ method: 'GET', url: '/demo-plugin' })
+    const ok = await app.inject({ method: 'GET', url: '/crm' })
     expect(ok.statusCode).toBe(200)
-    expect(ok.json().data.name).toBe('demo-plugin')
+    expect(ok.json().data.name).toBe('crm')
 
     const missing = await app.inject({ method: 'GET', url: '/missing-plugin' })
     expect(missing.statusCode).toBe(404)
@@ -61,12 +62,12 @@ describe('Admin system plugins routes', () => {
   it('POST /:name/enable and /disable toggle plugin', async () => {
     const app = await buildApp()
 
-    const disabled = await app.inject({ method: 'POST', url: '/demo-plugin/disable' })
+    const disabled = await app.inject({ method: 'POST', url: '/crm/disable' })
     expect(disabled.statusCode).toBe(200)
     expect(disabled.json().data.state).toBe('disabled')
     expect(disabled.json().data.enabled).toBe(false)
 
-    const enabled = await app.inject({ method: 'POST', url: '/demo-plugin/enable' })
+    const enabled = await app.inject({ method: 'POST', url: '/crm/enable' })
     expect(enabled.statusCode).toBe(200)
     expect(enabled.json().data.state).toBe('enabled')
     expect(enabled.json().data.enabled).toBe(true)

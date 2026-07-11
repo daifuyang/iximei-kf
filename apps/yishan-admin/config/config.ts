@@ -110,7 +110,7 @@ export default defineConfig({
    * @name layout 插件
    * @doc https://umijs.org/docs/max/layout-menu
    */
-  title: '移山后台管理系统',
+  title: '熙爱美客服派单系统',
   layout: {
     locale: true,
     ...defaultSettings,

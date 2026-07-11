@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "npm run build:ts && fastify start -l info dist/app.js",
-    "build:ts": "tsc && tsc-alias",
+    "build:ts": "node scripts/clean-stale-plugin-dist.mjs && tsc && tsc-alias",
     "watch:ts": "concurrently -k \"tsc -w\" \"tsc-alias -w\"",
     "dev": "npm run build:ts && concurrently -k -p \"[{name}]\" -n \"TypeScript,App\" -c \"yellow.bold,cyan.bold\" \"npm:watch:ts\" \"npm:dev:start\"",
     "dev:start": "fastify start --ignore-watch='public/**' --ignore-watch=.ts$ -w -l info -P dist/app.js",

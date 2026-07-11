@@ -20,6 +20,7 @@ import { seedDicts } from './modules/system-dict.js';
 import { seedPortalCategories, seedPortalArticles, seedPortalPages } from './modules/portal-content.js';
 import { seedPortalTemplates } from './modules/portal-template.js';
 import { seedSysOptions } from './modules/system-option.js';
+import { seedCrm } from './modules/crm.js';
 
 export async function runSeed(prisma: PrismaClient) {
   console.log('开始执行种子数据脚本...');
@@ -38,7 +39,7 @@ export async function runSeed(prisma: PrismaClient) {
   await seedPortalPages(prisma, adminUser.id, portalPagesSeed);
   await seedPortalTemplates(prisma, adminUser.id, portalTemplatesSeed);
   await seedPortalArticles(prisma, adminUser.id, portalArticlesSeed, categorySlugToId);
+  await seedCrm(prisma, adminUser.id);
 
   console.log('种子数据创建完成');
 }
-

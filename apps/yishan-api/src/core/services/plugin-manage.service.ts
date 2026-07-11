@@ -39,9 +39,13 @@ export class PluginManageService {
   constructor(private readonly runtime: PluginRuntime) {}
 
   async listPlugins(): Promise<PluginManageItem[]> {
-    const dbStates = await this.runtime.persistence.listRuntimeStates()
+    const dbStates = (await this.runtime.persistence.listRuntimeStates()).filter((item) =>
+      this.isManagedPlugin(item.name, item.pluginId)
+    )
     const dbMap = new Map(dbStates.map((item) => [item.name, item]))
-    const runtimePlugins = this.runtime.registry.list()
+    const runtimePlugins = this.runtime.registry
+      .list()
+      .filter((item) => this.isManagedPlugin(item.manifest.name, item.manifest.pluginId))
     const names = new Set<string>([
       ...runtimePlugins.map((item) => item.manifest.name),
       ...dbStates.map((item) => item.name)
@@ -59,7 +63,11 @@ export class PluginManageService {
 
   async getPlugin(name: string): Promise<PluginManageItem> {
     const runtimePlugin = this.runtime.registry.get(name)
-    const dbState = await this.runtime.persistence.getRuntimeState(name)
+    if (!this.isManagedPlugin(name, runtimePlugin?.manifest.pluginId)) {
+      throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
+    }
+
+    const dbState = await this.runtime.persistence.getRuntimeState(runtimePlugin?.manifest.pluginId ?? name, name)
 
     if (!runtimePlugin && !dbState) {
       throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
@@ -70,6 +78,9 @@ export class PluginManageService {
 
   async enablePlugin(name: string, strategy: SyncStrategy = 'safe'): Promise<PluginManageItem> {
     const runtimePlugin = this.runtime.registry.get(name)
+    if (!this.isManagedPlugin(name, runtimePlugin?.manifest.pluginId)) {
+      throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
+    }
     if (!runtimePlugin) {
       throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
     }
@@ -85,11 +96,14 @@ export class PluginManageService {
 
   async syncPlugin(name: string, strategy: SyncStrategy = 'safe'): Promise<PluginManageItem> {
     const runtimePlugin = this.runtime.registry.get(name)
+    if (!this.isManagedPlugin(name, runtimePlugin?.manifest.pluginId)) {
+      throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
+    }
     if (!runtimePlugin) {
       throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
     }
 
-    const dbState = await this.runtime.persistence.getRuntimeState(name)
+    const dbState = await this.runtime.persistence.getRuntimeState(runtimePlugin.manifest.pluginId, name)
     const isEnabled = dbState?.enabled ?? runtimePlugin.state === 'enabled'
     if (!isEnabled) {
       throw new BusinessError(ResourceErrorCode.RESOURCE_STATUS_ERROR, `插件未启用，无法同步菜单: ${name}`)
@@ -142,6 +156,9 @@ export class PluginManageService {
 
   async disablePlugin(name: string): Promise<PluginManageItem> {
     const runtimePlugin = this.runtime.registry.get(name)
+    if (!this.isManagedPlugin(name, runtimePlugin?.manifest.pluginId)) {
+      throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
+    }
     if (!runtimePlugin) {
       throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
     }
@@ -162,10 +179,13 @@ export class PluginManageService {
 
   async getSyncLogs(name: string, limit = 10) {
     const runtimePlugin = this.runtime.registry.get(name)
+    if (!this.isManagedPlugin(name, runtimePlugin?.manifest.pluginId)) {
+      throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
+    }
     if (!runtimePlugin) {
       throw new BusinessError(ResourceErrorCode.RESOURCE_NOT_FOUND, `插件不存在: ${name}`)
     }
-    const pluginInstall = await this.getPluginInstallRecord(name)
+    const pluginInstall = await this.getPluginInstallRecord(runtimePlugin.manifest.pluginId, name)
     if (!pluginInstall) {
       return []
     }
@@ -182,6 +202,12 @@ export class PluginManageService {
   private get prisma() {
     const { prismaManager } = require('../../utils/prisma.js')
     return prismaManager.getClient()
+  }
+
+  private isManagedPlugin(name?: string, pluginId?: string): boolean {
+    const names = new Set((process.env.PLUGIN_ADMIN_VISIBLE_PLUGINS || 'crm').split(',').map((item) => item.trim()).filter(Boolean))
+    const pluginIds = new Set((process.env.PLUGIN_ADMIN_VISIBLE_PLUGIN_IDS || 'iximei/crm').split(',').map((item) => item.trim()).filter(Boolean))
+    return (!!name && names.has(name)) || (!!pluginId && pluginIds.has(pluginId))
   }
 
   private async getPluginInstallRecord(pluginId?: string, pluginName?: string) {

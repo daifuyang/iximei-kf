@@ -15,7 +15,7 @@ const Settings: ProLayoutProps & {
   fixedHeader: false,
   fixSiderbar: true,
   colorWeak: false,
-  title: '移山后台管理系统',
+  title: '熙爱美客服派单系统',
   pwa: true,
   logo: '/logo.svg',
   iconfontUrl: '',

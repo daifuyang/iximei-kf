@@ -74,11 +74,10 @@ const useStyles = createStyles(({ css }) => {
     loginSubTitle: {
       fontFamily: "Noto Sans SC",
       textAlign: "center",
-      marginTop: "12px",
+      margin: "12px 0 0",
       fontSize: "clamp(14px, 3.5vw, 16px)",
       fontWeight: 400,
       color: "#000",
-      margin: 0,
     },
     loginForm: {
       marginTop: "40px",
@@ -100,7 +99,7 @@ const useStyles = createStyles(({ css }) => {
         }
         padding: 6px 8px;
         font-size: 18px;
-        color: rgba(4, 19, 74, 0.4);
+        color: rgba(4, 19, 74, 0.85);
         font-family: 'Noto Sans SC';
         font-weight: 400;
       }
@@ -114,30 +113,40 @@ const useStyles = createStyles(({ css }) => {
     },
     loginFormCheckBox: css`
       & .ant-checkbox + span {
-        color: rgba(4, 19, 74, 0.4);
-        font-size: 18px;
+        color: rgba(4, 19, 74, 0.65);
+        font-size: 16px;
         font-weight: 400;
       }
-      margin-bottom: 86px;
-      @media (max-height: 720px) {
-        margin-bottom: 40px;
-      }
       @media (max-width: 768px) {
-        margin-bottom: 28px;
         & .ant-checkbox + span {
           font-size: 15px;
         }
       }
     `,
+    rememberItem: css`
+      margin-bottom: 28px;
+      @media (max-height: 720px) {
+        margin-bottom: 24px;
+      }
+      @media (max-width: 768px) {
+        margin-bottom: 24px;
+      }
+    `,
+    submitItem: css`
+      margin-bottom: 0;
+    `,
     loginFormBtn: css`
       &.ant-btn {
-        padding: 24px 15px;
-        font-size: 20px;
+        height: 56px;
+        padding: 0 16px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 8px;
       }
       @media (max-width: 768px) {
         &.ant-btn {
-          padding: 18px 15px;
-          font-size: 17px;
+          height: 48px;
+          font-size: 16px;
         }
       }
     `,
@@ -359,12 +368,12 @@ const Login: React.FC = () => {
                 prefix={<LockOutlined className={styles.loginItemIcon} />}
               />
             </Form.Item>
-            <Form.Item name="remember" valuePropName="checked">
+            <Form.Item name="remember" valuePropName="checked" className={styles.rememberItem}>
               <Checkbox className={styles.loginFormCheckBox}>
                 <FormattedMessage id="pages.login.rememberMe" defaultMessage="自动登录" />
               </Checkbox>
             </Form.Item>
-            <Form.Item>
+            <Form.Item className={styles.submitItem}>
               <Button className={styles.loginFormBtn} type="primary" htmlType="submit" block loading={loading}>
                 立即登录
               </Button>

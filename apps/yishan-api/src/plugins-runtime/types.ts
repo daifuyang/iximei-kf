@@ -12,6 +12,7 @@ export interface PluginManifest {
   menuRootName?: string
   menuRootIcon?: string
   menuRootSort?: number
+  menuRootEnabled?: boolean
   version: string
   coreCompatibility?: string
   compatRange?: string

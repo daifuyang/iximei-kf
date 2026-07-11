@@ -50,6 +50,15 @@ export const APP_CONFIG = {
   logLevel: process.env.LOG_LEVEL || 'info',
 };
 
+const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
+  if (value === undefined) return undefined;
+  return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+};
+
+export const PLUGIN_ADMIN_CONFIG = {
+  enabled: parseBooleanEnv(process.env.ENABLE_PLUGIN_ADMIN) ?? ['development', 'test'].includes(APP_CONFIG.nodeEnv),
+};
+
 // 安全配置
 export const SECURITY_CONFIG = {
   // 密码加密相关配置

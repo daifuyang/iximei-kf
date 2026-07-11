@@ -1,4 +1,21 @@
-import { AppstoreOutlined, FileTextOutlined, FolderOutlined, InboxOutlined, LinkOutlined, ReadOutlined, SettingOutlined, ShoppingOutlined, SmileOutlined } from "@ant-design/icons";
+import {
+  AppstoreOutlined,
+  BankOutlined,
+  ContactsOutlined,
+  CrownOutlined,
+  CustomerServiceOutlined,
+  FileTextOutlined,
+  FolderOutlined,
+  InboxOutlined,
+  LinkOutlined,
+  ReadOutlined,
+  SendOutlined,
+  SettingOutlined,
+  ShoppingOutlined,
+  SmileOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import type { Settings as LayoutSettings, MenuDataItem } from "@ant-design/pro-components";
 import { SettingDrawer } from "@ant-design/pro-components";
 import type { RequestConfig, RunTimeLayoutConfig } from "@umijs/max";
@@ -7,8 +24,8 @@ import {
   AvatarDropdown,
   AvatarName,
   Footer,
-  Question,
-  SelectLang,
+  // Question,
+  // SelectLang,
 } from "@/components";
 import { getCurrentUser } from "@/services/yishan-admin/auth";
 import { App as AntdApp } from "antd";
@@ -66,6 +83,21 @@ const IconMap: Record<string, JSX.Element> = {
   read: <ReadOutlined />,
   readoutlined: <ReadOutlined />,
   shopping: <ShoppingOutlined />,
+  bank: <BankOutlined />,
+  bankoutlined: <BankOutlined />,
+  user: <UserOutlined />,
+  useroutlined: <UserOutlined />,
+  contacts: <ContactsOutlined />,
+  contactsoutlined: <ContactsOutlined />,
+  team: <TeamOutlined />,
+  teamoutlined: <TeamOutlined />,
+  crown: <CrownOutlined />,
+  crownoutlined: <CrownOutlined />,
+  send: <SendOutlined />,
+  sendoutlined: <SendOutlined />,
+  'customer-service': <CustomerServiceOutlined />,
+  customerservice: <CustomerServiceOutlined />,
+  customerserviceoutlined: <CustomerServiceOutlined />,
   folder: <FolderOutlined />,
   inbox: <InboxOutlined />,
   'file-text': <FileTextOutlined />,
@@ -168,9 +200,10 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState,
 }) => {
   return {
+    // 右上角帮助与多语言入口暂时隐藏，保留代码便于后续恢复。
     actionsRender: () => [
-      <Question key="doc" />,
-      <SelectLang key="SelectLang" />,
+      // <Question key="doc" />,
+      // <SelectLang key="SelectLang" />,
     ],
     avatarProps: {
       src: initialState?.currentUser?.avatar || avatarFallback,

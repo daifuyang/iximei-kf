@@ -14,6 +14,7 @@ import registerTemplateSchemas from "./template.js";
 import registerAttachment from "./attachment.js";
 import registerLoginLog from "./login-log.js";
 import registerShopSchemas from "../../plugins/modules/shop/schemas/shop.js";
+import registerCrmSchemas from "../../plugins/modules/crm/schemas/crm.js";
 
 // Schema插件，定义共享的Schema引用
 export default fp(async (fastify, opts) => {
@@ -32,4 +33,5 @@ export default fp(async (fastify, opts) => {
   registerAttachment(fastify);
   registerLoginLog(fastify);
   registerShopSchemas(fastify);
+  registerCrmSchemas(fastify);
 });
