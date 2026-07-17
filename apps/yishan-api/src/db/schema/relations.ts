@@ -1,6 +1,6 @@
 // Generated from drizzle/*.sql. Do not edit manually.
 import { relations } from 'drizzle-orm'
-import { sysApiToken, sysApp, sysAppMenu, sysAppResource, sysAttachment, sysAttachmentFolder, sysDept, sysDictData, sysDictType, sysFormData, sysFormField, sysLoginLog, sysMenu, sysOption, sysPlugin, sysPluginConfigSnapshot, sysPluginInstall, sysPluginSyncLog, sysPluginVersion, sysPost, sysRole, sysRoleMenu, sysUser, sysUserDept, sysUserRole, sysUserToken } from './tables'
+import { sysApiToken, sysApp, sysAppMenu, sysAppResource, sysAttachment, sysAttachmentFolder, sysDept, sysDictData, sysDictType, sysFormData, sysFormField, sysLoginLog, sysMenu, sysOption, sysPlugin, sysPluginConfigSnapshot, sysPluginInstall, sysPluginSyncLog, sysPluginVersion, sysPost, sysRole, sysRoleMenu, sysUser, sysUserDept, sysUserRole, sysUserToken, ysCrmHospital } from './tables'
 
 export const sysAppRelations = relations(sysApp, ({ one, many }) => ({
   creator: one(sysUser, { fields: [sysApp.creatorId], references: [sysUser.id], relationName: 'sysApp_creatorId' }),
@@ -84,7 +84,8 @@ export const sysUserRelations = relations(sysUser, ({ one, many }) => ({
   sysAttachmentFolder_updater_id: many(sysAttachmentFolder, { relationName: 'sysAttachmentFolder_updaterId' }),
   sysAttachment_creator_id: many(sysAttachment, { relationName: 'sysAttachment_creatorId' }),
   sysAttachment_updater_id: many(sysAttachment, { relationName: 'sysAttachment_updaterId' }),
-  sysApiToken_user_id: many(sysApiToken, { relationName: 'sysApiToken_userId' })
+  sysApiToken_user_id: many(sysApiToken, { relationName: 'sysApiToken_userId' }),
+  ysCrmHospital_creator_id: many(ysCrmHospital, { relationName: 'ysCrmHospital_creatorId' })
 }))
 
 export const sysUserTokenRelations = relations(sysUserToken, ({ one, many }) => ({
@@ -192,5 +193,9 @@ export const sysPluginSyncLogRelations = relations(sysPluginSyncLog, ({ one, man
 
 export const sysApiTokenRelations = relations(sysApiToken, ({ one, many }) => ({
   userId: one(sysUser, { fields: [sysApiToken.userId], references: [sysUser.id], relationName: 'sysApiToken_userId' })
+}))
+
+export const ysCrmHospitalRelations = relations(ysCrmHospital, ({ one, many }) => ({
+  creator: one(sysUser, { fields: [ysCrmHospital.creatorId], references: [sysUser.id], relationName: 'ysCrmHospital_creatorId' })
 }))
 

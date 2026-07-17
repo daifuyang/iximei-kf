@@ -718,3 +718,109 @@ export const sysApiToken = mysqlTable(
   })
 )
 
+export const ysCrmHospital = mysqlTable(
+  'ys_crm_hospital',
+  {
+  id: int('id').primaryKey().autoincrement().notNull(),
+  hospitalName: varchar('hospital_name', { length: 100 }).notNull(),
+  hospitalAddress: varchar('hospital_address', { length: 255 }),
+  hospitalNature: tinyint('hospital_nature').notNull().default(-1),
+  receptionName: varchar('reception_name', { length: 50 }),
+  busStation: varchar('bus_station', { length: 100 }),
+  taxiFare: varchar('taxi_fare', { length: 50 }),
+  contractPhotos: json('contract_photos').notNull().default(1),
+  creatorId: int('creator_id').notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  updatedAt: datetime('updated_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmCustomerStatus = mysqlTable(
+  'ys_crm_customer_status',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(0),
+  createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmCustomer = mysqlTable(
+  'ys_crm_customer',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(0),
+  telphone: varchar('telphone', { length: 20 }),
+  provinceId: int('province_id'),
+  statusId: int('status_id').notNull(),
+  createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  deletedAt: datetime('deleted_at', { mode: 'date' }).notNull().default(1),
+  }
+)
+
+export const ysCrmCustomerRemark = mysqlTable(
+  'ys_crm_customer_remark',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmCustomerBrowse = mysqlTable(
+  'ys_crm_customer_browse',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default('view'),
+  }
+)
+
+export const ysCrmDispatchStatus = mysqlTable(
+  'ys_crm_dispatch_status',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(0),
+  }
+)
+
+export const ysCrmDispatch = mysqlTable(
+  'ys_crm_dispatch',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmDispatchReply = mysqlTable(
+  'ys_crm_dispatch_reply',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmDispatchFollowLog = mysqlTable(
+  'ys_crm_dispatch_follow_log',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmMemberCustomer = mysqlTable(
+  'ys_crm_member_customer',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(0),
+  }
+)
+
+export const ysCrmMemberRemark = mysqlTable(
+  'ys_crm_member_remark',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+  }
+)
+
+export const ysCrmMemberBrowse = mysqlTable(
+  'ys_crm_member_browse',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default('view'),
+  }
+)
+
+export const ysCrmHospitalAccount = mysqlTable(
+  'ys_crm_hospital_account',
+  {
+  id: int('id').primaryKey().autoincrement().notNull().default('member'),
+  }
+)
+
