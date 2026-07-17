@@ -93,6 +93,24 @@ function parseColumnLine(line) {
   return { name, sqlType, attrs }
 }
 
+function splitTableDefinitions(body) {
+  const definitions = []
+  let current = ''
+  let depth = 0
+  for (const char of body) {
+    if (char === '(') depth += 1
+    if (char === ')') depth -= 1
+    if (char === ',' && depth === 0) {
+      if (current.trim()) definitions.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+  if (current.trim()) definitions.push(current)
+  return definitions
+}
+
 /**
  * Parse the body of a CREATE TABLE into columns and (unique)indexes.
  */
@@ -101,7 +119,7 @@ function parseTableBody(body) {
   const columns = []
   const indexes = []
 
-  for (const rawLine of body.split('\n')) {
+  for (const rawLine of splitTableDefinitions(body)) {
     const line = rawLine.trim().replace(/,\s*$/, '')
     if (!line) continue
 
