@@ -718,8 +718,8 @@ export const sysApiToken = mysqlTable(
   })
 )
 
-export const ysCrmHospital = mysqlTable(
-  'ys_crm_hospital',
+export const iximeiCrmHospital = mysqlTable(
+  'iximei_crm_hospital',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   accountUserId: int('account_user_id'),
@@ -758,8 +758,8 @@ export const ysCrmHospital = mysqlTable(
   }
 )
 
-export const ysCrmCustomerStatus = mysqlTable(
-  'ys_crm_customer_status',
+export const iximeiCrmCustomerStatus = mysqlTable(
+  'iximei_crm_customer_status',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   name: varchar('name', { length: 50 }).notNull(),
@@ -770,8 +770,8 @@ export const ysCrmCustomerStatus = mysqlTable(
   }
 )
 
-export const ysCrmCustomer = mysqlTable(
-  'ys_crm_customer',
+export const iximeiCrmCustomer = mysqlTable(
+  'iximei_crm_customer',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   numberId: varchar('number_id', { length: 20 }).notNull(),
@@ -799,8 +799,8 @@ export const ysCrmCustomer = mysqlTable(
   }
 )
 
-export const ysCrmCustomerRemark = mysqlTable(
-  'ys_crm_customer_remark',
+export const iximeiCrmCustomerRemark = mysqlTable(
+  'iximei_crm_customer_remark',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   customerId: int('customer_id').notNull(),
@@ -810,8 +810,8 @@ export const ysCrmCustomerRemark = mysqlTable(
   }
 )
 
-export const ysCrmCustomerBrowse = mysqlTable(
-  'ys_crm_customer_browse',
+export const iximeiCrmCustomerBrowse = mysqlTable(
+  'iximei_crm_customer_browse',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   customerId: int('customer_id').notNull(),
@@ -821,8 +821,8 @@ export const ysCrmCustomerBrowse = mysqlTable(
   }
 )
 
-export const ysCrmDispatchStatus = mysqlTable(
-  'ys_crm_dispatch_status',
+export const iximeiCrmDispatchStatus = mysqlTable(
+  'iximei_crm_dispatch_status',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   name: varchar('name', { length: 50 }).notNull(),
@@ -833,8 +833,8 @@ export const ysCrmDispatchStatus = mysqlTable(
   }
 )
 
-export const ysCrmDispatch = mysqlTable(
-  'ys_crm_dispatch',
+export const iximeiCrmDispatch = mysqlTable(
+  'iximei_crm_dispatch',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   customerId: int('customer_id').notNull(),
@@ -853,8 +853,8 @@ export const ysCrmDispatch = mysqlTable(
   }
 )
 
-export const ysCrmDispatchReply = mysqlTable(
-  'ys_crm_dispatch_reply',
+export const iximeiCrmDispatchReply = mysqlTable(
+  'iximei_crm_dispatch_reply',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   dispatchId: int('dispatch_id').notNull(),
@@ -864,8 +864,8 @@ export const ysCrmDispatchReply = mysqlTable(
   }
 )
 
-export const ysCrmDispatchFollowLog = mysqlTable(
-  'ys_crm_dispatch_follow_log',
+export const iximeiCrmDispatchFollowLog = mysqlTable(
+  'iximei_crm_dispatch_follow_log',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   dispatchId: int('dispatch_id').notNull(),
@@ -875,8 +875,8 @@ export const ysCrmDispatchFollowLog = mysqlTable(
   }
 )
 
-export const ysCrmMemberCustomer = mysqlTable(
-  'ys_crm_member_customer',
+export const iximeiCrmMemberCustomer = mysqlTable(
+  'iximei_crm_member_customer',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   numberId: varchar('number_id', { length: 20 }).notNull(),
@@ -896,8 +896,8 @@ export const ysCrmMemberCustomer = mysqlTable(
   }
 )
 
-export const ysCrmMemberRemark = mysqlTable(
-  'ys_crm_member_remark',
+export const iximeiCrmMemberRemark = mysqlTable(
+  'iximei_crm_member_remark',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   memberId: int('member_id').notNull(),
@@ -907,8 +907,8 @@ export const ysCrmMemberRemark = mysqlTable(
   }
 )
 
-export const ysCrmMemberBrowse = mysqlTable(
-  'ys_crm_member_browse',
+export const iximeiCrmMemberBrowse = mysqlTable(
+  'iximei_crm_member_browse',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   memberId: int('member_id').notNull(),
@@ -918,8 +918,8 @@ export const ysCrmMemberBrowse = mysqlTable(
   }
 )
 
-export const ysCrmHospitalAccount = mysqlTable(
-  'ys_crm_hospital_account',
+export const iximeiCrmHospitalAccount = mysqlTable(
+  'iximei_crm_hospital_account',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   hospitalId: int('hospital_id').notNull(),

@@ -1,6 +1,6 @@
 export default {
   pluginId: 'iximei/crm',
-  dbNamespace: 'ys_crm',
+  dbNamespace: 'iximei_crm',
   name: 'crm',
   menuRootName: '客户管理',
   menuRootSort: 30,
