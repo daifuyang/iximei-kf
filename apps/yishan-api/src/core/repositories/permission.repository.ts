@@ -25,29 +25,19 @@ export const DATA_SCOPE = {
 
 export type DataScopeCode = (typeof DATA_SCOPE)[keyof typeof DATA_SCOPE]
 
-/** dataScope 数值 → 严格度（数字越小越宽）。多角色取最严格。 */
-const SCOPE_STRICTNESS: Record<DataScopeCode, number> = {
-  1: 5, // ALL 最宽松
-  2: 3, // DEPT
-  3: 2, // DEPT_AND_CHILDREN
-  4: 4, // SELF
-  5: 1, // CUSTOM 最严格（具体语义交给各模块 entity）
-}
-const NUM_STRICTNESS: Record<number, number> = SCOPE_STRICTNESS
+/** 超级管理员身份码（与 rbac.ts 中 SUPER_ADMIN_BYPASS 同源）。 */
+const SUPER_ADMIN_CODE = "super_admin"
 
-/** 多角色聚合：取严格度最高（数值最小）的那个 */
-export function minimizeDataScope(scopes: ReadonlyArray<DataScopeCode>): DataScopeCode {
-  if (scopes.length === 0) return DATA_SCOPE.CUSTOM
-  let best: DataScopeCode = DATA_SCOPE.ALL
-  let bestStrictness = NUM_STRICTNESS[best]
-  for (const s of scopes) {
-    const cur = NUM_STRICTNESS[s] ?? bestStrictness
-    if (cur < bestStrictness) {
-      best = s
-      bestStrictness = cur
-    }
-  }
-  return best
+/**
+ * 提升后的 effectiveDataScope：只要用户的任何角色 code === 'super_admin'，视作看全部。
+ *
+ * 这是与 `__super_admin__` bypass 同源的安全侧门：
+ *   - 把"超管"作为身份标记,而不是 dataScope 枚举中的一个具体值
+ *   - 任意角色种子(包括 fork 自己的客服 / 医院账号)即使误配 dataScope=1,
+ *     只要 code !== 'super_admin' 就仍然走 SELF 隔离
+ */
+function liftForSuperAdmin(roleCodes: ReadonlySet<string>): DataScopeCode {
+  return roleCodes.has(SUPER_ADMIN_CODE) ? DATA_SCOPE.ALL : DATA_SCOPE.SELF
 }
 
 export interface PermissionQueryResult {
@@ -128,7 +118,9 @@ export class PermissionRepository {
     for (const link of permissionLinks) {
       if (link.perm) perms.add(link.perm);
     }
-    return { perms, roleCodes, dataScopes, effectiveDataScope: minimizeDataScope([...dataScopes]) };
+    // 关键:super_admin 身份覆盖 dataScope,即便多角色里有其它 SELF 也强制 ALL。
+    const effectiveDataScope = liftForSuperAdmin(roleCodes)
+    return { perms, roleCodes, dataScopes, effectiveDataScope }
   }
 
   /** 当前用户的活跃 role IDs。 */

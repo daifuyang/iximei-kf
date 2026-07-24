@@ -2,6 +2,11 @@
  * 客户资源路由。
  *
  * 单一职责：客户档案 + 客户状态字典 + 派单 + 备注（占位）。
+ *
+ * 数据权限（apps/yishan-api/docs/data-scope.md）：
+ *   - SUPER_ADMIN/ADMIN (dataScope=1) → 看全部客户
+ *   - 其他 (dataScope=4 SELF 等) → 只看自己 owner 的客户
+ *   - rbac preHandler 已把 effectiveDataScope 写到 req.currentUser.dataScope
  */
 
 import type { FastifyPluginAsync } from 'fastify'
@@ -17,12 +22,13 @@ import {
   CrmCustomerUpdateReqSchema,
 } from '../../../schemas/customers.schema.js'
 import { CrmIdParamsSchema } from '../../../schemas/shared.schema.js'
+import type { DataScopeCode } from '@/core/repositories/permission.repository.js'
 
 const customers: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
   const uid = (req: any) => req.currentUser.id
   const id = (req: any) => Number(req.params.id)
-  void CustomersService
+  const scope = (req: any): DataScopeCode => req.currentUser?.dataScope ?? 1
 
   route.get(
     '/customers/statuses',
@@ -48,7 +54,7 @@ const customers: FastifyPluginAsync = async (app) => {
         querystring: CrmCustomerListQuerySchema,
       },
     },
-    async (req: any) => CustomersService.list(req.query, uid(req)),
+    async (req: any) => CustomersService.list(req.query, uid(req), scope(req)),
   )
 
   route.get(
@@ -62,7 +68,7 @@ const customers: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => CustomersService.getById(id(req), uid(req)),
+    async (req: any) => CustomersService.getById(id(req), uid(req), scope(req)),
   )
 
   route.post(
@@ -76,7 +82,7 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerReqSchema,
       },
     },
-    async (req: any) => CustomersService.save(req.body, uid(req)),
+    async (req: any) => CustomersService.save(req.body, uid(req), scope(req)),
   )
 
   route.patch(
@@ -91,7 +97,7 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerUpdateReqSchema,
       },
     },
-    async (req: any) => CustomersService.save(req.body, uid(req), id(req)),
+    async (req: any) => CustomersService.save(req.body, uid(req), scope(req), id(req)),
   )
 
   route.post(
@@ -106,7 +112,7 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerDispatchReqSchema,
       },
     },
-    async (req: any) => CustomersService.dispatch(id(req), req.body, uid(req)),
+    async (req: any) => CustomersService.dispatch(id(req), req.body, uid(req), scope(req)),
   )
 
   route.post(
@@ -135,7 +141,7 @@ const customers: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => CustomersService.delete(id(req), uid(req)),
+    async (req: any) => CustomersService.delete(id(req), uid(req), scope(req)),
   )
 }
 

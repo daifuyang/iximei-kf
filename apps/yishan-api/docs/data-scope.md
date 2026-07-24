@@ -146,13 +146,15 @@ await db.insert(sysRole).values({
 
 ## 当前 fork 各角色 / dataScope 对照
 
-| role.code | name | dataScope | 接了哪些模块 |
-| --- | --- | --- | --- |
-| super_admin | 超级管理员 | 1 | 全部 |
-| admin | 普通管理员 | 1 | 全部 |
-| hospital_account | 医院管理 | 5 | (CUSTOM —— 待接 crm_hospital_account) |
-| customer_service | 客服管理 | 4 | crm:member 已接,其余待接 |
-| normal_user | (未建) | 4 SELF | — |
+| role.code | name | seeded dataScope | 实际 effective | 接了哪些模块 |
+| --- | --- | --- | --- | --- |
+| super_admin | 超级管理员 | 1 ALL | **ALL** (lifted) | 全部 |
+| admin | 普通管理员 | 4 SELF | SELF | crm:customer + crm:member |
+| hospital_account | 医院管理 | 5 CUSTOM | SELF | (待接 crm_hospital_account) |
+| customer_service | 客服管理 | 4 SELF | SELF | crm:customer + crm:member |
+
+> **关键**: `super_admin` 不是 dataScope 枚举里的某个值 —— 它是身份标记。`liftForSuperAdmin(roleCodes)` 只要用户的任何 role.code === 'super_admin' 就强制 `effectiveDataScope = ALL`,无视 sys_role.data_scope 字段。
+> 这意味着:`data_scope = 1` 但 code !== 'super_admin' 的角色,仍然走 SELF 隔离;只有真的叫 `super_admin` 的角色才视作超管。
 
 下游推进顺序:
 1. **crm:customers** —— 客服只看到自己派的客户(customer.owner_user_id = 自己)
