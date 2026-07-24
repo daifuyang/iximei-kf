@@ -358,6 +358,258 @@ declare namespace API {
     roleIds?: number[];
   };
 
+  type crmV1AddCustomerRemarkParams = {
+    id: number;
+  };
+
+  type crmV1AddCustomerRemarkParams = {
+    id: number;
+  };
+
+  type crmV1AddDispatchLogParams = {
+    id: number;
+  };
+
+  type crmV1AddDispatchLogParams = {
+    id: number;
+  };
+
+  type crmV1AddDispatchReplyParams = {
+    id: number;
+  };
+
+  type crmV1AddDispatchReplyParams = {
+    id: number;
+  };
+
+  type crmV1AddMemberRemarkParams = {
+    id: number;
+  };
+
+  type crmV1AddMemberRemarkParams = {
+    id: number;
+  };
+
+  type crmV1AssignHospitalAccountParams = {
+    id: number;
+  };
+
+  type crmV1AssignHospitalAccountParams = {
+    id: number;
+  };
+
+  type crmV1CreateHospitalAccountParams = {
+    id: number;
+  };
+
+  type crmV1CreateHospitalAccountParams = {
+    id: number;
+  };
+
+  type crmV1DeleteHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type crmV1DeleteHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type crmV1DeleteHospitalParams = {
+    id: number;
+  };
+
+  type crmV1DeleteHospitalParams = {
+    id: number;
+  };
+
+  type crmV1DispatchCustomerParams = {
+    id: number;
+  };
+
+  type crmV1DispatchCustomerParams = {
+    id: number;
+  };
+
+  type crmV1GetCustomerParams = {
+    id: number;
+  };
+
+  type crmV1GetCustomerParams = {
+    id: number;
+  };
+
+  type crmV1GetDispatchParams = {
+    id: number;
+  };
+
+  type crmV1GetDispatchParams = {
+    id: number;
+  };
+
+  type crmV1GetHospitalParams = {
+    id: number;
+  };
+
+  type crmV1GetHospitalParams = {
+    id: number;
+  };
+
+  type crmV1GetMemberParams = {
+    id: number;
+  };
+
+  type crmV1GetMemberParams = {
+    id: number;
+  };
+
+  type crmV1ListCustomersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+    ownerUserId?: number;
+  };
+
+  type crmV1ListCustomersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+    ownerUserId?: number;
+  };
+
+  type crmV1ListDispatchesParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+  };
+
+  type crmV1ListDispatchesParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+  };
+
+  type crmV1ListHospitalAccountsParams = {
+    id: number;
+  };
+
+  type crmV1ListHospitalAccountsParams = {
+    id: number;
+  };
+
+  type crmV1ListHospitalsParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type crmV1ListHospitalsParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type crmV1ListMembersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type crmV1ListMembersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type crmV1PublicWeixinHospitalBindParams = {
+    hospital_id: number;
+    openid: string;
+    signature: string;
+  };
+
+  type crmV1PublicWeixinHospitalBindParams = {
+    hospital_id: number;
+    openid: string;
+    signature: string;
+  };
+
+  type crmV1SearchHospitalsParams = {
+    keyword?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
+  };
+
+  type crmV1SearchHospitalsParams = {
+    keyword?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
+  };
+
+  type crmV1UpdateCustomerParams = {
+    id: number;
+  };
+
+  type crmV1UpdateCustomerParams = {
+    id: number;
+  };
+
+  type crmV1UpdateDispatchParams = {
+    id: number;
+  };
+
+  type crmV1UpdateDispatchParams = {
+    id: number;
+  };
+
+  type crmV1UpdateHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type crmV1UpdateHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type crmV1UpdateHospitalParams = {
+    id: number;
+  };
+
+  type crmV1UpdateHospitalParams = {
+    id: number;
+  };
+
+  type crmV1UpdateMemberParams = {
+    id: number;
+  };
+
+  type crmV1UpdateMemberParams = {
+    id: number;
+  };
+
   type currentUser = {
     /** 用户ID */
     id: number;

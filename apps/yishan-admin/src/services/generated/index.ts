@@ -1,6 +1,8 @@
+// @ts-ignore
 /* eslint-disable */
 // API 更新时间：
 // API 唯一标识：
+import * as crm from "./crm";
 import * as demo from "./demo";
 import * as system from "./system";
 import * as attachments from "./attachments";
@@ -26,6 +28,7 @@ import * as auth from "./auth";
 import * as meApiTokens from "./meApiTokens";
 import * as moduleManagement from "./moduleManagement";
 export default {
+  crm,
   demo,
   system,
   attachments,
