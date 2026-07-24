@@ -1,0 +1,35 @@
+[
+  {
+    "type": 0,
+    "name": "CRM",
+    "path": "/crm",
+    "sortOrder": 20,
+    "icon": "TeamOutlined",
+    "children": [
+      { "type": 1, "name": "医院", "path": "/crm/hospitals", "sortOrder": 1, "component": "./modules/crm/hospitals", "children": [
+        { "type": 2, "name": "查看", "permissionCodes": ["crm:hospitals:list"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 },
+        { "type": 2, "name": "新建", "permissionCodes": ["crm:hospitals:create"], "sortOrder": 2, "hideInMenu": 1 },
+        { "type": 2, "name": "编辑", "permissionCodes": ["crm:hospitals:update"], "sortOrder": 3, "hideInMenu": 1 },
+        { "type": 2, "name": "删除", "permissionCodes": ["crm:hospitals:delete"], "sortOrder": 4, "hideInMenu": 1 }
+      ] },
+      { "type": 1, "name": "客户", "path": "/crm/customers", "sortOrder": 2, "component": "./modules/crm/customers", "children": [
+        { "type": 2, "name": "查看", "permissionCodes": ["crm:customers:list"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 },
+        { "type": 2, "name": "新建", "permissionCodes": ["crm:customers:create"], "sortOrder": 2, "hideInMenu": 1 },
+        { "type": 2, "name": "编辑", "permissionCodes": ["crm:customers:update"], "sortOrder": 3, "hideInMenu": 1 },
+        { "type": 2, "name": "派单", "permissionCodes": ["crm:customers:dispatch"], "sortOrder": 4, "hideInMenu": 1 }
+      ] },
+      { "type": 1, "name": "派单", "path": "/crm/dispatches", "sortOrder": 3, "component": "./modules/crm/dispatches", "children": [
+        { "type": 2, "name": "查看", "permissionCodes": ["crm:dispatches:list"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 },
+        { "type": 2, "name": "编辑", "permissionCodes": ["crm:dispatches:update"], "sortOrder": 2, "hideInMenu": 1 },
+        { "type": 2, "name": "回复", "permissionCodes": ["crm:dispatches:reply"], "sortOrder": 3, "hideInMenu": 1 },
+        { "type": 2, "name": "跟进", "permissionCodes": ["crm:dispatches:log"], "sortOrder": 4, "hideInMenu": 1 }
+      ] },
+      { "type": 1, "name": "会员", "path": "/crm/members", "sortOrder": 4, "component": "./modules/crm/members", "children": [
+        { "type": 2, "name": "查看", "permissionCodes": ["crm:members:list"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 },
+        { "type": 2, "name": "新建", "permissionCodes": ["crm:members:create"], "sortOrder": 2, "hideInMenu": 1 },
+        { "type": 2, "name": "编辑", "permissionCodes": ["crm:members:update"], "sortOrder": 3, "hideInMenu": 1 },
+        { "type": 2, "name": "备注", "permissionCodes": ["crm:members:remark"], "sortOrder": 4, "hideInMenu": 1 }
+      ] }
+    ]
+  }
+]
