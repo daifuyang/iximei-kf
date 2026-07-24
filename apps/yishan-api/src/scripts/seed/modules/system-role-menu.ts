@@ -1,10 +1,11 @@
 /**
  * system-role-menu.ts — Section 1 RBAC 种子收尾。
  *
- * 将 sys_role 与 sys_menu 通过 sys_role_menu 关联起来。默认绑定策略：
- *   - super_admin  → 全部菜单
- *   - admin        → 全部菜单（除系统级敏感路径：插件管理、站点配置、云存储）
- *   - normal_user  → 仅 account 菜单（个人中心、API Token）
+ * 将 sys_role 与 sys_menu 通过 sys_role_menu 关联起来。fork 业务的最终绑定策略：
+ *   - super_admin        → 全部菜单
+ *   - admin              → 仅 account 菜单（fork 业务：普通管理员无 CRM 权限）
+ *   - hospital_account  → /crm/dispatches（及 /crm）+ account
+ *   - customer_service  → /crm/customers + /crm/dispatches + /crm/members + account
  *
  * 写入前清空每个 role 的旧绑定（幂等）。
  */
@@ -13,19 +14,6 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { sysMenu, sysRole, sysRoleMenu } from '@/db/schema';
 import { ROLE_CODES } from '@/constants/permission-codes.js';
 import type { SeedDb } from '../context.js';
-
-const ADMIN_EXCLUDED_PATH_PATTERNS = [
-  '/system/plugins%',
-  '/system/site%',
-  '/system/storage%',
-];
-
-function isAdminExcluded(path: string): boolean {
-  return ADMIN_EXCLUDED_PATH_PATTERNS.some((p) => {
-    const prefix = p.endsWith('%') ? p.slice(0, -1) : p;
-    return path.startsWith(prefix);
-  });
-}
 
 async function findRoleByCode(db: SeedDb, code: string) {
   const row = await db.query.sysRole.findFirst({
@@ -52,11 +40,7 @@ async function clearRoleMenuBindings(db: SeedDb, roleId: number) {
     .where(and(eq(sysRoleMenu.roleId, roleId), isNull(sysRoleMenu.deletedAt)));
 }
 
-async function bindRoleMenus(
-  db: SeedDb,
-  roleId: number,
-  menuIds: number[],
-) {
+async function bindRoleMenus(db: SeedDb, roleId: number, menuIds: number[]) {
   if (menuIds.length === 0) return;
   await db
     .insert(sysRoleMenu)
@@ -64,17 +48,9 @@ async function bindRoleMenus(
     .onDuplicateKeyUpdate({ set: { deletedAt: null } });
 }
 
-/**
- * 默认绑定入口。一次性写出 super_admin/admin/normal_user 三种角色与菜单的关联。
- * 任何先前未在 sys_role_menu 中以 deletedAt IS NULL 存在的旧绑定都会被软删除，
- * 然后按当前策略重新写入（幂等）。
- */
 export async function bindRoleMenusByDefault(db: SeedDb) {
   const superAdmin = await findRoleByCode(db, ROLE_CODES.SUPER_ADMIN);
   const admin = await findRoleByCode(db, ROLE_CODES.ADMIN);
-  const normalUser = await db.query.sysRole.findFirst({
-    where: and(eq(sysRole.code, ROLE_CODES.NORMAL_USER), isNull(sysRole.deletedAt)),
-  });
   const hospitalAccount = await db.query.sysRole.findFirst({
     where: and(eq(sysRole.code, ROLE_CODES.HOSPITAL_ACCOUNT), isNull(sysRole.deletedAt)),
   });
@@ -83,49 +59,48 @@ export async function bindRoleMenusByDefault(db: SeedDb) {
   });
 
   const menus = await listAllMenuPaths(db);
-  const accountMenuIds = menus
-    .filter((m) => m.path.startsWith('/account'))
-    .map((m) => m.id);
+  const accountMenuIds = menus.filter((m) => m.path.startsWith('/account')).map((m) => m.id);
   const allMenuIds = menus.map((m) => m.id);
-  const adminMenuIds = menus
-    .filter((m) => !isAdminExcluded(m.path))
-    .map((m) => m.id);
 
-  /** 医院管理：CRM 医院 + 派单菜单 */
+  // 普通管理员: fork 业务下"不配置 CRM 权限" → 菜单只保 account
+  const adminMenuIds = accountMenuIds
+
+  // 医院账号: /crm 派单 + account
   const hospitalMenuIds = menus
-    .filter((m) => m.path.startsWith('/crm/hospitals') || m.path.startsWith('/crm/dispatches'))
-    .map((m) => m.id);
+    .filter((m) => m.path === '/crm' || m.path.startsWith('/crm/dispatches') || m.path.startsWith('/account'))
+    .map((m) => m.id)
 
-  /** 客服管理：CRM 客户 + 派单菜单 + 个人中心（不含会员顾客 — 仅 super/admin 可访问） */
+  // 客服: /crm 客户 + 派单 + 会员 + account（医院档案不开放 → 不含 /crm/hospitals）
   const csMenuIds = menus
-    .filter((m) => m.path.startsWith('/crm/customers') || m.path.startsWith('/crm/dispatches') || m.path.startsWith('/account'))
-    .map((m) => m.id);
+    .filter((m) =>
+      m.path.startsWith('/crm/customers') ||
+      m.path.startsWith('/crm/dispatches') ||
+      m.path.startsWith('/crm/members') ||
+      m.path === '/crm' ||
+      m.path.startsWith('/account'),
+    )
+    .map((m) => m.id)
 
-  const rolesToReset = [superAdmin.id, admin.id];
-  if (normalUser) rolesToReset.push(normalUser.id);
-  if (hospitalAccount) rolesToReset.push(hospitalAccount.id);
-  if (customerService) rolesToReset.push(customerService.id);
+  const rolesToReset = [superAdmin.id, admin.id]
+  if (hospitalAccount) rolesToReset.push(hospitalAccount.id)
+  if (customerService) rolesToReset.push(customerService.id)
   for (const roleId of rolesToReset) {
-    await clearRoleMenuBindings(db, roleId);
+    await clearRoleMenuBindings(db, roleId)
   }
 
-  await bindRoleMenus(db, superAdmin.id, allMenuIds);
-  await bindRoleMenus(db, admin.id, adminMenuIds);
-  if (normalUser) {
-    await bindRoleMenus(db, normalUser.id, accountMenuIds);
-  }
+  await bindRoleMenus(db, superAdmin.id, allMenuIds)
+  await bindRoleMenus(db, admin.id, adminMenuIds)
   if (hospitalAccount) {
-    await bindRoleMenus(db, hospitalAccount.id, hospitalMenuIds);
+    await bindRoleMenus(db, hospitalAccount.id, hospitalMenuIds)
   }
   if (customerService) {
-    await bindRoleMenus(db, customerService.id, csMenuIds);
+    await bindRoleMenus(db, customerService.id, csMenuIds)
   }
 
   console.log('角色-菜单默认绑定完成:', {
     superAdmin: allMenuIds.length,
     admin: adminMenuIds.length,
-    ...(normalUser ? { normalUser: accountMenuIds.length } : {}),
     ...(hospitalAccount ? { hospitalAccount: hospitalMenuIds.length } : {}),
     ...(customerService ? { customerService: csMenuIds.length } : {}),
-  });
+  })
 }

@@ -1,7 +1,13 @@
 /**
  * 派单资源路由。
  *
- * 单一职责：派单列表/详情/状态字典 + 回复 + 跟进。
+ * 单一职责:派单列表/详情/状态字典 + 回复 + 跟进。
+ *
+ * 数据权限(apps/yishan-api/docs/data-scope.md):
+ *   - SUPER_ADMIN (lift ALL) → 看全部派单
+ *   - HOSPITAL_ACCOUNT (dataScope=4/5 SELF) → 关联自己医院的派单
+ *   - 客服/默认 SELF → 自己添加的客户的派单
+ *   - rbac preHandler 已写 effectiveDataScope 到 req.currentUser.dataScope
  */
 
 import type { FastifyPluginAsync } from 'fastify'
@@ -16,12 +22,14 @@ import {
   CrmDispatchUpdateSchema,
 } from '../../../schemas/dispatches.schema.js'
 import { CrmIdParamsSchema } from '../../../schemas/shared.schema.js'
+import type { DataScopeCode } from '@/core/repositories/permission.repository.js'
 
 const dispatches: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
   const uid = (req: any) => req.currentUser.id
   const id = (req: any) => Number(req.params.id)
-  void DispatchesService
+  const roleCodes = (req: any): string[] => req.currentUser?.roleCodes ?? []
+  const scope = (req: any): DataScopeCode => req.currentUser?.dataScope ?? 1
 
   route.get(
     '/dispatches/statuses',
@@ -47,7 +55,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
         querystring: CrmDispatchListQuerySchema,
       },
     },
-    async (req: any) => DispatchesService.list(req.query, uid(req)),
+    async (req: any) => DispatchesService.list(req.query, uid(req), roleCodes(req), scope(req)),
   )
 
   route.get(
@@ -61,7 +69,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => DispatchesService.getById(id(req), uid(req)),
+    async (req: any) => DispatchesService.getById(id(req), uid(req), roleCodes(req), scope(req)),
   )
 
   route.patch(
@@ -76,7 +84,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
         body: CrmDispatchUpdateSchema,
       },
     },
-    async (req: any) => DispatchesService.update(id(req), req.body, uid(req)),
+    async (req: any) => DispatchesService.update(id(req), req.body, uid(req), roleCodes(req), scope(req)),
   )
 
   route.post(
@@ -91,7 +99,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
         body: CrmDispatchReplyReqSchema,
       },
     },
-    async (req: any) => DispatchesService.addReply(id(req), req.body, uid(req)),
+    async (req: any) => DispatchesService.addReply(id(req), req.body, uid(req), roleCodes(req), scope(req)),
   )
 
   route.post(
@@ -106,7 +114,8 @@ const dispatches: FastifyPluginAsync = async (app) => {
         body: CrmDispatchLogReqSchema,
       },
     },
-    async (req: any) => DispatchesService.addLog(id(req), req.body.content, uid(req)),
+    async (req: any) =>
+      DispatchesService.addLog(id(req), req.body.content, uid(req), roleCodes(req), scope(req)),
   )
 
   route.delete(
@@ -120,7 +129,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => DispatchesService.delete(id(req), uid(req)),
+    async (req: any) => DispatchesService.delete(id(req), uid(req), roleCodes(req), scope(req)),
   )
 }
 

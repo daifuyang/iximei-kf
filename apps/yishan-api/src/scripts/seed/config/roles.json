@@ -1,6 +1,6 @@
 {
   "superAdmin":      { "name": "超级管理员", "code": "super_admin",      "description": "拥有系统最高权限(看全部)", "dataScope": 1 },
-  "admin":           { "name": "普通管理员", "code": "admin",            "description": "拥有基础管理权限;非 super_admin,dataScope 走 SELF", "dataScope": 4 },
-  "hospitalAccount": { "name": "医院管理",   "code": "hospital_account", "description": "医院相关账号,拥有医院派单查看的权限", "dataScope": 5 },
-  "customerService": { "name": "客服管理",   "code": "customer_service", "description": "客服管理,拥有客户和派单权限;非 super_admin,dataScope 走 SELF", "dataScope": 4 }
+  "admin":           { "name": "普通管理员", "code": "admin",            "description": "默认无 CRM 权限(按 fork 业务:只配登录基础能力)", "dataScope": 4 },
+  "hospitalAccount": { "name": "医院管理",   "code": "hospital_account", "description": "医院端账号,接派单看+回复;不持有客户/会员权限", "dataScope": 5 },
+  "customerService": { "name": "客服管理",   "code": "customer_service", "description": "商务/客服,客户+派单+会员 CRUD;仅看自己添加的", "dataScope": 4 }
 }
