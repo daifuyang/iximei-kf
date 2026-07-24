@@ -2,38 +2,33 @@
  * module-loader.ts — 单一职责：管理业务模块的装载与卸载。
  *
  * 模块启停的事实源是 MySQL `sys_module.enabled`。本文件封装三件事：
- *   1. `syncModulesFromDisk`：扫 src/modules/<id>/,INSERT 缺失行(默认 enabled = 1)、
+ *   1. `syncModulesFromDisk`：扫 dist/modules/<id>/,INSERT 缺失行(默认 enabled = 1)、
  *      UPDATE 结构字段(name / table_prefix / version)。永远不动 `enabled` 列。
  *   2. `loadEnabledModuleIds`：从 DB 读取 enabled = 1 的 id 集合,带 Redis 缓存。
  *   3. `mountAllOnDisk`：boot 期用标准 @fastify/autoload 挂载所有【已打包在盘上】的模块,
- *      prefix 硬约定 /api/<id>。运行时启停不改挂载,由 app.ts 的 onRequest gate 按
- *      sys_module.enabled 拦截实现(即时、零重启)。
+ *      prefix 硬约定 /api/<id>。运行时启停不改挂载,由 app.ts 的 onRequest gate
+ *      按 sys_module.enabled 拦截实现(即时、零重启)。
  *
  * 不变量：
  *   - 路由 prefix 硬约定为 `/api/${id}`,不再由模块 meta 声明,也不做 prefix 唯一性校验
  *     (id 唯一性由文件系统保证)。
  *   - fastify 插件树 boot 后不可变：不做运行时 register/unregister;启停走 gate 拦截。
  *   - syncModulesFromDisk 不允许覆盖 enabled;运维显式停用的模块,重启后必须保持停用。
- *
- * 入口策略(由 NODE_ENV 决定):
- *   - dev (NODE_ENV !== 'production'):优先读 src/<id>/module.ts(开发热更友好)
- *   - prod:优先读 dist/<id>/module.js(线上必须用编译产物)
+ *   - **入口一律 dist**：dev 与 prod 都从编译产物读。
+ *     `npm run dev` 默认 `npm run build:ts` 后再启动,运行时不再 import 任何 .ts。
+ *     这避免了 CJS 包对 .ts ESM 语法的拒绝,dev/prod 行为完全一致。
+ *     模块作者只关心 src/,build pipeline 决定 dist/ 是否就绪。
  */
 import { eq, inArray } from 'drizzle-orm'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import AutoLoad from '@fastify/autoload'
 import type { FastifyInstance, FastifyPluginAsync, FastifyBaseLogger } from 'fastify'
-import { drizzleDb, type AppDb } from '@/db'
+import { type AppDb } from '@/db'
 import { sysModule } from '@/db/schema/tables'
 
 const REDIS_ENABLED_KEY = 'yishan:modules:enabled'
 const REDIS_CACHE_TTL_SECONDS = 60
-
-/** dev/prod 公用：判断本进程是否应该优先读 src 而非 dist。 */
-export function shouldPreferSrc(): boolean {
-  return process.env.NODE_ENV !== 'production'
-}
 
 /** 模块路由 prefix 硬约定;不再由模块 meta 声明。 */
 export function moduleRoutePrefix(id: string): string {
@@ -41,17 +36,16 @@ export function moduleRoutePrefix(id: string): string {
 }
 
 /**
- * 纯函数版 scanDiskModules:扫描 src/modules/<id>/,根据 preferSrc 决定入口文件。
+ * 纯函数版 scanDiskModules:统一从 dist 编译产物读取。
  *
- *   - preferSrc=true:优先 src/<id>/module.ts,回退 dist/<id>/module.js(适用于 dev / tsx 模式)
- *   - preferSrc=false:优先 dist/<id>/module.js,回退 src/<id>/module.ts(适用于 prod)
+ * 仅当 `dist/modules/<id>/module.js` 存在时该模块被视为有效;缺则 warn 并跳过。
+ * 开发模式请使用 `npm run dev`（会自动 `build:ts + watch`）,或先单独跑 `build:ts`。
  *
  * 返回 ModuleDiskMeta[] 供 syncModulesFromDiskPure 等下游使用。
  */
 export async function scanDiskModulesPure(
   srcRoot: string,
   distRoot: string,
-  preferSrc: boolean,
   logger?: FastifyBaseLogger,
 ): Promise<ModuleDiskMeta[]> {
   const srcModulesDir = join(srcRoot, 'modules')
@@ -61,41 +55,17 @@ export async function scanDiskModulesPure(
     const srcModuleDir = join(srcModulesDir, id)
     if (!statSync(srcModuleDir).isDirectory()) continue
     const distModuleJs = join(distRoot, 'modules', id, 'module.js')
-    const srcModuleTs = join(srcModuleDir, 'module.ts')
-    let moduleEntry: string | undefined
-    let isTs: boolean
-    if (preferSrc && existsSync(srcModuleTs)) {
-      moduleEntry = srcModuleTs
-      isTs = true
-    } else if (existsSync(distModuleJs)) {
-      moduleEntry = distModuleJs
-      isTs = false
-    } else if (existsSync(srcModuleTs)) {
-      moduleEntry = srcModuleTs
-      isTs = true
-    } else {
-      logger?.warn({ module: id }, 'module skipped: module.{js,ts} missing')
+    if (!existsSync(distModuleJs)) {
+      logger?.warn(
+        { module: id },
+        'module skipped: dist/modules/<id>/module.js missing — run `pnpm --filter yishan-api build:ts` first',
+      )
       continue
     }
-    const loadMod = async (entry: string, ts: boolean) =>
-      ts
-        ? await import(entry).catch((e: unknown) => {
-            logger?.warn({ module: id, err: String(e) }, 'failed to import src module.ts, will fall back to dist')
-            return {} as { meta?: unknown }
-          })
-        : await import(entry)
-    let mod: {
+    const mod: {
       meta?: Partial<ModuleDiskMeta & { name?: string; enabled?: boolean }>
-    } = await loadMod(moduleEntry, isTs)
-    let meta = mod.meta
-    // src/.ts 在 CJS 包(package.json 无 "type":"module")里会被 Node 当 ESM 拒绝,
-    // 拿不到 meta。即使 dist/.js 编译产物可用,这里 isTs=true 失败后仍走不到 fallback。
-    // 强制回落:meta 缺失 + 存在 dist/.js → 用编译产物再试一次。
-    if ((!meta?.id || typeof meta.id !== 'string') && existsSync(distModuleJs) && moduleEntry !== distModuleJs) {
-      logger?.warn({ module: id }, 'meta.id missing on src .ts, falling back to dist .js')
-      mod = await loadMod(distModuleJs, false)
-      meta = mod.meta
-    }
+    } = await import(distModuleJs)
+    const meta = mod.meta
     if (!meta?.id || typeof meta.id !== 'string') {
       logger?.warn({ module: id }, 'module skipped: meta.id missing')
       continue
@@ -164,203 +134,138 @@ export async function syncModulesFromDiskPure(
   return { inserted, updated }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// 类封装：把 fastify 实例 + 路径 + Redis 缓存绑在一起,提供 boot 期同步装载。
+// ────────────────────────────────────────────────────────────────────────────
+
 export interface ModuleDiskMeta {
   id: string
   name: string
   enabled: boolean
   tablePrefix: string
   version: string
-  /** 模块目录绝对路径,便于 re-import。 */
   moduleDir: string
 }
 
-export interface ModuleRow {
-  id: string
-  name: string
-  tablePrefix: string
-  version: string
-  enabled: boolean
-  installedAt: Date
-  updatedAt: Date
+/**
+ * Redis + DB 缓存启用模块 id 集合。
+ *   - DB 是事实源(sys_module.enabled = 1)
+ *   - Redis 缓存 60s,降低冷启后的逐请求 DB 查询
+ */
+async function loadEnabledModuleIdsCached(
+  redisGet: (key: string) => Promise<string | null>,
+  redisSet: (key: string, value: string, ttlSec: number) => Promise<void>,
+  db: AppDb,
+): Promise<Set<string>> {
+  const cached = await redisGet(REDIS_ENABLED_KEY).catch(() => null)
+  if (cached) {
+    try {
+      return new Set(JSON.parse(cached) as string[])
+    } catch {
+      // 损坏的缓存条目 → 走 DB 回源
+    }
+  }
+  const rows = await db
+    .select({ id: sysModule.id, enabled: sysModule.enabled })
+    .from(sysModule)
+  const enabledIds = rows.filter((r) => Number(r.enabled) === 1).map((r) => r.id)
+  await redisSet(REDIS_ENABLED_KEY, JSON.stringify(enabledIds), REDIS_CACHE_TTL_SECONDS).catch(() => {})
+  return new Set(enabledIds)
+}
+
+export interface ModuleLoaderOptions {
+  /** Redis 客户端(getter),仅做 enabled 集合缓存用 */
+  redis?: {
+    get: (key: string) => Promise<string | null>
+    set: (key: string, value: string, ttlSec: number) => Promise<void>
+  }
 }
 
 export class ModuleLoader {
   private readonly fastify: FastifyInstance
-  /** 源码根(绝对路径),用于读 meta / migrations journal 等运行时元数据。 */
   private readonly srcRoot: string
-  /** 编译产物根(绝对路径),用于 `import('module.js')`。 */
   private readonly distRoot: string
-  /**
-   * 是否优先读 src/<id>/module.ts。
-   * 默认由 NODE_ENV 决定(shouldPreferSrc);调用方也可显式覆盖(单测/特殊部署)。
-   */
-  private readonly preferSrc: boolean
-  private mounted = new Set<string>()
-  private dbCache: AppDb | undefined
-  /** enabled 集合的进程内短 TTL 缓存,避免 gate 每请求打 redis/DB。 */
-  private enabledMemo: { ids: Set<string>; at: number } | undefined
-  // 进程内 memo：仅用于吸收单实例的"toggle 之后的几毫秒内并发请求"。
-  // 多实例部署下其它实例仍走 redis（60s TTL），这里保持短 TTL 以便跨实例
-  // 收敛更快——典型场景：操作员 toggle 后 1s 内期望所有实例生效。
-  private readonly ENABLED_MEMO_MS = 1000
+  private readonly redis?: ModuleLoaderOptions['redis']
+  private readonly mounted = new Set<string>()
 
-  constructor(
-    fastify: FastifyInstance,
-    srcRoot: string,
-    distRoot: string,
-    options?: { preferSrc?: boolean },
-  ) {
+  constructor(fastify: FastifyInstance, srcRoot: string, distRoot: string, options: ModuleLoaderOptions = {}) {
     this.fastify = fastify
     this.srcRoot = srcRoot
     this.distRoot = distRoot
-    this.preferSrc = options?.preferSrc ?? shouldPreferSrc()
+    this.redis = options.redis
   }
-
-  private get db(): AppDb {
-    if (!this.dbCache) this.dbCache = drizzleDb
-    return this.dbCache
-  }
-
-  // -------------------------------------------------------------------------
-  // 磁盘扫描
-  // -------------------------------------------------------------------------
 
   /**
-   * 扫 src/modules/<id>/ 收集 disk meta。
-   * 入口策略由 `preferSrc` 决定：
-   *   - preferSrc=true(dev)→ 优先 src/<id>/module.ts,回退 dist/<id>/module.js
-   *   - preferSrc=false(prod)→ 优先 dist/<id>/module.js,回退 src/<id>/module.ts
-   *
-   * 同步到 sys_module 的兜底值与 meta.name 来自读到的入口。
+   * 扫 dist + 同步 sys_module 行(从 dist 装载 meta,运行时不 import 任何 src)。
    */
   async scanDiskModules(): Promise<ModuleDiskMeta[]> {
-    return scanDiskModulesPure(this.srcRoot, this.distRoot, this.preferSrc, this.fastify.log)
+    return scanDiskModulesPure(this.srcRoot, this.distRoot, this.fastify.log)
   }
 
-  // -------------------------------------------------------------------------
-  // DB 同步：INSERT 缺失 + UPDATE 结构字段,绝不动 enabled
-  // -------------------------------------------------------------------------
-
-  /**
-   * 把磁盘扫描结果同步进 sys_module。
-   *   - 行不存在 → INSERT(默认 enabled = 1)。
-   *   - 行已存在 → UPDATE name/prefix/table_prefix/version;enabled 不变。
-   *   - 磁盘不存在但 DB 里存在 → 不处理(保留历史记录,留给运维手动卸载)。
-   */
-  async syncModulesFromDisk(diskModules: ModuleDiskMeta[]): Promise<void> {
-    await syncModulesFromDiskPure(this.db, diskModules)
-  }
-
-  // -------------------------------------------------------------------------
-  // 启停事实查询
-  // -------------------------------------------------------------------------
-
-  async loadEnabledIdsFromDb(): Promise<Set<string>> {
-    const rows = await this.db
-      .select({ id: sysModule.id })
-      .from(sysModule)
-      .where(eq(sysModule.enabled, 1))
-    return new Set(rows.map((r) => r.id))
+  async syncModulesFromDisk(diskModules: ModuleDiskMeta[]): Promise<{ inserted: number; updated: number }> {
+    const db = (this.fastify as unknown as { drizzleDb: AppDb }).drizzleDb
+    if (!db) throw new Error('ModuleLoader.syncModulesFromDisk: drizzleDb not registered on fastify instance')
+    return syncModulesFromDiskPure(db, diskModules)
   }
 
   /**
-   * Redis 优先：命中即用,未命中查 DB 并回填。Redis 不可用时降级直接查 DB。
-   * toggle 调用方负责 DEL 这个 key。
+   * 当前进程内挂载过的模块 id 集合。
+   * onRequest gate 用它匹配 /api/<id>/...。
    */
-  async loadEnabledIds(): Promise<Set<string>> {
-    const redis = this.fastify.redis
-    if (redis) {
-      try {
-        const cached = await redis.get(REDIS_ENABLED_KEY)
-        if (cached) {
-          const arr = JSON.parse(cached) as string[]
-          return new Set(arr)
-        }
-        const ids = await this.loadEnabledIdsFromDb()
-        await redis.set(
-          REDIS_ENABLED_KEY,
-          JSON.stringify([...ids]),
-          'EX',
-          REDIS_CACHE_TTL_SECONDS,
-        )
-        return ids
-      } catch (err) {
-        this.fastify.log.warn({ err }, 'redis read failed, fallback to db')
-      }
-    }
-    return this.loadEnabledIdsFromDb()
-  }
-
-  async invalidateEnabledCache(): Promise<void> {
-    this.enabledMemo = undefined
-    const redis = this.fastify.redis
-    if (!redis) return
-    try {
-      await redis.del(REDIS_ENABLED_KEY)
-    } catch (err) {
-      this.fastify.log.warn({ err }, 'redis del failed')
-    }
-  }
-
-  /**
-   * gate 专用：带进程内短 TTL 的 enabled 集合。toggle 时会经 invalidateEnabledCache 立即清空,
-   * 因此启停对下一个请求即时生效,同时避免每请求都打 redis/DB。
-   */
-  async enabledIdsCached(): Promise<Set<string>> {
-    const now = Date.now()
-    if (this.enabledMemo && now - this.enabledMemo.at < this.ENABLED_MEMO_MS) {
-      return this.enabledMemo.ids
-    }
-    const ids = await this.loadEnabledIds()
-    this.enabledMemo = { ids, at: now }
-    return ids
-  }
-
-  // -------------------------------------------------------------------------
-  // boot 期挂载(标准 autoload,一次性)
-  //
-  // fastify 插件树 boot 后不可变,运行时无法 register/unregister 路由,因此不再做
-  // 「热挂载/热卸载」。boot 时无条件挂载所有【已打包在盘上】的模块;运行时启停由
-  // app.ts 的 onRequest gate 按 sys_module.enabled 拦截实现(即时、零重启)。
-  // -------------------------------------------------------------------------
-
-  isMounted(id: string): boolean {
-    return this.mounted.has(id)
-  }
-
-  /** 所有已挂载(= 已打包在 dist/盘上)的模块 id。gate 用它识别哪些前缀属于模块。 */
   listModuleIds(): Set<string> {
     return new Set(this.mounted)
   }
 
-  listMounted(): string[] {
-    return [...this.mounted].sort()
+  /**
+   * 单 id 查询是否已在 boot 阶段挂载。
+   * Dev 工具 `/system/module-management/list` 用它报告 state。
+   */
+  isMounted(id: string): boolean {
+    return this.mounted.has(id)
+  }
+
+  /**
+   * 清掉 Redis 上的 enabled 缓存,下次 enabledIdsCached() 走 DB 重新计算。
+   * Dev 工具 `/system/module-management/toggle` 在启停模块后调用。
+   */
+  async invalidateEnabledCache(): Promise<void> {
+    if (!this.redis) return
+    await this.redis.set(REDIS_ENABLED_KEY, '[]', 0).catch(() => {})
+  }
+
+  /**
+   * 当前启用的模块 id 集合(DB 事实源 + Redis 缓存)。
+   */
+  async enabledIdsCached(): Promise<Set<string>> {
+    const db = (this.fastify as unknown as { drizzleDb: AppDb }).drizzleDb
+    if (!db) return new Set()
+    if (!this.redis) {
+      return loadEnabledModuleIdsCached(
+        async () => null,
+        async () => {},
+        db,
+      )
+    }
+    return loadEnabledModuleIdsCached(this.redis.get, this.redis.set, db)
   }
 
   /**
    * 用标准 @fastify/autoload 挂载单个模块的 routes/ 目录,prefix 硬约定 /api/<id>。
-   * 入口策略与 scanDiskModulesPure 一致：preferSrc 时优先 src,否则优先 dist。
+   * 仅从 dist 装载（与 scanDiskModulesPure 一致）。
    */
   private async mountModuleRoutes(meta: ModuleDiskMeta): Promise<void> {
     if (this.mounted.has(meta.id)) return
     const distRoutesDir = join(this.distRoot, 'modules', meta.id, 'routes')
-    const srcRoutesDir = join(meta.moduleDir, 'routes')
-    let routesDir: string
-    // 同 scanDiskModulesPure：CJS 包(package.json 无 "type":"module")下 Node 把
-    // src/**/*.ts 当 ESM 拒绝，autoload 会全军覆没。dev 模式直接走 dist 编译产物。
-    if (existsSync(distRoutesDir)) {
-      routesDir = distRoutesDir
-    } else if (this.preferSrc && existsSync(srcRoutesDir)) {
-      routesDir = srcRoutesDir
-    } else if (existsSync(srcRoutesDir)) {
-      routesDir = srcRoutesDir
-    } else {
-      this.fastify.log.warn({ module: meta.id }, 'module skipped: routes/ directory missing')
+    if (!existsSync(distRoutesDir)) {
+      this.fastify.log.warn(
+        { module: meta.id },
+        'module skipped: dist/routes/ directory missing — run `pnpm --filter yishan-api build:ts` first',
+      )
       return
     }
     const prefix = moduleRoutePrefix(meta.id)
     await this.fastify.register(AutoLoad, {
-      dir: routesDir,
+      dir: distRoutesDir,
       autoHooks: true,
       cascadeHooks: true,
       options: { prefix },
