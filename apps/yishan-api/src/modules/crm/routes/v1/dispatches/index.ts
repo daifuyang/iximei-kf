@@ -108,6 +108,20 @@ const dispatches: FastifyPluginAsync = async (app) => {
     },
     async (req: any) => DispatchesService.addLog(id(req), req.body.content, uid(req)),
   )
+
+  route.delete(
+    '/dispatches/:id',
+    {
+      access: { permission: PERMS.DISPATCH_DELETE },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '删除派单',
+        operationId: 'crmV1DeleteDispatch',
+        params: CrmIdParamsSchema,
+      },
+    },
+    async (req: any) => DispatchesService.delete(id(req), uid(req)),
+  )
 }
 
 export default dispatches

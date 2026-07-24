@@ -123,6 +123,20 @@ const customers: FastifyPluginAsync = async (app) => {
     },
     async () => ({ ok: true }),
   )
+
+  route.delete(
+    '/customers/:id',
+    {
+      access: { permission: PERMS.CUSTOMER_DELETE },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '删除客户',
+        operationId: 'crmV1DeleteCustomer',
+        params: CrmIdParamsSchema,
+      },
+    },
+    async (req: any) => CustomersService.delete(id(req), uid(req)),
+  )
 }
 
 export default customers

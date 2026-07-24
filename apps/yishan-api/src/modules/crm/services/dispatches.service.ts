@@ -8,5 +8,6 @@ export class DispatchesService {
  static async update(id:number,input:any,userId:number){if(!await this.getById(id,userId))throw new Error('派单不存在或无权访问');return DispatchesRepository.update(id,compact({hospitalId:input.hospitalId,statusId:input.statusId,image:input.image,receiveQq:input.receiveQq,receiveWechat:input.receiveWechat,finishedAt:asDate(input.finishedAt),updaterId:userId}))}
  static async addReply(id:number,input:any,userId:number){if(!await this.getById(id,userId))throw new Error('派单不存在或无权访问');const content=input.content===undefined?undefined:sanitizeReplyContent(input.content);if(content!==undefined&&!hasReplyContent(content))throw new Error('留言不能为空');return DispatchesRepository.reply(id,compact({receiveQq:input.receiveQq,receiveWechat:input.receiveWechat,image:input.image,statusId:input.statusId,updaterId:userId}),userId,content)}
  static async addLog(id:number,content:string,userId:number){if(!await this.getById(id,userId))throw new Error('派单不存在或无权访问');if(!content)throw new Error('跟进内容不能为空');return DispatchesRepository.addLog(id,userId,content)}
+ static async delete(id:number,userId:number){if(!await this.getById(id,userId))throw new Error('派单不存在或无权访问');return DispatchesRepository.update(id,{deletedAt:new Date(),updaterId:userId})}
 }
 void compact

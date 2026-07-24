@@ -94,6 +94,20 @@ const members: FastifyPluginAsync = async (app) => {
     },
     async (req: any) => MembersService.addRemark(id(req), req.body.content, uid(req)),
   )
+
+  route.delete(
+    '/members/:id',
+    {
+      access: { permission: PERMS.MEMBER_DELETE },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '删除会员',
+        operationId: 'crmV1DeleteMember',
+        params: CrmIdParamsSchema,
+      },
+    },
+    async (req: any) => MembersService.delete(id(req), uid(req)),
+  )
 }
 
 export default members
