@@ -3,7 +3,13 @@ import { sysRole, sysUserRole } from '@/db/schema';
 import { rolesSeed } from '../config.js';
 import type { SeedDb } from '../context.js';
 
-type RoleSeedShape = { name: string; code: string; description: string };
+type RoleSeedShape = {
+  name: string
+  code: string
+  description: string
+  /** 数据权限范围（1-5）。详见 DataScopeCode。 */
+  dataScope: number
+};
 
 async function ensureRole(
   db: SeedDb,
@@ -18,10 +24,13 @@ async function ensureRole(
       description: roleSeed.description,
       status: 1,
       isSystemDefault: true,
+      dataScope: roleSeed.dataScope,
       creatorId: adminUserId,
       updaterId: adminUserId,
     })
-    .onDuplicateKeyUpdate({ set: { name: roleSeed.name, code: roleSeed.code } });
+    .onDuplicateKeyUpdate({
+      set: { name: roleSeed.name, code: roleSeed.code, dataScope: roleSeed.dataScope },
+    });
 
   const role = await db.query.sysRole.findFirst({ where: eq(sysRole.name, roleSeed.name) });
   if (!role) {
@@ -37,10 +46,10 @@ export async function ensureSystemRoles(db: SeedDb, adminUserId: number) {
   const customerServiceRole = await ensureRole(db, rolesSeed.customerService, adminUserId);
 
   console.log('系统默认角色已准备:', {
-    superAdmin: superAdminRole.name,
-    normalAdmin: adminRole.name,
-    hospitalAccount: hospitalAccountRole.name,
-    customerService: customerServiceRole.name,
+    superAdmin: `${superAdminRole.name} (dataScope=${superAdminRole.dataScope})`,
+    normalAdmin: `${adminRole.name} (dataScope=${adminRole.dataScope})`,
+    hospitalAccount: `${hospitalAccountRole.name} (dataScope=${hospitalAccountRole.dataScope})`,
+    customerService: `${customerServiceRole.name} (dataScope=${customerServiceRole.dataScope})`,
   });
 
   return { superAdminRole, adminRole, hospitalAccountRole, customerServiceRole };

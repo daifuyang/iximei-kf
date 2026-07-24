@@ -26,6 +26,7 @@ import {
   PERMISSION_CODES,
   type PermissionRef,
 } from '../../permissions/catalog.js';
+import '../../repositories/permission.repository.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -55,7 +56,9 @@ export const makeRequirePermissionHandler = (
       throw new BusinessError(AuthErrorCode.FORBIDDEN, `当前用户没有权限访问要求 ${permCode} 的接口`);
     }
 
-    const { perms: rolePerms } = await PermissionService.loadForRoleIds(roleIds);
+    // 一次性拿到 perms / roleCodes / dataScopes / effectiveDataScope
+    const result = await PermissionService.loadForRoleIds(roleIds);
+    const { perms: rolePerms, effectiveDataScope } = result;
 
     // EARLY GATE：目标 code 不在活动目录中（已被禁用 / 不存在）→ 直接拒
     if (!PERMISSION_CODES.has(permCode)) {
@@ -70,6 +73,8 @@ export const makeRequirePermissionHandler = (
     }
 
     (request as any).effectivePermissions = effectivePerms;
+    // 把数据权限一并写到 request，供下游 service / repository 据此过滤 WHERE。
+    (request as any).currentUser.dataScope = effectiveDataScope;
   };
 
 export default fp(

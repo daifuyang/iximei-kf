@@ -54,9 +54,9 @@ export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: numb
     code.startsWith('crm:hospitals:list') || code.startsWith('crm:dispatches:list') || code.startsWith('crm:dispatches:update') || code.startsWith('crm:dispatches:reply') || code.startsWith('system:user:list') || code.startsWith('system:region:list'),
   );
 
-  /** 客服管理：客户 CRUD + 派单管理 + 会员管理 + 区域/用户下拉 */
+  /** 客服管理：客户 CRUD + 派单管理 + 区域/用户下拉（不含会员顾客 — 仅 super/admin 可管理） */
   const customerServiceCodes = allCodes.filter((code) =>
-    code.startsWith('crm:customers:') || code.startsWith('crm:dispatches:') || code.startsWith('crm:members:') || code.startsWith('system:user:list') || code.startsWith('system:region:list'),
+    code.startsWith('crm:customers:') || code.startsWith('crm:dispatches:') || code.startsWith('system:user:list') || code.startsWith('system:region:list'),
   );
 
   await Promise.all([

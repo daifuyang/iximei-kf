@@ -96,9 +96,9 @@ export async function bindRoleMenusByDefault(db: SeedDb) {
     .filter((m) => m.path.startsWith('/crm/hospitals') || m.path.startsWith('/crm/dispatches'))
     .map((m) => m.id);
 
-  /** 客服管理：CRM 客户 + 派单 + 会员菜单，偏个人中心 */
+  /** 客服管理：CRM 客户 + 派单菜单 + 个人中心（不含会员顾客 — 仅 super/admin 可访问） */
   const csMenuIds = menus
-    .filter((m) => m.path.startsWith('/crm/customers') || m.path.startsWith('/crm/dispatches') || m.path.startsWith('/crm/members') || m.path.startsWith('/account'))
+    .filter((m) => m.path.startsWith('/crm/customers') || m.path.startsWith('/crm/dispatches') || m.path.startsWith('/account'))
     .map((m) => m.id);
 
   const rolesToReset = [superAdmin.id, admin.id];
