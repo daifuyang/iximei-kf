@@ -98,6 +98,10 @@ export const ROLE_CODES = {
   SUPER_ADMIN: "super_admin",
   ADMIN: "admin",
   NORMAL_USER: "normal_user",
+  /** 医院管理：医院相关账号，拥有医院派单查看的权限 */
+  HOSPITAL_ACCOUNT: "hospital_account",
+  /** 客服管理：客户和派单权限 */
+  CUSTOMER_SERVICE: "customer_service",
 } as const;
 
 export type RoleCode = typeof ROLE_CODES[keyof typeof ROLE_CODES];

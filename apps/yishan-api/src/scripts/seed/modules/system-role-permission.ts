@@ -40,15 +40,29 @@ async function replaceRolePermissions(
 }
 
 export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: number) {
-  const [superAdmin, admin] = await Promise.all([
+  const [superAdmin, admin, hospitalAccount, customerService] = await Promise.all([
     findRoleByCode(db, ROLE_CODES.SUPER_ADMIN),
     findRoleByCode(db, ROLE_CODES.ADMIN),
+    findRoleByCode(db, ROLE_CODES.HOSPITAL_ACCOUNT),
+    findRoleByCode(db, ROLE_CODES.CUSTOMER_SERVICE),
   ]);
   const allCodes = listPermissions().map((item) => item.code);
   const adminCodes = allCodes.filter((code) => !code.startsWith('system:plugin:'));
 
+  /** 医院管理：医院查看 + 派单查看/回复 */
+  const hospitalAccountCodes = allCodes.filter((code) =>
+    code.startsWith('crm:hospitals:list') || code.startsWith('crm:dispatches:list') || code.startsWith('crm:dispatches:update') || code.startsWith('crm:dispatches:reply') || code.startsWith('system:user:list') || code.startsWith('system:region:list'),
+  );
+
+  /** 客服管理：客户 CRUD + 派单管理 + 会员管理 + 区域/用户下拉 */
+  const customerServiceCodes = allCodes.filter((code) =>
+    code.startsWith('crm:customers:') || code.startsWith('crm:dispatches:') || code.startsWith('crm:members:') || code.startsWith('system:user:list') || code.startsWith('system:region:list'),
+  );
+
   await Promise.all([
     replaceRolePermissions(db, superAdmin.id, allCodes, adminUserId),
     replaceRolePermissions(db, admin.id, adminCodes, adminUserId),
+    replaceRolePermissions(db, hospitalAccount.id, hospitalAccountCodes, adminUserId),
+    replaceRolePermissions(db, customerService.id, customerServiceCodes, adminUserId),
   ]);
 }

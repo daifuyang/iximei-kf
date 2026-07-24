@@ -1,4 +1,6 @@
 {
-  "superAdmin": { "name": "超级管理员", "code": "super_admin", "description": "拥有系统最高权限" },
-  "admin":      { "name": "普通管理员", "code": "admin",      "description": "拥有基础管理权限" }
+  "superAdmin":      { "name": "超级管理员", "code": "super_admin",      "description": "拥有系统最高权限" },
+  "admin":           { "name": "普通管理员", "code": "admin",            "description": "拥有基础管理权限" },
+  "hospitalAccount": { "name": "医院管理",   "code": "hospital_account", "description": "医院相关账号，拥有医院派单查看的权限" },
+  "customerService": { "name": "客服管理",   "code": "customer_service", "description": "客服管理，拥有客户和派单权限" }
 }

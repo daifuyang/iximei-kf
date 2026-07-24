@@ -72,9 +72,14 @@ async function bindRoleMenus(
 export async function bindRoleMenusByDefault(db: SeedDb) {
   const superAdmin = await findRoleByCode(db, ROLE_CODES.SUPER_ADMIN);
   const admin = await findRoleByCode(db, ROLE_CODES.ADMIN);
-  // normal_user 是规划中的角色；当前 seed 暂未创建该角色，找不到则跳过。
   const normalUser = await db.query.sysRole.findFirst({
     where: and(eq(sysRole.code, ROLE_CODES.NORMAL_USER), isNull(sysRole.deletedAt)),
+  });
+  const hospitalAccount = await db.query.sysRole.findFirst({
+    where: and(eq(sysRole.code, ROLE_CODES.HOSPITAL_ACCOUNT), isNull(sysRole.deletedAt)),
+  });
+  const customerService = await db.query.sysRole.findFirst({
+    where: and(eq(sysRole.code, ROLE_CODES.CUSTOMER_SERVICE), isNull(sysRole.deletedAt)),
   });
 
   const menus = await listAllMenuPaths(db);
@@ -85,9 +90,21 @@ export async function bindRoleMenusByDefault(db: SeedDb) {
   const adminMenuIds = menus
     .filter((m) => !isAdminExcluded(m.path))
     .map((m) => m.id);
-  // soft-reset + 重新插入（按 role 维度幂等）
+
+  /** 医院管理：CRM 医院 + 派单菜单 */
+  const hospitalMenuIds = menus
+    .filter((m) => m.path.startsWith('/crm/hospitals') || m.path.startsWith('/crm/dispatches'))
+    .map((m) => m.id);
+
+  /** 客服管理：CRM 客户 + 派单 + 会员菜单，偏个人中心 */
+  const csMenuIds = menus
+    .filter((m) => m.path.startsWith('/crm/customers') || m.path.startsWith('/crm/dispatches') || m.path.startsWith('/crm/members') || m.path.startsWith('/account'))
+    .map((m) => m.id);
+
   const rolesToReset = [superAdmin.id, admin.id];
   if (normalUser) rolesToReset.push(normalUser.id);
+  if (hospitalAccount) rolesToReset.push(hospitalAccount.id);
+  if (customerService) rolesToReset.push(customerService.id);
   for (const roleId of rolesToReset) {
     await clearRoleMenuBindings(db, roleId);
   }
@@ -97,10 +114,18 @@ export async function bindRoleMenusByDefault(db: SeedDb) {
   if (normalUser) {
     await bindRoleMenus(db, normalUser.id, accountMenuIds);
   }
+  if (hospitalAccount) {
+    await bindRoleMenus(db, hospitalAccount.id, hospitalMenuIds);
+  }
+  if (customerService) {
+    await bindRoleMenus(db, customerService.id, csMenuIds);
+  }
 
   console.log('角色-菜单默认绑定完成:', {
     superAdmin: allMenuIds.length,
     admin: adminMenuIds.length,
     ...(normalUser ? { normalUser: accountMenuIds.length } : {}),
+    ...(hospitalAccount ? { hospitalAccount: hospitalMenuIds.length } : {}),
+    ...(customerService ? { customerService: csMenuIds.length } : {}),
   });
 }
