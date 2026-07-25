@@ -7,6 +7,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
+import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { HospitalsService } from '../../../services/hospitals.service.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
@@ -44,7 +45,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         querystring: CrmPageQuerySchema,
       },
     },
-    async (req: any) => HospitalsService.list(req.query),
+    async (_req: any, reply: any) => {
+      const result = await HospitalsService.list(_req.query)
+      return ResponseUtil.paginated(reply, result.list, result.page, result.pageSize, result.total)
+    },
   )
 
   route.get(
@@ -58,9 +62,9 @@ const hospitals: FastifyPluginAsync = async (app) => {
         querystring: CrmHospitalSearchQuerySchema,
       },
     },
-    async (req: any) => {
+    async (req: any, reply: any) => {
       const result = await HospitalsService.searchOptions(req.query)
-      return result.list
+      return ResponseUtil.success(reply, result.list)
     },
   )
 
@@ -75,10 +79,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => {
+    async (req: any, reply: any) => {
       const data = await HospitalsService.getById(id(req))
       if (!data) throw new Error('医院不存在')
-      return data
+      return ResponseUtil.success(reply, data)
     },
   )
 
@@ -93,7 +97,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         body: CrmHospitalReqSchema,
       },
     },
-    async (req: any) => HospitalsService.save(req.body, uid(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.save(req.body, uid(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.patch(
@@ -108,7 +115,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         body: CrmHospitalUpdateReqSchema,
       },
     },
-    async (req: any) => HospitalsService.save(req.body, uid(req), id(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.save(req.body, uid(req), id(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.delete(
@@ -122,7 +132,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => HospitalsService.delete(id(req), uid(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.delete(id(req), uid(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   /* ---------- 医院账号 ---------- */
@@ -138,7 +151,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => HospitalsService.listAccounts(id(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.listAccounts(id(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -153,7 +169,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         body: CrmHospitalAccountCreateReqSchema,
       },
     },
-    async (req: any) => HospitalsService.createAccount(id(req), req.body, uid(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.createAccount(id(req), req.body, uid(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -168,7 +187,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         body: CrmHospitalAccountAssignReqSchema,
       },
     },
-    async (req: any) => HospitalsService.assignAccount(id(req), req.body, uid(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.assignAccount(id(req), req.body, uid(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.patch(
@@ -183,8 +205,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         body: CrmHospitalAccountUpdateReqSchema,
       },
     },
-    async (req: any) =>
-      HospitalsService.updateAccount(id(req), userId(req), req.body, uid(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.updateAccount(id(req), userId(req), req.body, uid(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.delete(
@@ -198,8 +222,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
         params: CrmHospitalAccountParamsSchema,
       },
     },
-    async (req: any) =>
-      HospitalsService.deleteAccount(id(req), userId(req), uid(req)),
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.deleteAccount(id(req), userId(req), uid(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 }
 

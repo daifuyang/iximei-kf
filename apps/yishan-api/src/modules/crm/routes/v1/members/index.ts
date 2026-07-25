@@ -11,6 +11,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
+import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { MembersService } from '../../../services/members.service.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
@@ -40,7 +41,10 @@ const members: FastifyPluginAsync = async (app) => {
         querystring: CrmMemberListQuerySchema,
       },
     },
-    async (req: any) => MembersService.list(req.query, uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await MembersService.list(req.query, uid(req), scope(req))
+      return ResponseUtil.paginated(reply, result.list, result.page, result.pageSize, result.total)
+    },
   )
 
   route.get(
@@ -54,7 +58,11 @@ const members: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => MembersService.getById(id(req), uid(req), scope(req), true),
+    async (req: any, reply: any) => {
+      const data = await MembersService.getById(id(req), uid(req), scope(req), true)
+      if (!data) throw new Error('会员不存在')
+      return ResponseUtil.success(reply, data)
+    },
   )
 
   route.post(
@@ -68,7 +76,10 @@ const members: FastifyPluginAsync = async (app) => {
         body: CrmMemberReqSchema,
       },
     },
-    async (req: any) => MembersService.save(req.body, uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await MembersService.save(req.body, uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.patch(
@@ -83,7 +94,10 @@ const members: FastifyPluginAsync = async (app) => {
         body: CrmMemberUpdateReqSchema,
       },
     },
-    async (req: any) => MembersService.save(req.body, uid(req), scope(req), id(req)),
+    async (req: any, reply: any) => {
+      const result = await MembersService.save(req.body, uid(req), scope(req), id(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -98,7 +112,10 @@ const members: FastifyPluginAsync = async (app) => {
         body: CrmMemberRemarkReqSchema,
       },
     },
-    async (req: any) => MembersService.addRemark(id(req), req.body.content, uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await MembersService.addRemark(id(req), req.body.content, uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.delete(
@@ -112,7 +129,10 @@ const members: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => MembersService.delete(id(req), uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await MembersService.delete(id(req), uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 }
 

@@ -17,7 +17,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "npm run build:ts && node dist/scripts/seed/index.js",
-    "db:reset": "npm run build:ts && node dist/scripts/reset.js"
+    "db:reset": "npm run build:ts && node dist/scripts/reset.js",
+    "db:import-iximei": "npm run build:ts && node dist/scripts/import-iximei.js",
+    "db:import-business": "npm run build:ts && node dist/scripts/import-iximei-hospitals.js"
   },
   "keywords": [],
   "author": "",

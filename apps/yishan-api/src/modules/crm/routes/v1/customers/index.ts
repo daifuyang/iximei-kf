@@ -11,6 +11,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
+import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { CustomersService } from '../../../services/customers.service.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
@@ -40,7 +41,10 @@ const customers: FastifyPluginAsync = async (app) => {
         operationId: 'crmV1ListCustomerStatuses',
       },
     },
-    async () => CustomersService.listStatuses(),
+    async (_req: any, reply: any) => {
+      const result = await CustomersService.listStatuses()
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.get(
@@ -54,7 +58,10 @@ const customers: FastifyPluginAsync = async (app) => {
         querystring: CrmCustomerListQuerySchema,
       },
     },
-    async (req: any) => CustomersService.list(req.query, uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await CustomersService.list(req.query, uid(req), scope(req))
+      return ResponseUtil.paginated(reply, result.list, result.page, result.pageSize, result.total)
+    },
   )
 
   route.get(
@@ -68,7 +75,11 @@ const customers: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => CustomersService.getById(id(req), uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const data = await CustomersService.getById(id(req), uid(req), scope(req))
+      if (!data) throw new Error('客户不存在')
+      return ResponseUtil.success(reply, data)
+    },
   )
 
   route.post(
@@ -82,7 +93,10 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerReqSchema,
       },
     },
-    async (req: any) => CustomersService.save(req.body, uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await CustomersService.save(req.body, uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.patch(
@@ -97,7 +111,10 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerUpdateReqSchema,
       },
     },
-    async (req: any) => CustomersService.save(req.body, uid(req), scope(req), id(req)),
+    async (req: any, reply: any) => {
+      const result = await CustomersService.save(req.body, uid(req), scope(req), id(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -112,7 +129,10 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerDispatchReqSchema,
       },
     },
-    async (req: any) => CustomersService.dispatch(id(req), req.body, uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await CustomersService.dispatch(id(req), req.body, uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -127,7 +147,7 @@ const customers: FastifyPluginAsync = async (app) => {
         body: CrmCustomerRemarkReqSchema,
       },
     },
-    async () => ({ ok: true }),
+    async (_req: any, reply: any) => ResponseUtil.success(reply, { ok: true }),
   )
 
   route.delete(
@@ -141,7 +161,10 @@ const customers: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => CustomersService.delete(id(req), uid(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await CustomersService.delete(id(req), uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 }
 

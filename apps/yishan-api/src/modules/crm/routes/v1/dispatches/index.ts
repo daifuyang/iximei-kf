@@ -12,6 +12,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
+import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { DispatchesService } from '../../../services/dispatches.service.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
@@ -41,7 +42,10 @@ const dispatches: FastifyPluginAsync = async (app) => {
         operationId: 'crmV1ListDispatchStatuses',
       },
     },
-    async () => DispatchesService.listStatuses(),
+    async (_req: any, reply: any) => {
+      const result = await DispatchesService.listStatuses()
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.get(
@@ -55,7 +59,10 @@ const dispatches: FastifyPluginAsync = async (app) => {
         querystring: CrmDispatchListQuerySchema,
       },
     },
-    async (req: any) => DispatchesService.list(req.query, uid(req), roleCodes(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.list(req.query, uid(req), roleCodes(req), scope(req))
+      return ResponseUtil.paginated(reply, result.list, result.page, result.pageSize, result.total)
+    },
   )
 
   route.get(
@@ -69,7 +76,11 @@ const dispatches: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => DispatchesService.getById(id(req), uid(req), roleCodes(req), scope(req)),
+    async (req: any, reply: any) => {
+      const d = await DispatchesService.getById(id(req), uid(req), roleCodes(req), scope(req))
+      if (!d) throw new Error('派单不存在或无权访问')
+      return ResponseUtil.success(reply, d)
+    },
   )
 
   route.patch(
@@ -84,7 +95,10 @@ const dispatches: FastifyPluginAsync = async (app) => {
         body: CrmDispatchUpdateSchema,
       },
     },
-    async (req: any) => DispatchesService.update(id(req), req.body, uid(req), roleCodes(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.update(id(req), req.body, uid(req), roleCodes(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -99,7 +113,10 @@ const dispatches: FastifyPluginAsync = async (app) => {
         body: CrmDispatchReplyReqSchema,
       },
     },
-    async (req: any) => DispatchesService.addReply(id(req), req.body, uid(req), roleCodes(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.addReply(id(req), req.body, uid(req), roleCodes(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.post(
@@ -114,8 +131,10 @@ const dispatches: FastifyPluginAsync = async (app) => {
         body: CrmDispatchLogReqSchema,
       },
     },
-    async (req: any) =>
-      DispatchesService.addLog(id(req), req.body.content, uid(req), roleCodes(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.addLog(id(req), req.body.content, uid(req), roleCodes(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.delete(
@@ -129,7 +148,10 @@ const dispatches: FastifyPluginAsync = async (app) => {
         params: CrmIdParamsSchema,
       },
     },
-    async (req: any) => DispatchesService.delete(id(req), uid(req), roleCodes(req), scope(req)),
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.delete(id(req), uid(req), roleCodes(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 }
 
