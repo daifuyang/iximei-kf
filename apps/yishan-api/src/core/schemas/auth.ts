@@ -47,7 +47,21 @@ const LoginDataSchema = Type.Object(
     ),
     refreshTokenExpiresAt: Type.Optional(
       Type.Number({ description: "刷新令牌过期时间戳（秒）" })
-    )
+    ),
+    /**
+     * 当前 hash 字段使用的算法格式。
+     * 0 = 老 iximei（thinkcmf 5.x `###md5`）;1 = 新系统 scrypt v1。
+     * 老用户首次登录成功后会被原子升级为 1。
+     *
+     * optional: 第三方客户端 mock 的 LoginData 仍可不带这两个字段。
+     */
+    passwordFormat: Type.Optional(Type.Number({ description: "密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1" })),
+    /**
+     * 后端是否建议当前用户改密。true = 前端应在头部展示 banner;
+     * 改密成功后由 UserService.changePassword 清零。
+     * 与 password_format 解耦,登录响应只在本次登录前后的值。
+     */
+    passwordChangeRecommended: Type.Optional(Type.Boolean({ description: "是否推荐改密, true=前端应展示 banner" })),
   },
   { $id: "loginData" }
 );
@@ -99,6 +113,8 @@ const CurrentUserSchema = Type.Object(
     accessPath: Type.Optional(Type.Array(Type.String(), { description: "已授权菜单路径列表" })),
     /** 已绑定角色编码列表（如 super_admin / admin）。前端用于硬编码 dev-only 菜单的可见性判断。 */
     roleCodes: Type.Optional(Type.Array(Type.String(), { description: "已绑定角色编码列表（如 super_admin）" })),
+    passwordFormat: Type.Optional(Type.Number({ description: "密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1" })),
+    passwordChangeRecommended: Type.Optional(Type.Boolean({ description: "是否推荐改密, true=前端应展示 banner" })),
   },
   { $id: "currentUser" }
 );

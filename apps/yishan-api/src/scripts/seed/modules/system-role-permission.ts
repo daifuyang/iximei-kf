@@ -70,8 +70,9 @@ export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: numb
   // 普通管理员（fork 业务不配 CRM 权限）: 仅留登录入口，rbac preHandler 拒绝一切 crm 接口
   const adminCodes = allCodes.filter((code) => code === 'auth:login')
 
-  // 医院账号：只接派单的"看+回" + 区域下拉（医院档案属于商务/超管)
+  // 医院账号：医院管理 + 派单'看+回' + 区域下拉（不开放客户/会员）
   const hospitalAccountCodes = allCodes.filter((code) =>
+    code.startsWith('crm:hospitals:') ||
     code.startsWith('crm:dispatches:list') ||
     code.startsWith('crm:dispatches:update') ||
     code.startsWith('crm:dispatches:reply') ||

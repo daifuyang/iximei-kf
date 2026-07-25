@@ -201,8 +201,23 @@ export const sysUser = mysqlTable(
   id: int('id').primaryKey().autoincrement().notNull(),
   username: varchar('username', { length: 50 }),
   email: varchar('email', { length: 100 }),
-  phone: varchar('phone', { length: 20 }).notNull(),
+  phone: varchar('phone', { length: 20 }),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  /**
+   * 当前 passwordHash 字段使用的算法格式。
+   *   0 = 老 iximei（thinkcmf 5.x）`###` + md5(md5(authcode + pw))
+   *   1 = 新系统 scrypt v1  （`$scrypt$v=1$ln=16,r=8,p=2$...`）
+   * 默认 1：新行写 scrypt；导入老用户时回填 0。
+   * 详见 apps/yishan-api/src/utils/legacy-password.ts。
+   */
+  passwordFormat: tinyint('password_format').notNull().default(1),
+  /**
+   * 与算法格式解耦的用户级标记：
+   *   0 = 当前不需要推荐用户改密；
+   *   1 = 登录后应显示 banner 提示"建议立即修改密码"。
+   * 升 hash 不清此位；只有用户主动走完 changePassword 才清 0（Service 层负责）。
+   */
+  passwordChangeRecommended: tinyint('password_change_recommended').notNull().default(0),
   realName: varchar('real_name', { length: 50 }),
   nickname: varchar('nickname', { length: 50 }),
   avatar: varchar('avatar', { length: 500 }),

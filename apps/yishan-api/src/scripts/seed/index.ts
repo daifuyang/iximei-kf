@@ -57,11 +57,18 @@ async function runSeedTransaction(db: SeedDb) {
   const { superAdminRole } = await ensureSystemRoles(db, adminUser.id);
   await bindUserRole(db, adminUser.id, superAdminRole.id);
 
-  await seedDepartments(db, adminUser.id, deptTreeSeed);
-  await seedPosts(db, adminUser.id, postsSeed);
   await seedMenus(db, adminUser.id, [systemMenusSeed, accountMenusSeed]);
   await bindRoleMenusByDefault(db);
   await bindRolePermissionsByDefault(db, adminUser.id);
+
+  // SEED_MINIMAL=true：只写关键数据（admin + 系统角色 + 菜单），跳过演示数据。
+  if (process.env.SEED_MINIMAL === 'true') {
+    console.log('  SEED_MINIMAL=true: 跳过 departments / posts / dicts / options / regions');
+    return;
+  }
+
+  await seedDepartments(db, adminUser.id, deptTreeSeed);
+  await seedPosts(db, adminUser.id, postsSeed);
   await seedDicts(db, adminUser.id, dictsSeed);
   await seedSysOptions(db, adminUser.id, sysOptionsSeed);
   await seedRegions(db);
@@ -98,9 +105,13 @@ export async function runSeed() {
   console.log('========== yishan seed 编排开始 ==========');
   console.log('Step 1/2: core migrate + seed');
 
-  console.log('[seed] drizzle-kit migrate');
-  execSync('npx drizzle-kit migrate', { stdio: 'inherit' });
-  console.log('[seed] core migrate 完成');
+  if (process.env.SEED_SKIP_MIGRATE === 'true') {
+    console.log('[seed] SKIP drizzle-kit migrate (SEED_SKIP_MIGRATE=true)');
+  } else {
+    console.log('[seed] drizzle-kit migrate');
+    execSync('npx drizzle-kit migrate', { stdio: 'inherit' });
+    console.log('[seed] core migrate 完成');
+  }
 
   await drizzleDb.transaction(async (tx) => {
     await runSeedTransaction(tx as unknown as SeedDb);
@@ -114,6 +125,16 @@ export async function runSeed() {
   if (onboard.code !== 0) {
     throw new Error(`onboard-modules 退出码 ${onboard.code}`);
   }
+
+  // 模块入驻后才注册了 CRM 等业务权限码，重新绑一次角色权限。
+  // 先在父进程加载模块的权限注册（子进程中注册的权限码不会透传到父进程）。
+  console.log('[seed] 加载模块权限码（CRM + Demo）...');
+  await import('../../modules/crm/permissions.js');
+  console.log('[seed] 模块权限码加载完成');
+
+  console.log('[seed] 重新绑定角色权限（含模块权限码）...');
+  await bindRolePermissionsByDefault(drizzleDb, 1);
+  console.log('[seed] 角色权限重新绑定完成');
 
   console.log('========== yishan seed 编排完成 ==========');
   await pool.end().catch(() => {});

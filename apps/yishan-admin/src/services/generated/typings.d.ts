@@ -406,6 +406,22 @@ declare namespace API {
     id: number;
   };
 
+  type crmV1DeleteCustomerParams = {
+    id: number;
+  };
+
+  type crmV1DeleteCustomerParams = {
+    id: number;
+  };
+
+  type crmV1DeleteDispatchParams = {
+    id: number;
+  };
+
+  type crmV1DeleteDispatchParams = {
+    id: number;
+  };
+
   type crmV1DeleteHospitalAccountParams = {
     id: number;
     userId: number;
@@ -421,6 +437,14 @@ declare namespace API {
   };
 
   type crmV1DeleteHospitalParams = {
+    id: number;
+  };
+
+  type crmV1DeleteMemberParams = {
+    id: number;
+  };
+
+  type crmV1DeleteMemberParams = {
     id: number;
   };
 
@@ -647,6 +671,10 @@ declare namespace API {
     accessPath?: string[];
     /** 已绑定角色编码列表（如 super_admin） */
     roleCodes?: string[];
+    /** 密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1 */
+    passwordFormat?: number;
+    /** 是否推荐改密, true=前端应展示 banner */
+    passwordChangeRecommended?: boolean;
   };
 
   type currentUserResp = {
@@ -1156,6 +1184,10 @@ declare namespace API {
     expiresAt?: number;
     /** 刷新令牌过期时间戳（秒） */
     refreshTokenExpiresAt?: number;
+    /** 密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1 */
+    passwordFormat?: number;
+    /** 是否推荐改密, true=前端应展示 banner */
+    passwordChangeRecommended?: boolean;
   };
 
   type loginReq = {
@@ -1921,10 +1953,25 @@ declare namespace API {
     deptIds?: number[];
     /** 角色ID列表 */
     roleIds?: number[];
+    /** 密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1 */
+    passwordFormat?: number;
+    /** 是否推荐改密, true=前端应展示 banner */
+    passwordChangeRecommended?: boolean;
   };
 
   type toggleModuleManagementParams = {
     id: string;
+  };
+
+  type tokenCategoryStats = {
+    /** 总数（未软删） */
+    total: number;
+    /** 活跃数（未过期 / 未撤销） */
+    active: number;
+    /** 过期数（未撤销但已过期） */
+    expired: number;
+    /** 已撤销 / 已软删数 */
+    revoked: number;
   };
 
   type tokenStatsResp = {
@@ -1933,6 +1980,8 @@ declare namespace API {
     message?: string;
     timestamp?: string;
     data?: {
+      apiTokens: tokenCategoryStats;
+      userTokens: tokenCategoryStats;
       totalTokens?: number;
       activeTokens?: number;
       expiredTokens?: number;

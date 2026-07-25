@@ -12,9 +12,14 @@ import { UserErrorCode } from "../../constants/business-codes/user.js";
 import { ValidationErrorCode } from "../../constants/business-codes/validation.js";
 import { BusinessError } from "../../exceptions/business-error.js";
 import { hashPassword, verifyPassword } from "../../utils/password.js";
+import { verifyLegacyPassword } from "../../utils/legacy-password.js";
 import { JWT_CONFIG } from "../../config/index.js";
 import { dateUtils } from "../../utils/date.js";
 import { LoginLogService } from "./login-log.service.js";
+
+/** password_format 取值,见 sys_user schema 注释与 utils/legacy-password.ts。 */
+const PASSWORD_FORMAT_LEGACY = 0;
+const PASSWORD_FORMAT_SCRYPT_V1 = 1;
 
 /** 应用层 brute-force 阈值：单 username 在窗口内失败 N 次 → 锁定窗口内所有登录 */
 const LOGIN_FAIL_WINDOW_MS = 5 * 60 * 1000
@@ -59,13 +64,41 @@ export class AuthService {
         throw new BusinessError(AuthErrorCode.ACCOUNT_LOCKED, "账号已被锁定");
       }
 
-      const passwordVerification = await verifyPassword(password, user.passwordHash);
-      if (!passwordVerification.valid) {
+      // 按 password_format 路由校验逻辑:
+      //   - LEGACY (0)        → legacy-password.ts (thinkcmf 5.x cmf_password 算法)
+      //   - SCRYPT_V1 (1)    → password.ts(支持新版 + 旧 hex `salt.hash`, 后者会触发 needsRehash)
+      //
+      // ⚠ 不要把 thinkcmf 兼容分支放进 verifyPassword: changePassword 路径会复用
+      //   comparePassword,会让"老 hash 算法"成为隐式弱认证。
+      const isLegacy = user.passwordFormat === PASSWORD_FORMAT_LEGACY;
+      let valid = false;
+      let needsRehash = false;
+      let currentHashForUpgrade: string | null = null;
+      if (isLegacy) {
+        const result = await verifyLegacyPassword(password, user.passwordHash);
+        valid = result.valid;
+        // legacy 走自己的升级路径,不走通用 needsRehash
+      } else {
+        const result = await verifyPassword(password, user.passwordHash);
+        valid = result.valid;
+        needsRehash = result.needsRehash;
+        currentHashForUpgrade = user.passwordHash;
+      }
+      if (!valid) {
         throw new BusinessError(AuthErrorCode.LOGIN_FAILED, "用户名或密码错误");
       }
 
-      if (passwordVerification.needsRehash) {
-        await UserRepository.upgradePasswordHash(user.id, user.passwordHash, await hashPassword(password));
+      // LEGACY 路径:首次登录成功后自动把 hash 升级到 scrypt v1 + format=1。
+      // 注意:不重置 password_change_recommended —— 让 banner 继续提示,直到
+      // 该用户在 UserService.changePassword 主动改密后才被清 0(见 changePasswordInTransaction)。
+      if (isLegacy) {
+        const upgraded = await UserRepository.upgradeLegacyPasswordHash(user.id, await hashPassword(password));
+        if (upgraded) {
+          // 本次已升级,意味着下次起走 SCRYPT_V1 分支。
+        }
+      } else if (needsRehash && currentHashForUpgrade) {
+        // 旧 hex `salt.hash` 升级到 scrypt v1,format 已是 SCRYPT_V1,只需替换 hash。
+        await UserRepository.upgradePasswordHash(user.id, currentHashForUpgrade, await hashPassword(password));
       }
 
       const accessTokenExpiresIn = rememberMe
@@ -124,7 +157,11 @@ export class AuthService {
         expiresIn: accessTokenExpiresIn,
         refreshTokenExpiresIn: refreshTokenExpiresIn,
         expiresAt,
-        refreshTokenExpiresAt
+        refreshTokenExpiresAt,
+        passwordFormat: isLegacy
+          ? PASSWORD_FORMAT_SCRYPT_V1
+          : PASSWORD_FORMAT_SCRYPT_V1,
+        passwordChangeRecommended: user.passwordChangeRecommended === 1,
       };
     } catch (error) {
       const message = error instanceof BusinessError ? error.message : "登录失败";

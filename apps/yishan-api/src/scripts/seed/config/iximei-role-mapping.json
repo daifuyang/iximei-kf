@@ -1,0 +1,26 @@
+[
+  {
+    "oldRoleId": 1,
+    "newCode": "super_admin",
+    "newName": "超级管理员",
+    "remark": "由 thinkcmf 老 iximei 迁移 - 超级管理员"
+  },
+  {
+    "oldRoleId": 2,
+    "newCode": "admin",
+    "newName": "普通管理员",
+    "remark": "由 thinkcmf 老 iximei 迁移 - 普通管理员"
+  },
+  {
+    "oldRoleId": 3,
+    "newCode": "hospital_account",
+    "newName": "医院管理员",
+    "remark": "由 thinkcmf 老 iximei 迁移 - 医院管理员"
+  },
+  {
+    "oldRoleId": 4,
+    "newCode": "customer_service",
+    "newName": "客服管理员",
+    "remark": "由 thinkcmf 老 iximei 迁移 - 客服管理员"
+  }
+]

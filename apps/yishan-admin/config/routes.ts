@@ -25,6 +25,12 @@ export default [
         path: '/user/login',
         component: './user/login',
       },
+      {
+        // banner 推荐改密时跳这个页; 跟 login 一样不挂全局 layout
+        name: 'change-password',
+        path: '/user/change-password',
+        component: './user/change-password',
+      },
     ],
   },
   {

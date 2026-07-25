@@ -1,5 +1,5 @@
 import React, { type JSX, lazy } from "react";
-import { BookOpen, ClipboardList, ContactRound, ExternalLink, FileText, FlaskConical, Folder, Hospital, Inbox, LayoutDashboard, Package, Send, Settings, ShoppingBag, Smile, type LucideIcon, UsersRound } from "lucide-react";
+import { BookOpen, ClipboardList, ContactRound, ExternalLink, FileText, FlaskConical, Folder, Home, Hospital, Inbox, Key, LayoutDashboard, MapPin, Package, Send, Settings, ShoppingBag, Smile, type LucideIcon, User, UsersRound } from "lucide-react";
 import type { Settings as LayoutSettings, MenuDataItem } from "@ant-design/pro-components";
 import { PageLoading, SettingDrawer } from "@ant-design/pro-components";
 import type { RequestConfig, RunTimeLayoutConfig } from "@umijs/max";
@@ -24,6 +24,7 @@ import avatarFallback from "@public/icons/avatar.png";
 import queryString from "query-string";
 import { getBasePrefixFromPublicPath, stripBasePrefix } from "../shared/publicPath";
 import { menuTreeToRoutes } from "@/utils/menuRoutes";
+import MustChangePasswordBanner from "@/components/MustChangePasswordBanner";
 
 const isDev = process.env.NODE_ENV === "development";
 const loginPath = "/user/login";
@@ -60,12 +61,20 @@ const IconMap: Record<string, LucideIcon> = {
   send: Send,
   sendoutlined: Send,
   'clipboard-list': ClipboardList,
+  clipboardlistoutlined: ClipboardList,
+  environment: MapPin,
+  environmentoutlined: MapPin,
   experiment: FlaskConical,
   experimentoutlined: FlaskConical,
   flask: FlaskConical,
   flaskoutlined: FlaskConical,
+  home: Home,
+  homeoutlined: Home,
+  key: Key,
   package: Package,
   packageoutlined: Package,
+  user: User,
+  useroutlined: User,
 };
 function pickIcon(key: string): JSX.Element | undefined {
   const Icon = IconMap[String(key).toLowerCase()];
@@ -185,6 +194,21 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState,
 }) => {
   return {
+    // 在 ProLayout 主体之上插一个 banner。
+    // 渲染到 layout 之上用的是 headerContentRender:false 的写法(ProLayout v6) ——
+    // 最稳妥的做法是用 layout props 里的 `waterMarkProps` 之外的方式直接挂。
+    // 这里采用 childrenRender 之外的 ProLayout `headerContentRender` 钩子:在 title 旁插一行 banner 不够醒目,
+    // 我们包一层 wrapper 通过 layoutRender 替换整个 layout 树,把 banner 钉到顶部。
+    layoutRender: (props: any, defaultDom: any) => {
+      const bannerVisible =
+        !!initialState?.currentUser?.passwordChangeRecommended;
+      return (
+        <>
+          <MustChangePasswordBanner visible={bannerVisible} />
+          {defaultDom}
+        </>
+      );
+    },
     actionsRender: () => [
       <Question key="doc" />,
       <SelectLang key="SelectLang" />,

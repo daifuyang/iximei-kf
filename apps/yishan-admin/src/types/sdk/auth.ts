@@ -36,4 +36,16 @@ export interface CurrentUser {
   accessPath?: string[]
   /** 已绑定角色编码（如 super_admin / admin），用于硬编码 dev-only 菜单的可见性判断 */
   roleCodes?: string[]
+  /**
+   * 密码 hash 算法格式。
+   * 0 = 老 iximei（`###md5`），已被自动升级为 scrypt v1 后变 1；
+   * 1 = 新系统 scrypt v1。
+   * 详见后端 utils/legacy-password.ts。
+   */
+  passwordFormat?: number
+  /**
+   * 后端是否推荐改密。true 时显示头部 banner,
+   * 改密成功后由后端清 0 与撤销 token。
+   */
+  passwordChangeRecommended?: boolean
 }

@@ -68,6 +68,20 @@ export async function crmV1GetCustomer(
   });
 }
 
+/** 删除客户 DELETE /api/crm/v1/customers/${param0} */
+export async function crmV1DeleteCustomer(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.crmV1DeleteCustomerParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/customers/${param0}`, {
+    method: "DELETE",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 更新客户 PATCH /api/crm/v1/customers/${param0} */
 export async function crmV1UpdateCustomer(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -214,6 +228,20 @@ export async function crmV1GetCustomer2(
   });
 }
 
+/** 删除客户 DELETE /api/crm/v1/customers/customers/${param0} */
+export async function crmV1DeleteCustomer2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.crmV1DeleteCustomerParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/customers/customers/${param0}`, {
+    method: "DELETE",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 更新客户 PATCH /api/crm/v1/customers/customers/${param0} */
 export async function crmV1UpdateCustomer2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -348,6 +376,20 @@ export async function crmV1GetDispatch(
   });
 }
 
+/** 删除派单 DELETE /api/crm/v1/dispatches/${param0} */
+export async function crmV1DeleteDispatch(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.crmV1DeleteDispatchParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/dispatches/${param0}`, {
+    method: "DELETE",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 更新派单 PATCH /api/crm/v1/dispatches/${param0} */
 export async function crmV1UpdateDispatch(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -449,6 +491,20 @@ export async function crmV1GetDispatch2(
   const { id: param0, ...queryParams } = params;
   return request<any>(`/api/crm/v1/dispatches/dispatches/${param0}`, {
     method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
+/** 删除派单 DELETE /api/crm/v1/dispatches/dispatches/${param0} */
+export async function crmV1DeleteDispatch2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.crmV1DeleteDispatchParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/dispatches/dispatches/${param0}`, {
+    method: "DELETE",
     params: { ...queryParams },
     ...(options || {}),
   });
@@ -1131,6 +1187,20 @@ export async function crmV1GetMember(
   });
 }
 
+/** 删除会员 DELETE /api/crm/v1/members/${param0} */
+export async function crmV1DeleteMember(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.crmV1DeleteMemberParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}`, {
+    method: "DELETE",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 更新会员 PATCH /api/crm/v1/members/${param0} */
 export async function crmV1UpdateMember(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -1233,6 +1303,20 @@ export async function crmV1GetMember2(
   const { id: param0, ...queryParams } = params;
   return request<any>(`/api/crm/v1/members/members/${param0}`, {
     method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
+/** 删除会员 DELETE /api/crm/v1/members/members/${param0} */
+export async function crmV1DeleteMember2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.crmV1DeleteMemberParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}`, {
+    method: "DELETE",
     params: { ...queryParams },
     ...(options || {}),
   });

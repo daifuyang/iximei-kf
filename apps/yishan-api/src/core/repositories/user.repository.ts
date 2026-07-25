@@ -6,6 +6,11 @@ import { UserTokenRepository } from "./user-token.repository.js";
 import { clampOffset } from "./_pagination.js";
 
 type UserRow = typeof sysUser.$inferSelect;
+/**
+ * `PublicUserRow` 故意保留 `passwordFormat` 与 `passwordChangeRecommended`,
+ * 让 mapper 能在 `/auth/me` 与用户详情响应里返回这两个字段;
+ * 不应误删。
+ */
 type PublicUserRow = Omit<UserRow, "passwordHash" | "deletedAt" | "version">;
 
 interface UserDetailBaseRow extends PublicUserRow {
@@ -44,12 +49,26 @@ export interface LoginAuthInfo {
   email: string | null;
   realName: string | null;
   passwordHash: string;
+  /** 算法格式: 0=老 iximei(###md5), 1=新 scrypt v1。详见 legacy-password.ts。 */
+  passwordFormat: number;
+  /** 登录后是否推荐用户改密(0=不推荐, 1=推荐 banner)。与算法格式解耦。 */
+  passwordChangeRecommended: number;
   status: number;
   deletedAt: Date | null;
   loginCount: number;
 }
 
-const { passwordHash: _passwordHash, deletedAt: _deletedAt, version: _version, ...userPublicColumns } = getTableColumns(sysUser);
+/**
+ * `userPublicColumns` 列出 mapper 安全使用的列。
+ * 注意:保留 `passwordFormat` 与 `passwordChangeRecommended`,
+ * 让 mapper 在 `/auth/me` 响应里把这两字段也带上,供前端 banner 使用。
+ */
+const {
+  passwordHash: _passwordHash,
+  deletedAt: _deletedAt,
+  version: _version,
+  ...userPublicColumns
+} = getTableColumns(sysUser);
 
 const USER_ORDER_COLUMNS = {
   createdAt: sysUser.createdAt,
@@ -208,6 +227,8 @@ export class UserRepository {
         email: sysUser.email,
         realName: sysUser.realName,
         passwordHash: sysUser.passwordHash,
+        passwordFormat: sysUser.passwordFormat,
+        passwordChangeRecommended: sysUser.passwordChangeRecommended,
         status: sysUser.status,
         deletedAt: sysUser.deletedAt,
         loginCount: sysUser.loginCount,
@@ -460,12 +481,44 @@ export class UserRepository {
    * Replace a legacy password hash after a successful login. The previous hash
    * remains part of the predicate so a concurrent password reset cannot be
    * overwritten by a delayed login upgrade.
+   *
+   * 此方法仅用于 SCRYPT_V1 路径里 needsRehash=true 的旧 hex hash 升级,
+   * 不应被 LEGACY 路径调用。LEGACY 路径请用 `upgradeLegacyPasswordHash`。
    */
   static async upgradePasswordHash(userId: number, previousHash: string, passwordHash: string): Promise<boolean> {
     const [result] = await drizzleDb
       .update(sysUser)
       .set({ passwordHash, updaterId: userId, updatedAt: dateUtils.now() })
       .where(and(eq(sysUser.id, userId), eq(sysUser.passwordHash, previousHash), isNull(sysUser.deletedAt)));
+    return result.affectedRows === 1;
+  }
+
+  /**
+   * LEGACY 路径专用:首次登录成功后将老 iximei hash 升级到 scrypt v1,
+   * 把 `password_format` 原子地从 0 切到 1。
+   *
+   * 不动 `password_change_recommended` —— 用户即使 hash 已升级, banner 仍要保留,
+   * 直到他主动走完 `changePassword` 才清 0。
+   *
+   * Predicate 包含 `password_format = 0`,防止并发两次登录同时升级时互相覆盖。
+   * 返回 boolean 表示更新是否命中(应为 true;false 一般意味着已被其他事务抢占)。
+   */
+  static async upgradeLegacyPasswordHash(userId: number, newHash: string): Promise<boolean> {
+    const [result] = await drizzleDb
+      .update(sysUser)
+      .set({
+        passwordHash: newHash,
+        passwordFormat: 1,
+        updaterId: userId,
+        updatedAt: dateUtils.now(),
+      })
+      .where(
+        and(
+          eq(sysUser.id, userId),
+          eq(sysUser.passwordFormat, 0),
+          isNull(sysUser.deletedAt),
+        ),
+      );
     return result.affectedRows === 1;
   }
 
@@ -498,6 +551,9 @@ export class UserRepository {
    * 修改密码：在事务里更新 `passwordHash`，同时撤销该用户所有未撤销的 token
    * （强制重新登录）。两个步骤必须在同一事务内，否则可能出现 "密码已更新
    * 但旧 token 仍有效" 的窗口期。
+   *
+   * 用户主动走完 changePassword 后,会把 `password_change_recommended` 清 0;
+   * 之前的 LEGACY 自动升级路径不动此位,这里必须区分"用户主动改"vs"自动升 hash"。
    */
   static async changePasswordInTransaction(userId: number, passwordHash: string): Promise<void> {
     await drizzleDb.transaction(async (tx) => {
@@ -506,6 +562,11 @@ export class UserRepository {
         { passwordHash, updaterId: userId } as UpdateUserInput,
         tx,
       );
+      // 用户主动改密后清改密推荐位 (不论用户是 LEGACY 还是 SCRYPT_V1)。
+      await tx
+        .update(sysUser)
+        .set({ passwordChangeRecommended: 0, updatedAt: dateUtils.now() })
+        .where(eq(sysUser.id, userId));
       await UserTokenRepository.revokeAllByUserId(userId, tx);
     });
   }

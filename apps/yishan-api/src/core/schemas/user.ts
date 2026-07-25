@@ -54,6 +54,10 @@ const SysUserSchema = Type.Object(
     updatedAt: Type.String({ format: "date-time", description: "更新时间" }),
     deptIds: Type.Optional(Type.Array(Type.Number(), { description: "部门ID列表" })),
     roleIds: Type.Optional(Type.Array(Type.Number(), { description: "角色ID列表" })),
+    /** 0=老 iximei(###md5); 1=新系统 scrypt v1。详见 legacy-password.ts。 */
+    passwordFormat: Type.Optional(Type.Number({ description: "密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1" })),
+    /** 改密推荐位(true=前端显示 banner)。详见 changePassword / import-iximei。 */
+    passwordChangeRecommended: Type.Optional(Type.Boolean({ description: "是否推荐改密, true=前端应展示 banner" })),
   },
   { $id: "sysUser" }
 );

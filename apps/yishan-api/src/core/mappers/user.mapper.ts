@@ -39,7 +39,7 @@ export class UserMapper {
   }
 
   static toDetailResp(user: UserDetailRow): SysUserResp {
-    return {
+    const base = {
       id: user.id,
       username: user.username ?? undefined,
       email: user.email ?? undefined,
@@ -63,6 +63,14 @@ export class UserMapper {
       updatedAt: dateUtils.formatISO(user.updatedAt)!,
       deptIds: user.deptIds,
       roleIds: user.roleIds,
+    } satisfies SysUserResp;
+
+    // 改密 banner 由前端用,SysUserResp 类型已支持 optional 字段。
+    // 这两字段不应在 mapper 中"漏给"前端,故显式从 user 读出,缺失时给安全的默认。
+    return {
+      ...base,
+      passwordFormat: user.passwordFormat,
+      passwordChangeRecommended: (user.passwordChangeRecommended ?? 0) === 1,
     };
   }
 }

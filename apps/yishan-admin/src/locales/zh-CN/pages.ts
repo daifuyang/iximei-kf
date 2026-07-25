@@ -146,4 +146,16 @@ export default {
   'account.center.security.submit': '修改密码',
   'account.center.security.success': '密码已修改，请重新登录',
   'account.center.security.error': '密码修改失败',
+  // 老 iximei 用户迁移:banner 推荐改密 + 独立改密页
+  'pages.mustChangePasswordBanner.title': '检测到您的账号来自旧系统,建议立即修改密码以保障账号安全',
+  'pages.mustChangePasswordBanner.cta': '立即修改',
+  'pages.mustChangePasswordBanner.dismiss': '稍后',
+  'pages.changePassword.title': '修改密码',
+  'pages.changePassword.subtitle': '为了您的账号安全,请设置一个全新的密码。修改成功后将自动登出,请用新密码重新登录。',
+  'pages.changePassword.oldPassword': '当前密码',
+  'pages.changePassword.newPassword': '新密码',
+  'pages.changePassword.confirm': '确认新密码',
+  'pages.changePassword.submit': '修改密码',
+  'pages.changePassword.success': '密码已修改,请使用新密码重新登录',
+  'pages.changePassword.error': '密码修改失败',
 };
