@@ -5,10 +5,10 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { App, Button, Space, Tag, Popconfirm } from 'antd';
+import { App, Button, Popconfirm } from 'antd';
 import React, { useRef } from 'react';
 import dayjs from 'dayjs';
-import { getMembers, restoreMember } from '../../api';
+import { getMembers, restoreMember } from '../../../api';
 
 const InvalidMemberPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
@@ -17,10 +17,10 @@ const InvalidMemberPage: React.FC = () => {
   const columns: ProColumns<any>[] = [
     { title: '会员编号', dataIndex: 'numberId', width: 140 },
     { title: '顾客姓名', dataIndex: 'name', width: 100 },
-    { title: '手机号', dataIndex: 'mobile', width: 120, render: (v) => v ? v.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '-' },
+    { title: '手机号', dataIndex: 'mobile', width: 120, render: (v) => (typeof v === 'string' ? v.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '-') },
     { title: '业务类别', dataIndex: 'businessCategory', width: 100, render: (_, r) => r.businessCategory || '-' },
     { title: '归属客服', dataIndex: ['owner', 'realName'], width: 100, render: (_, r) => r.owner?.realName || r.owner?.username || '-' },
-    { title: '作废时间', dataIndex: 'invalidAt', width: 160, valueType: 'dateTime', render: (v) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-' },
+    { title: '作废时间', dataIndex: 'invalidAt', width: 160, valueType: 'dateTime', render: (v) => (v ? dayjs(v as string).format('YYYY-MM-DD HH:mm') : '-') },
     {
       title: '操作',
       dataIndex: 'option',

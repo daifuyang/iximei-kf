@@ -1,4 +1,4 @@
-import { PlusOutlined, ReloadOutlined, CaretDownOutlined, UserOutlined, PhoneOutlined, TagOutlined, SwapOutlined, StopOutlined, HistoryOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, CaretDownOutlined, UserOutlined, PhoneOutlined, TagOutlined, SwapOutlined, StopOutlined, HistoryOutlined, EditOutlined } from '@ant-design/icons';
 import {
   type ActionType,
   PageContainer,
@@ -11,19 +11,18 @@ import {
   ProFormTextArea,
   ProFormDatePicker,
   ProFormDateTimePicker,
-  ProForm,
   ModalForm,
   StatisticCard,
 } from '@ant-design/pro-components';
-import { App, Button, Card, Col, Row, Space, Tag, Modal, Descriptions, Tabs, Drawer, message, Popconfirm, Badge, Input, Select, Table, Tooltip, Form, Divider, Typography, Avatar, Empty, Spin, Dropdown, Checkbox } from 'antd';
+import { App, Button, Card, Col, Row, Space, Tag, Modal, Descriptions, Tabs, Drawer, message, Badge, Input, Table, Form, Divider, Typography, Avatar, Empty, Spin, Dropdown } from 'antd';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import dayjs from 'dayjs';
 import {
   getMembers, getMember, getMemberTags, getSelectableCustomers,
   createMemberFromCustomer, createMemberDirect, updateMember,
-  addMemberFollowUp, getMemberFollowUps, createMemberDispatch,
+  addMemberFollowUp, getMemberFollowUps,
   batchAssignMembers, batchTagMembers, batchInvalidateMembers,
-  invalidateMember, restoreMember, createMemberTag, deleteMemberTag,
+  restoreMember, createMemberTag,
   getMemberOverview,
 } from '../../api';
 import { getUsers } from '../../api';
@@ -163,7 +162,6 @@ const MemberPage: React.FC = () => {
   const [currentMember, setCurrentMember] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>({});
 
   // ── 快捷筛选预设状态 ──
   const [activePreset, setActivePreset] = useState<string | null>(null);
@@ -179,7 +177,6 @@ const MemberPage: React.FC = () => {
   // Create form state
   const [createMode, setCreateMode] = useState<'from_customer' | 'direct'>('from_customer');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [customerSearchResult, setCustomerSearchResult] = useState<any[]>([]);
   const [customerSearchTotal, setCustomerSearchTotal] = useState(0);
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
@@ -257,7 +254,7 @@ const MemberPage: React.FC = () => {
       dataIndex: 'mobile',
       width: 120,
       search: false,
-      render: (v) => <PhoneDisplay phone={v} />,
+      render: (v) => <PhoneDisplay phone={String(v ?? '')} />,
     },
     {
       title: '业务意向',
@@ -584,7 +581,6 @@ const MemberPage: React.FC = () => {
                 </span>
               ),
             }}
-            tip="设置了下次跟进时间的会员数，含已逾期"
             hoverable
             onClick={() => { setActivePreset('pending'); setTableParams({ nextFollowUpEnd: dayjs().format('YYYY-MM-DDTHH:mm:ss') + 'Z' }); }}
           />
