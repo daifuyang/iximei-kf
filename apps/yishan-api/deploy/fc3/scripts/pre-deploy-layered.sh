@@ -54,6 +54,10 @@ if [ ! -d "$ADMIN_STATIC" ]; then
   exit 1
 fi
 cp -R "$ADMIN_STATIC" "$FUNCTION_DIR/public/admin"
+# 静态资源插件启动时会注册上传目录；函数包没有持久化上传文件，
+# 但目录本身必须存在，否则 Fastify 会在启动阶段直接退出。
+mkdir -p "$FUNCTION_DIR/public/uploads"
+: > "$FUNCTION_DIR/public/uploads/.gitkeep"
 echo "Admin static assets copied from $ADMIN_STATIC"
 
 echo "✅ Layered 函数包构建完成: $FUNCTION_DIR"
