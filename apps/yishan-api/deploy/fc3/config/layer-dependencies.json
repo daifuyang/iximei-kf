@@ -22,7 +22,8 @@
     "fastify",
     "fastify-plugin",
     "mysql2",
-    "qiniu"
+    "qiniu",
+    "sanitize-html"
   ],
   "localDependencies": []
 }
