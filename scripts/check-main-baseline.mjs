@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * main 基线守卫：确保 main 分支上只有 core + demo 模块。
+ * main 基线守卫：确保 main 分支上只有允许的基线模块。
  *
  * 规则：
  *   在 main 分支（或 PR 目标为 main）上，`apps/yishan-api/src/modules/` 下
- *   只允许白名单中的模块（当前：`demo`）。任何额外模块（portal / shop 等）
+ *   只允许白名单中的模块（当前：`demo`、`crm`）。任何额外模块（portal / shop 等）
  *   会被视为违规。非 main 目标时自动跳过。
  *
  * 检测逻辑(优先级)：
@@ -21,7 +21,7 @@ import { execSync } from 'node:child_process'
 import { join } from 'node:path'
 
 const MODULES_ROOT = 'apps/yishan-api/src/modules'
-const ALLOWED = new Set(['demo'])
+const ALLOWED = new Set(['demo', 'crm'])
 
 function currentBranch() {
   // CI: PR 的目标分支
