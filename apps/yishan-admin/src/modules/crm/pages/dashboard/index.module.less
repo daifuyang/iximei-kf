@@ -1,0 +1,432 @@
+/**
+ * 数据看板 — 样式
+ */
+
+/* ──────── 页面容器 ──────── */
+
+.pageContent {
+  :global {
+    .ant-pro-page-container-children-container {
+      padding-inline: 24px;
+    }
+  }
+}
+
+/* ──────── 指标卡 ──────── */
+
+.metricCard {
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1677FF;
+    outline-offset: 2px;
+  }
+}
+
+.metricIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(22, 119, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  :global(.anticon) {
+    font-size: 20px;
+    color: #1677FF;
+  }
+}
+
+.metricValue {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.metricSuffix {
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+  margin-left: 4px;
+}
+
+.metricTrend {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metricTrendUp {
+  color: #52C41A;
+}
+
+.metricTrendDown {
+  color: #FF4D4F;
+}
+
+.metricExtra {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* ──────── 工具栏 ──────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #F0F0F0;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.updateTime {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
+/* ──────── 漏斗 ──────── */
+
+.funnelItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.funnelLabel {
+  width: 72px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.funnelBar {
+  flex: 1;
+  height: 32px;
+  background: #F5F5F5;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.funnelBarFill {
+  height: 100%;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 0;
+  transition: width 0.4s ease;
+}
+
+.funnelValue {
+  width: 64px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.funnelRate {
+  width: 52px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ──────── 派单状态条 ──────── */
+
+.dispatchItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1677FF;
+    outline-offset: 2px;
+  }
+}
+
+.dispatchName {
+  width: 64px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.88);
+  flex-shrink: 0;
+}
+
+.dispatchBar {
+  flex: 1;
+  height: 22px;
+  background: #F5F5F5;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dispatchBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.dispatchCount {
+  width: 72px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.88);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.dispatchPercent {
+  width: 52px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ──────── 经营洞察 ──────── */
+
+.insightList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insightItem {
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.65;
+  border: 1px solid transparent;
+
+  &.insightSuccess {
+    background: #F6FFED;
+    border-color: #B7EB8F;
+  }
+
+  &.insightWarning {
+    background: #FFFBE6;
+    border-color: #FFE58F;
+  }
+
+  &.insightError {
+    background: #FFF2F0;
+    border-color: #FFCCC7;
+  }
+
+  &.insightInfo {
+    background: #E6F4FF;
+    border-color: #91CAFF;
+  }
+}
+
+.insightTitle {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.insightContent {
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 8px;
+}
+
+.insightAction {
+  font-size: 12px;
+}
+
+/* ──────── 最近动态 ──────── */
+
+.activityItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1677FF;
+    outline-offset: 2px;
+  }
+}
+
+.activityMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.activityTag {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.activityDesc {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.88);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityTime {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  flex-shrink: 0;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+/* ──────── 医院排行表格 ──────── */
+
+.rankingTable {
+  :global(.ant-table) {
+    font-size: 13px;
+  }
+
+  :global(.ant-table-cell) {
+    padding: 8px 12px !important;
+  }
+}
+
+.rankingMedal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.rankingMedalGold {
+  background: #FAAD14;
+}
+
+.rankingMedalSilver {
+  background: #A0A0A0;
+}
+
+.rankingMedalBronze {
+  background: #CD7F32;
+}
+
+.rankingNumber {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* ──────── 骨架屏 ──────── */
+
+.skeletonCard {
+  border-radius: 8px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #F0F0F0;
+}
+
+/* ──────── 响应式 ──────── */
+
+@media (max-width: 1200px) {
+  .pageContent {
+    :global {
+      .ant-pro-page-container-children-container {
+        padding-inline: 16px;
+      }
+    }
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .toolbarRight {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .pageContent {
+    :global {
+      .ant-pro-page-container-children-container {
+        padding-inline: 12px;
+      }
+    }
+  }
+}

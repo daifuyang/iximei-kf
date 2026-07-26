@@ -10,6 +10,7 @@ import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
 import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { HospitalsService } from '../../../services/hospitals.service.js'
+import { HospitalsRepository } from '../../../repositories/hospitals.repository.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import {
   CrmHospitalAccountAssignReqSchema,
@@ -25,12 +26,27 @@ import {
   CrmPageQuerySchema,
 } from '../../../schemas/shared.schema.js'
 
+const SUPER_ADMIN_CODE = 'super_admin'
+const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
+
 const hospitals: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
   const uid = (req: any) => req.currentUser.id
   const id = (req: any) => Number(req.params.id)
   const userId = (req: any) => Number(req.params.userId)
   void HospitalsService // 当前 handler 通过静态方法访问，保留 import 用于将来的实例化迁移
+
+  /** 为 hospital_account 角色注入可访问医院 ID 列表；客服角色不提供医院搜索 */
+  async function resolveHospitalIds(req: any): Promise<number[] | undefined> {
+    const roleCodes: string[] = req.currentUser?.roleCodes ?? []
+    if (roleCodes.includes(SUPER_ADMIN_CODE)) return undefined // 无限制
+    if (roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) {
+      const ids = await HospitalsRepository.accessibleHospitalIds(req.currentUser.id)
+      return ids.map((x: any) => x.hospitalId)
+    }
+    // 客服等角色不提供医院搜索，返回无结果 ID
+    return [-1]
+  }
 
   /* ---------- 医院档案 ---------- */
 
@@ -41,7 +57,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '医院列表',
-        operationId: 'crmV1ListHospitals',
+        operationId: 'listCrmHospitals',
         querystring: CrmPageQuerySchema,
       },
     },
@@ -58,12 +74,14 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '医院搜索（前端下拉）',
-        operationId: 'crmV1SearchHospitals',
+        operationId: 'searchCrmHospitals',
         querystring: CrmHospitalSearchQuerySchema,
       },
     },
     async (req: any, reply: any) => {
-      const result = await HospitalsService.searchOptions(req.query)
+      const hospitalIds = await resolveHospitalIds(req)
+      const query = hospitalIds ? { ...req.query, hospitalIds } : req.query
+      const result = await HospitalsService.searchOptions(query)
       return ResponseUtil.success(reply, result.list)
     },
   )
@@ -75,7 +93,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '医院详情',
-        operationId: 'crmV1GetHospital',
+        operationId: 'getCrmHospital',
         params: CrmIdParamsSchema,
       },
     },
@@ -93,7 +111,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '创建医院',
-        operationId: 'crmV1CreateHospital',
+        operationId: 'createCrmHospital',
         body: CrmHospitalReqSchema,
       },
     },
@@ -110,7 +128,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '更新医院',
-        operationId: 'crmV1UpdateHospital',
+        operationId: 'updateCrmHospital',
         params: CrmIdParamsSchema,
         body: CrmHospitalUpdateReqSchema,
       },
@@ -128,7 +146,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '删除医院',
-        operationId: 'crmV1DeleteHospital',
+        operationId: 'deleteCrmHospital',
         params: CrmIdParamsSchema,
       },
     },
@@ -147,7 +165,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '医院账号列表',
-        operationId: 'crmV1ListHospitalAccounts',
+        operationId: 'listCrmHospitalAccounts',
         params: CrmIdParamsSchema,
       },
     },
@@ -164,7 +182,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '新建并分配医院账号',
-        operationId: 'crmV1CreateHospitalAccount',
+        operationId: 'createCrmHospitalAccount',
         params: CrmIdParamsSchema,
         body: CrmHospitalAccountCreateReqSchema,
       },
@@ -182,7 +200,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '分配已有用户到医院',
-        operationId: 'crmV1AssignHospitalAccount',
+        operationId: 'assignCrmHospitalAccount',
         params: CrmIdParamsSchema,
         body: CrmHospitalAccountAssignReqSchema,
       },
@@ -200,7 +218,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '更新医院账号',
-        operationId: 'crmV1UpdateHospitalAccount',
+        operationId: 'updateCrmHospitalAccount',
         params: CrmHospitalAccountParamsSchema,
         body: CrmHospitalAccountUpdateReqSchema,
       },
@@ -218,7 +236,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '解除医院账号',
-        operationId: 'crmV1DeleteHospitalAccount',
+        operationId: 'deleteCrmHospitalAccount',
         params: CrmHospitalAccountParamsSchema,
       },
     },

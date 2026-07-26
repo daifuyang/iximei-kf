@@ -19,7 +19,6 @@ import { BusinessError } from '../../../exceptions/business-error.js';
 import { AuthErrorCode } from '../../../constants/business-codes/auth.js';
 import {
   PermissionService,
-  computeEffectivePerms,
 } from '../../services/permission.service.js';
 import {
   isBypassCode,
@@ -40,7 +39,6 @@ export const makeRequirePermissionHandler = (
   (permission) => async (request, _reply) => {
     const permCode = permission.code;
     const currentUser = (request as any).currentUser;
-    const tokenScope: string[] | undefined = (request as any).tokenScope;
 
     if (!currentUser?.id) {
       throw new BusinessError(AuthErrorCode.UNAUTHORIZED, '缺少认证身份，无法进行权限校验');
@@ -65,8 +63,8 @@ export const makeRequirePermissionHandler = (
       throw new BusinessError(AuthErrorCode.FORBIDDEN, `权限 ${permCode} 不在活动权限目录中`);
     }
 
-    // PAT scope 交集：JWT/cookie 时 tokenScope === undefined
-    const effectivePerms = computeEffectivePerms(rolePerms, tokenScope, PERMISSION_CODES);
+    // 有效权限直接从用户当前角色计算（不再与 Token scope 求交集）
+    const effectivePerms = rolePerms;
 
     if (!PermissionService.has(effectivePerms, permCode)) {
       throw new BusinessError(AuthErrorCode.FORBIDDEN, `当前用户没有权限访问要求 ${permCode} 的接口`);

@@ -1,0 +1,232 @@
+import { DashboardRepository } from '../repositories/dashboard.repository.js'
+import type { DateRange } from '../repositories/dashboard.repository.js'
+import { HospitalsRepository } from '../repositories/hospitals.repository.js'
+import { crmCustomer, crmCustomerStatus, crmDispatch, crmDispatchStatus, crmHospital } from '../db/schema.js'
+import { eq, inArray } from 'drizzle-orm'
+import { drizzleDb } from '@/db'
+import type { DataScopeCode } from '@/core/repositories/permission.repository.js'
+
+const SUPER_ADMIN_CODE = 'super_admin'
+const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
+
+/** 看板查询参数（来自 query string） */
+export interface DashboardQuery {
+  startDate?: string
+  endDate?: string
+  hospitalId?: number
+}
+
+/** 获取客服名下所有客户 ID（用于派单过滤） */
+async function ownedCustomerIds(userId: number): Promise<number[]> {
+  const rows = await drizzleDb
+    .select({ id: crmCustomer.id })
+    .from(crmCustomer)
+    .where(eq(crmCustomer.ownerUserId, userId))
+  return rows.map((r) => r.id)
+}
+
+/** 获取关联医院所涉客户 ID（用于 hospital_account 客户过滤） */
+async function dispatchedCustomerIds(hospitalIds: number[]): Promise<number[]> {
+  if (!hospitalIds.length) return [-1]
+  const rows = await drizzleDb
+    .selectDistinct({ customerId: crmDispatch.customerId })
+    .from(crmDispatch)
+    .where(inArray(crmDispatch.hospitalId, hospitalIds))
+  return rows.map((r) => r.customerId)
+}
+
+/**
+ * 根据角色 + 可选医院筛选生成数据范围过滤函数。
+ * - super_admin: 无过滤，除非指定 hospitalId
+ * - hospital_account: 只看关联医院的医院/派单/客户
+ * - 其他（客服等）: 只看自己名下的客户及其派单
+ */
+async function dashboardFilters(
+  roleCodes: ReadonlyArray<string>,
+  userId: number,
+  hospitalId?: number,
+): Promise<{
+  customerFilter?: (table: any) => any[]
+  dispatchFilter?: (table: any) => any[]
+  hospitalFilter?: (table: any) => any[]
+}> {
+  // super_admin: 看全部，可选按 hospitalId 过滤
+  if (roleCodes.includes(SUPER_ADMIN_CODE)) {
+    if (hospitalId) {
+      const hf = (t: any) => [eq(t.id, hospitalId)]
+      const df = (t: any) => [eq(t.hospitalId, hospitalId)]
+      // 客户也需要收敛：仅该医院派单涉及的客户
+      const customerIds = await dispatchedCustomerIds([hospitalId])
+      const cf = (t: any) =>
+        customerIds.length > 0 ? [inArray(t.id, customerIds)] : [eq(t.id, -1)]
+      return { hospitalFilter: hf, dispatchFilter: df, customerFilter: cf }
+    }
+    return {}
+  }
+
+  // hospital_account: 只看自己关联的医院
+  if (roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) {
+    const ids = await HospitalsRepository.accessibleHospitalIds(userId)
+    const accessibleIds: number[] = ids.map((x: any) => x.hospitalId)
+
+    // 如果指定了 hospitalId，必须在校验范围内
+    if (hospitalId) {
+      if (!accessibleIds.includes(hospitalId)) {
+        const noop = (t: any) => [eq(t.id, -1)]
+        return { customerFilter: noop, dispatchFilter: noop, hospitalFilter: noop }
+      }
+      const hf = (t: any) => [eq(t.id, hospitalId)]
+      const df = (t: any) => [eq(t.hospitalId, hospitalId)]
+      return { hospitalFilter: hf, dispatchFilter: df }
+    }
+
+    if (!accessibleIds.length) {
+      const noop = (t: any) => [eq(t.id, -1)]
+      return { customerFilter: noop, dispatchFilter: noop, hospitalFilter: noop }
+    }
+
+    // 查询关联医院涉及的客户 ID
+    const customerIds = await dispatchedCustomerIds(accessibleIds)
+
+    const hospitalFilter = (t: any) => [inArray(t.id, accessibleIds)]
+    const dispatchFilter = (t: any) => [inArray(t.hospitalId, accessibleIds)]
+    const customerFilter = (t: any) =>
+      customerIds.length > 0 ? [inArray(t.id, customerIds)] : [eq(t.id, -1)]
+
+    return { hospitalFilter, dispatchFilter, customerFilter }
+  }
+
+  // 客服/默认 SELF: 只看自己名下的客户及其派单
+  const ownedIds = await ownedCustomerIds(userId)
+
+  const customerFilter = (t: any) =>
+    ownedIds.length > 0 ? [inArray(t.id, ownedIds)] : [eq(t.id, -1)]
+
+  const dispatchFilter = (t: any) =>
+    ownedIds.length > 0
+      ? [inArray(t.customerId, ownedIds)]
+      : [eq(t.id, -1)]
+
+  // 如果指定了 hospitalId, 叠加医院过滤
+  if (hospitalId) {
+    const baseDispatchFilter = dispatchFilter
+    return {
+      customerFilter,
+      dispatchFilter: (t: any) => [...baseDispatchFilter(t), eq(t.hospitalId, hospitalId)],
+    }
+  }
+
+  return { customerFilter, dispatchFilter }
+}
+
+/**
+ * 将 YYYY-MM-DD 字符串解析为 Asia/Shanghai 时区的 Date 对象。
+ * 结果为该日期在 Shanghai 时区的午夜时刻对应的 UTC 时间戳。
+ */
+function toShanghaiDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  // Asia/Shanghai = UTC+8，构造该日期 Shanghai 午夜对应的 UTC 毫秒数
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 8 * 3600000)
+}
+
+/** 校验并构建 DateRange（Asia/Shanghai 时区，半开区间 [start, end+1day)） */
+function buildDateRange(startDate?: string, endDate?: string): DateRange | undefined {
+  if (!startDate || !endDate) return undefined
+  const start = toShanghaiDate(startDate)
+  const end = toShanghaiDate(endDate)
+  // 校验：日期字符串必须格式正确（toShanghaiDate 不会返回 Invalid Date）
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return undefined
+  if (start > end) return undefined
+  return { startDate: start, endDate: end }
+}
+
+export class DashboardService {
+  static async getStats(
+    userId: number,
+    roleCodes: ReadonlyArray<string>,
+    _scope: DataScopeCode,
+    query?: DashboardQuery,
+  ) {
+    const hospitalId = query?.hospitalId ? Number(query.hospitalId) : undefined
+    const dateRange = buildDateRange(query?.startDate, query?.endDate)
+    const filters = await dashboardFilters(roleCodes, userId, hospitalId)
+
+    const [
+      hospitalTotal,
+      hospitalPeriodNew,
+      hospitalWeekNew,
+      hospitalActive,
+      customerTotal,
+      customerPeriodNew,
+      customerWeekNew,
+      customerDayNew,
+      dispatchTotal,
+      dispatchPeriodNew,
+      dispatchWeekNew,
+      dispatchPeriodCompleted,
+      customerByStatus,
+      dispatchByStatus,
+      customerTrend,
+      dispatchTrend,
+    ] = await Promise.all([
+      DashboardRepository.total(crmHospital, filters.hospitalFilter, dateRange),
+      DashboardRepository.periodNew(crmHospital, filters.hospitalFilter, dateRange),
+      DashboardRepository.weekNew(crmHospital, filters.hospitalFilter, dateRange),
+      DashboardRepository.activeHospitals(filters.hospitalFilter, dateRange),
+      DashboardRepository.total(crmCustomer, filters.customerFilter, dateRange),
+      DashboardRepository.periodNew(crmCustomer, filters.customerFilter, dateRange),
+      DashboardRepository.weekNew(crmCustomer, filters.customerFilter, dateRange),
+      DashboardRepository.dayNew(crmCustomer, filters.customerFilter, dateRange),
+      DashboardRepository.total(crmDispatch, filters.dispatchFilter, dateRange),
+      DashboardRepository.periodNew(crmDispatch, filters.dispatchFilter, dateRange),
+      DashboardRepository.weekNew(crmDispatch, filters.dispatchFilter, dateRange),
+      DashboardRepository.periodCompleted(crmDispatch, filters.dispatchFilter, dateRange),
+      DashboardRepository.byStatus(
+        crmCustomer, crmCustomerStatus, crmCustomerStatus.name, crmCustomer.statusId,
+        filters.customerFilter, dateRange,
+      ),
+      DashboardRepository.byStatus(
+        crmDispatch, crmDispatchStatus, crmDispatchStatus.name, crmDispatch.statusId,
+        filters.dispatchFilter, dateRange,
+      ),
+      DashboardRepository.monthlyTrend(crmCustomer, 12, filters.customerFilter, dateRange),
+      DashboardRepository.monthlyTrend(crmDispatch, 12, filters.dispatchFilter, dateRange),
+    ])
+
+    const hasDateRange = !!(query?.startDate && query?.endDate)
+
+    return {
+      generatedAt: new Date().toISOString(),
+      hospitals: {
+        total: hospitalTotal,
+        periodNew: hospitalPeriodNew,
+        activeCount: hospitalActive,
+        // 当有日期筛选时，以下字段无意义，设为 0
+        monthNew: hasDateRange ? 0 : hospitalPeriodNew,
+        weekNew: hasDateRange ? 0 : hospitalWeekNew,
+      },
+      customers: {
+        total: customerTotal,
+        periodNew: customerPeriodNew,
+        // 当有日期筛选时，weekNew/dayNew 不再填入 period 值
+        monthNew: hasDateRange ? 0 : customerPeriodNew,
+        weekNew: hasDateRange ? 0 : customerWeekNew,
+        dayNew: hasDateRange ? 0 : customerDayNew,
+      },
+      dispatches: {
+        total: dispatchTotal,
+        periodNew: dispatchPeriodNew,
+        periodCompleted: dispatchPeriodCompleted,
+        monthNew: hasDateRange ? 0 : dispatchPeriodNew,
+        weekNew: hasDateRange ? 0 : dispatchWeekNew,
+        monthCompleted: hasDateRange ? 0 : dispatchPeriodCompleted,
+      },
+      customerByStatus,
+      dispatchByStatus,
+      monthlyTrend: {
+        customers: customerTrend,
+        dispatches: dispatchTrend,
+      },
+    }
+  }
+}

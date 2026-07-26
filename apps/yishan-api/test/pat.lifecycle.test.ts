@@ -6,12 +6,9 @@
  *   2. 撤销拒绝          — findByRawToken 返回 null（deletedAt 不为 null）
  *   3. 用户禁用拒绝      — currentUser.status === "0"
  *   4. 用户锁定拒绝      — currentUser.status === "2"
+ *   5. 有效 PAT 认证     — 认证成功，touch 被调用
  *
- * 以及 scope 语义测试：
- *   5. 普通 PAT scope 交集 — tokenScope 仅含允许列表
- *   6. PAT 通配 scope      — tokenScope 含 "*"，保留完整角色权限
- *   7. super_admin 降权    — 普通 scopes 不再保留 super_admin 旁路（P1 修复）
- *   8. super_admin + 通配  — 含 "*" 时旁路保留
+ * PAT 权限不再由 scopes 控制 — 认证后继承用户当前 RBAC 角色权限。
  */
 
 import Fastify from 'fastify'
@@ -24,7 +21,6 @@ import { ApiTokenRepository } from '../src/core/repositories/api-token.repositor
 import { UserService } from '../src/core/services/user.service.ts'
 import { MenuService } from '../src/core/services/menu.service.ts'
 import { AuthErrorCode } from '../src/constants/business-codes/auth.ts'
-import { SUPER_ADMIN_BYPASS } from '../src/constants/permission-codes.js'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ============================================================================
@@ -37,7 +33,6 @@ const VALID_PAT_RECORD = {
   id: 10,
   name: 'ci-token',
   userId: 1,
-  scopes: ['system:user:list'],
   expiresAt: null,
   lastUsedAt: null,
   lastUsedIp: null,
@@ -184,11 +179,11 @@ describe('PAT lifecycle: user status checks', () => {
 })
 
 // ============================================================================
-// Lifecycle: valid PAT attaches correct tokenScope
+// Lifecycle: valid PAT authentication
 // ============================================================================
 
-describe('PAT lifecycle: valid token attaches correct tokenScope', () => {
-  it('有效 PAT 认证成功，tokenScope 注入到 request', async () => {
+describe('PAT lifecycle: valid token authentication', () => {
+  it('有效 PAT 认证成功', async () => {
     const app = await buildPatAuthApp({
       findByRawTokenResult: VALID_PAT_RECORD,
       userResult: ACTIVE_USER as any,
@@ -225,97 +220,5 @@ describe('PAT lifecycle: valid token attaches correct tokenScope', () => {
     expect(ApiTokenRepository.touch).toHaveBeenCalledWith(10, expect.any(String))
 
     await app.close()
-  })
-})
-
-// ============================================================================
-// Scope semantics (computed in requirePermission, verified here via RBAC plugin)
-// ============================================================================
-
-describe('PAT scope semantics: computeEffectivePerms behavior', () => {
-  // 测试用活动权限目录（不含 SUPER_ADMIN_BYPASS — sentinel 不在活动目录中）
-  const CORE_CODES = new Set(['system:user:list', 'system:role:list']);
-
-  it('普通用户 + 受限 scopes：effective = rolePerms ∩ tokenScope', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    const rolePerms = new Set(['system:user:list', 'system:role:list'])
-    const result = computeEffectivePerms(rolePerms, ['system:user:list'], CORE_CODES)
-    expect(result.has('system:user:list')).toBe(true)
-    expect(result.has('system:role:list')).toBe(false)
-    expect(result.size).toBe(1)
-  })
-
-  it('PAT 通配 ["*"]：effective = rolePerms ∩ activeCodes（含 super_admin 旁路）', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    const rolePerms = new Set(['system:user:list', SUPER_ADMIN_BYPASS])
-    // 通配符也必须受活动权限目录限制
-    const result = computeEffectivePerms(rolePerms, ['*'], CORE_CODES)
-    expect(result.has('system:user:list')).toBe(true)
-    expect(result.has(SUPER_ADMIN_BYPASS)).toBe(true)
-    expect(result.size).toBe(2)
-  })
-
-  it('super_admin + 受限 scopes（不含 *）：super_admin 旁路被剥离', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    // rolePerms 来自用户角色含 super_admin
-    const rolePerms = new Set(['system:user:list', SUPER_ADMIN_BYPASS])
-    // 但用户只给 PAT 分配了 system:user:list，不含通配符
-    const result = computeEffectivePerms(rolePerms, ['system:user:list'], CORE_CODES)
-    // 旁路被剥离——scope 是严格上限
-    expect(result.has('system:user:list')).toBe(true)
-    expect(result.has(SUPER_ADMIN_BYPASS)).toBe(false)
-    expect(result.size).toBe(1)
-  })
-
-  it('super_admin + ["*"]：通配保留 super_admin 旁路（但受活动目录限制）', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    const rolePerms = new Set(['system:user:list', SUPER_ADMIN_BYPASS])
-    // 通配符继承 rolePerms，但必须与活动权限目录相交
-    const result = computeEffectivePerms(rolePerms, ['*'], CORE_CODES)
-    expect(result.has(SUPER_ADMIN_BYPASS)).toBe(true)
-    expect(result.size).toBe(2)
-  })
-
-  it('显式空 scopes []：拒绝一切（即便 super_admin 也拒绝）', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    const rolePerms = new Set(['system:user:list', SUPER_ADMIN_BYPASS])
-    const result = computeEffectivePerms(rolePerms, [], CORE_CODES)
-    expect(result.size).toBe(0)
-    expect(result.has(SUPER_ADMIN_BYPASS)).toBe(false)
-  })
-
-  it('PAT scope 不可超出 rolePerms（权限不会因 tokenScope 而扩大）', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    // 用户只有 system:user:list，tokenScope 申请了 system:role:list（用户没有的权限）
-    const rolePerms = new Set(['system:user:list'])
-    const result = computeEffectivePerms(rolePerms, ['system:user:list', 'system:role:list'], CORE_CODES)
-    // system:role:list 不在 rolePerms 中，不会因 tokenScope 申请就获得
-    expect(result.has('system:role:list')).toBe(false)
-    expect(result.has('system:user:list')).toBe(true)
-    expect(result.size).toBe(1)
-  })
-
-  it('非 super_admin + ["__super_admin__"]：旁路不会凭空出现', async () => {
-    const { computeEffectivePerms } = await import(
-      '../src/core/services/permission.service.js'
-    )
-    // 用户角色不含 super_admin，但 tokenScope 显式包含旁路标记
-    const rolePerms = new Set(['system:user:list'])
-    const result = computeEffectivePerms(rolePerms, ['system:user:list', SUPER_ADMIN_BYPASS], CORE_CODES)
-    // 旁路不会从 tokenScope 凭空获得
-    expect(result.has(SUPER_ADMIN_BYPASS)).toBe(false)
-    expect(result.size).toBe(1)
   })
 })

@@ -22,19 +22,13 @@ export interface CreateApiTokenInput {
   userId: number;
   name: string;
   expiresAt?: Date | null;
-  /**
-   * 授权范围，Section 2 (PAT) 强制约束：不能默认继承用户全部权限。
-   * - undefined/null → 空 scopes 集合（保守默认，无任何资源授权）；
-   * - `[]` 同样视为空集合；
-   * - 列表由 `system:*:read` / `shop:product:update` 等 permission code 构成。
-   */
-  scopes?: string[] | null;
 }
 
 export interface ApiTokenRecord {
   id: number;
   name: string;
-  scopes: string[];
+  /** @deprecated scopes 列保留用于发布 B 物理清理，不再参与任何授权逻辑 */
+  scopes?: unknown;
   userId: number;
   expiresAt: Date | null;
   lastUsedAt: Date | null;
@@ -73,29 +67,14 @@ async function fetchApiTokenDetail(id: number, db: AppQueryDb = drizzleDb): Prom
 }
 
 /**
- * 把 db.select(...) 返回的 raw row（可能 scopes 为 unknown / string / 数组）规范化成
- * 公开的 ApiTokenRecord 类型。JSON 字段在 MySQL / Drizzle 上的类型会因驱动而异，
- * 这里把它收敛到 string[]。
+ * 把 db.select(...) 返回的 raw row 规范化为公开的 ApiTokenRecord 类型。
+ * scopes 列保留用于 DB 兼容，不再参与任何授权逻辑。
  */
 function normalizeTokenRow(
   row: Record<string, unknown> | undefined,
 ): ApiTokenRecord | null {
   if (!row) return null;
-  const rawScopes = row.scopes;
-  let scopes: string[] = [];
-  if (Array.isArray(rawScopes)) {
-    scopes = rawScopes.filter((s): s is string => typeof s === "string");
-  } else if (typeof rawScopes === "string") {
-    try {
-      const parsed = JSON.parse(rawScopes);
-      if (Array.isArray(parsed)) {
-        scopes = parsed.filter((s): s is string => typeof s === "string");
-      }
-    } catch {
-      scopes = [];
-    }
-  }
-  return { ...(row as unknown as Omit<ApiTokenRecord, "scopes">), scopes };
+  return row as unknown as ApiTokenRecord;
 }
 
 // ============================================================================
@@ -110,13 +89,10 @@ export class ApiTokenRepository {
     const raw = generateRawToken();
     const tokenHash = hashToken(raw);
     const now = dateUtils.now();
-    const normalizedScopes = input.scopes ?? [];
     const [inserted] = await db
       .insert(sysApiToken)
       .values({
         name: input.name,
-        // Drizzle/MySQL JSON 列接受 string[]，这里转 unknown 避免类型冲突
-        scopes: normalizedScopes as unknown as null,
         tokenHash,
         userId: input.userId,
         expiresAt: input.expiresAt ?? null,

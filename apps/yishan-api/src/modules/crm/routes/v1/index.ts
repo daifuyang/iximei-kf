@@ -14,11 +14,13 @@ import customers from './customers/index.js'
 import dispatches from './dispatches/index.js'
 import members from './members/index.js'
 import weixin from './public/weixin/index.js'
+import dashboard from './dashboard/index.js'
 
 export default (async (app) => {
   await app.register(hospitals)
   await app.register(customers)
   await app.register(dispatches)
   await app.register(members)
+  await app.register(dashboard)
   await app.register(weixin)
 }) as FastifyPluginAsync

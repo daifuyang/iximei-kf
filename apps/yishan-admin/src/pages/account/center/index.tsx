@@ -52,7 +52,6 @@ import {
   meCreateApiToken,
   meListApiTokens,
   meRevokeApiToken,
-  meListAvailableScopes,
 } from '@/services/generated/meApiTokens';
 import { logout } from '@/utils/auth';
 
@@ -63,10 +62,7 @@ type ApiTokenDurationValue = '7d' | '30d' | '60d' | '90d' | '1y' | 'never';
 type ApiTokenFormValues = {
   name: string;
   duration: ApiTokenDurationValue;
-  scopes: string[];
 };
-
-type AvailableScopeGroup = API.availableScopeGroup;
 
 type ApiTokenRecord = API.apiTokenRecord;
 
@@ -223,26 +219,6 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [form] = Form.useForm<ApiTokenFormValues>();
-  const scopes = Form.useWatch<string[]>('scopes', form);
-
-  // 可用权限范围（从 API 动态加载）
-  const [availableScopeGroups, setAvailableScopeGroups] = useState<
-    AvailableScopeGroup[]
-  >([]);
-  const [scopesLoading, setScopesLoading] = useState(false);
-  const [scopesError, setScopesError] = useState(false);
-  const [confirmEmptyScopesOpen, setConfirmEmptyScopesOpen] = useState(false);
-
-  // Build search text lookup: value -> plain text for filtering
-  const searchTextMap = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const group of availableScopeGroups) {
-      for (const opt of group.options) {
-        map[opt.value] = opt.label;
-      }
-    }
-    return map;
-  }, [availableScopeGroups]);
 
   const [createdToken, setCreatedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -271,28 +247,7 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
 
   const handleOpenCreate = async () => {
     form.resetFields();
-    form.setFieldsValue({ duration: '30d', scopes: [] });
-    setScopesError(false);
-
-    // 从 API 加载当前用户可授予的权限范围
-    setScopesLoading(true);
-    try {
-      const res = await meListAvailableScopes();
-      if (res.success && res.data) {
-        setAvailableScopeGroups(res.data.groups || []);
-      } else {
-        setAvailableScopeGroups([]);
-        setScopesError(true);
-        message.error(res.message || '加载权限范围失败');
-      }
-    } catch (e: any) {
-      setAvailableScopeGroups([]);
-      setScopesError(true);
-      message.error(e?.message || '加载权限范围失败');
-    } finally {
-      setScopesLoading(false);
-    }
-
+    form.setFieldsValue({ duration: '30d' });
     setCreateOpen(true);
   };
 
@@ -301,12 +256,6 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
     try {
       values = await form.validateFields();
     } catch {
-      return;
-    }
-
-    // 空 scopes 二次确认
-    if (!values.scopes?.length) {
-      setConfirmEmptyScopesOpen(true);
       return;
     }
 
@@ -319,7 +268,6 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
       const res = await meCreateApiToken({
         name: values.name,
         duration: values.duration as unknown as API.apiTokenDuration,
-        scopes: values.scopes,
       });
       if (res.success && res.data) {
         setCreateOpen(false);
@@ -444,52 +392,6 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
       },
     },
     {
-      title: t('account.apiTokens.col.scopes'),
-      dataIndex: 'scopes',
-      key: 'scopes',
-      render: (scopeList: string[] | null) => {
-        if (!scopeList?.length) {
-          return (
-            <span style={{ color: 'rgba(0,0,0,0.45)' }}>
-              {t('account.apiTokens.noScopes')}
-            </span>
-          );
-        }
-        const MAX_SHOW = 3;
-        const shown = scopeList.slice(0, MAX_SHOW);
-        const remaining = scopeList.length - MAX_SHOW;
-        return (
-          <Tooltip
-            title={
-              <div>
-                {scopeList.map((s) => (
-                  <div key={s}>{s}</div>
-                ))}
-              </div>
-            }
-          >
-            <span>
-              {shown.map((s) => {
-                const isDanger = s === '*' || s === '__super_admin__';
-                return (
-                  <Tag
-                    key={s}
-                    color={isDanger ? 'error' : 'blue'}
-                    style={{ marginRight: 4 }}
-                  >
-                    {s}
-                  </Tag>
-                );
-              })}
-              {remaining > 0 && (
-                <Tag style={{ marginRight: 4 }}>+{remaining}</Tag>
-              )}
-            </span>
-          </Tooltip>
-        );
-      },
-    },
-    {
       title: t('account.apiTokens.col.actions'),
       key: 'actions',
       width: 120,
@@ -558,8 +460,7 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
         maskClosable={false}
         destroyOnHidden
         okButtonProps={{
-          loading: createLoading || scopesLoading,
-          disabled: scopesError,
+          loading: createLoading,
         }}
       >
         <Form
@@ -596,97 +497,13 @@ const ApiTokenPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
               }))}
             />
           </Form.Item>
-          <Form.Item
-            name="scopes"
-            label={t('account.apiTokens.createModal.scopesLabel')}
-            tooltip={t('account.apiTokens.createModal.scopesTooltip')}
-          >
-            <Select
-              mode="multiple"
-              placeholder={t('account.apiTokens.createModal.scopesPlaceholder')}
-              loading={scopesLoading}
-              options={availableScopeGroups.map(
-                (group: AvailableScopeGroup) => ({
-                  label: group.label,
-                  options: group.options.map((opt: API.availableScopeItem) => ({
-                    value: opt.value,
-                    label: opt.description ? (
-                      <Tooltip title={opt.description}>
-                        <span>{opt.label}</span>
-                      </Tooltip>
-                    ) : (
-                      opt.label
-                    ),
-                  })),
-                }),
-              )}
-              maxTagCount="responsive"
-              showSearch
-              tagRender={({ label, closable, onClose, value }) => {
-                const tagColor =
-                  value === '*' || value === '__super_admin__'
-                    ? 'error'
-                    : 'blue';
-                return (
-                  <Tag
-                    color={tagColor}
-                    closable={closable}
-                    onClose={onClose}
-                    style={{ marginRight: 4 }}
-                  >
-                    {label}
-                  </Tag>
-                );
-              }}
-              filterOption={(input, option) => {
-                // option may have React element labels; use searchTextMap to find plain text by value
-                const opt = option as { value?: string };
-                const searchText = opt?.value
-                  ? (searchTextMap[opt.value] ?? '')
-                  : '';
-                return searchText.toLowerCase().includes(input.toLowerCase());
-              }}
-              onChange={() => {
-                // Force re-render to update warning visibility
-                form.validateFields(['scopes']);
-              }}
-            />
-          </Form.Item>
-          {!scopes?.length ? (
-            <Alert
-              type="warning"
-              showIcon
-              message={t('account.apiTokens.createModal.noScopesWarning')}
-              style={{ marginBottom: 16 }}
-            />
-          ) : null}
+          <Alert
+            type="info"
+            showIcon
+            message={t('account.apiTokens.createModal.inheritNotice')}
+            style={{ marginBottom: 16 }}
+          />
         </Form>
-      </Modal>
-
-      {/* Empty scopes confirmation modal */}
-      <Modal
-        title={t('account.apiTokens.confirmEmptyScopes.title')}
-        open={confirmEmptyScopesOpen}
-        onCancel={() => setConfirmEmptyScopesOpen(false)}
-        onOk={async () => {
-          setConfirmEmptyScopesOpen(false);
-          let values: ApiTokenFormValues;
-          try {
-            values = await form.validateFields();
-          } catch {
-            return;
-          }
-          await doCreate(values);
-        }}
-        okText={t('account.apiTokens.confirmEmptyScopes.ok')}
-        cancelText={t('account.apiTokens.confirmEmptyScopes.cancel')}
-        okButtonProps={{ danger: true }}
-      >
-        <Alert
-          type="warning"
-          showIcon
-          message={t('account.apiTokens.confirmEmptyScopes.message')}
-        />
       </Modal>
 
       {/* Created token disclosure modal */}

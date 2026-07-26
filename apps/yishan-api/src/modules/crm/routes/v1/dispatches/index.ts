@@ -39,7 +39,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '派单状态字典',
-        operationId: 'crmV1ListDispatchStatuses',
+        operationId: 'listCrmDispatchStatuses',
       },
     },
     async (_req: any, reply: any) => {
@@ -55,7 +55,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '派单列表',
-        operationId: 'crmV1ListDispatches',
+        operationId: 'listCrmDispatches',
         querystring: CrmDispatchListQuerySchema,
       },
     },
@@ -72,7 +72,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '派单详情',
-        operationId: 'crmV1GetDispatch',
+        operationId: 'getCrmDispatch',
         params: CrmIdParamsSchema,
       },
     },
@@ -90,7 +90,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '更新派单',
-        operationId: 'crmV1UpdateDispatch',
+        operationId: 'updateCrmDispatch',
         params: CrmIdParamsSchema,
         body: CrmDispatchUpdateSchema,
       },
@@ -108,7 +108,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '派单回复',
-        operationId: 'crmV1AddDispatchReply',
+        operationId: 'createCrmDispatchReply',
         params: CrmIdParamsSchema,
         body: CrmDispatchReplyReqSchema,
       },
@@ -126,7 +126,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '派单跟进',
-        operationId: 'crmV1AddDispatchLog',
+        operationId: 'createCrmDispatchLog',
         params: CrmIdParamsSchema,
         body: CrmDispatchLogReqSchema,
       },
@@ -144,7 +144,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '删除派单',
-        operationId: 'crmV1DeleteDispatch',
+        operationId: 'deleteCrmDispatch',
         params: CrmIdParamsSchema,
       },
     },

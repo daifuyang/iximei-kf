@@ -38,7 +38,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '客户状态字典',
-        operationId: 'crmV1ListCustomerStatuses',
+        operationId: 'listCrmCustomerStatuses',
       },
     },
     async (_req: any, reply: any) => {
@@ -54,7 +54,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '客户列表',
-        operationId: 'crmV1ListCustomers',
+        operationId: 'listCrmCustomers',
         querystring: CrmCustomerListQuerySchema,
       },
     },
@@ -71,7 +71,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '客户详情',
-        operationId: 'crmV1GetCustomer',
+        operationId: 'getCrmCustomer',
         params: CrmIdParamsSchema,
       },
     },
@@ -89,7 +89,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '新建客户',
-        operationId: 'crmV1CreateCustomer',
+        operationId: 'createCrmCustomer',
         body: CrmCustomerReqSchema,
       },
     },
@@ -106,7 +106,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '更新客户',
-        operationId: 'crmV1UpdateCustomer',
+        operationId: 'updateCrmCustomer',
         params: CrmIdParamsSchema,
         body: CrmCustomerUpdateReqSchema,
       },
@@ -124,7 +124,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '客户派单',
-        operationId: 'crmV1DispatchCustomer',
+        operationId: 'dispatchCrmCustomer',
         params: CrmIdParamsSchema,
         body: CrmCustomerDispatchReqSchema,
       },
@@ -142,7 +142,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '客户备注（占位）',
-        operationId: 'crmV1AddCustomerRemark',
+        operationId: 'createCrmCustomerRemark',
         params: CrmIdParamsSchema,
         body: CrmCustomerRemarkReqSchema,
       },
@@ -157,7 +157,7 @@ const customers: FastifyPluginAsync = async (app) => {
       schema: {
         tags: [ROUTE_TAG],
         summary: '删除客户',
-        operationId: 'crmV1DeleteCustomer',
+        operationId: 'deleteCrmCustomer',
         params: CrmIdParamsSchema,
       },
     },

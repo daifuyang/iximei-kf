@@ -6,10 +6,6 @@ export const ApiTokenRecordSchema = Type.Object(
   {
     id: Type.Integer(),
     name: Type.String(),
-    scopes: Type.Array(Type.String(), {
-      description: "授权范围 (Section 2 PAT scopes)。空数组表示无任何权限。",
-      default: [],
-    }),
     userId: Type.Integer(),
     expiresAt: Type.Union([Type.String({ format: "date-time" }), Type.Null()]),
     lastUsedAt: Type.Union([Type.String({ format: "date-time" }), Type.Null()]),
@@ -52,13 +48,10 @@ export const ApiTokenCreateReqSchema = Type.Object(
     ),
     scopes: Type.Optional(
       Type.Array(Type.String(), {
+        deprecated: true,
         description:
-          "授权范围（permission code 列表）。为空/不传 = 创建空 scopes（保守默认，无任何资源授权）。" +
-          " 特殊值：'*' = 完全继承用户角色权限（含 super_admin 旁路）；" +
-          "'__super_admin__' = 显式要求保留 super_admin 旁路；" +
-          "其余 code 必须是 PERMISSION_CODES 中已登记的静态 code 或 manifest 注册的扩展 code，" +
-          "未知 code 将被拒绝（400 INVALID_PARAMETER）。",
-        default: [],
+          "【已废弃】scopes 参数不再接受。Token 权限继承所属用户当前 RBAC 角色。" +
+          "传入非空数组将被拒绝（400 INVALID_PARAMETER）。",
       }),
     ),
   },
@@ -69,7 +62,6 @@ const ApiTokenCreateDataSchema = Type.Object(
   {
     id: Type.Integer(),
     name: Type.String(),
-    scopes: Type.Array(Type.String()),
     userId: Type.Integer(),
     expiresAt: Type.Union([Type.String({ format: "date-time" }), Type.Null()]),
     createdAt: Type.String({ format: "date-time" }),
@@ -114,43 +106,6 @@ export const ApiTokenDeleteRespSchema = successResponse({
   $id: "apiTokenDeleteResp",
 });
 
-// ============================================================================
-// Available Scopes (for GET /me/api-tokens/available-scopes)
-// ============================================================================
-
-/** 单个可用权限项 */
-export const AvailableScopeItemSchema = Type.Object(
-  {
-    value: Type.String({ description: "权限码，如 system:user:list" }),
-    label: Type.String({ description: "展示用中文标签，如 用户管理-列表" }),
-    description: Type.Optional(Type.String({ description: "可选的描述/提示文本" })),
-  },
-  { $id: "availableScopeItem" },
-);
-
-/** 权限分组 */
-export const AvailableScopeGroupSchema = Type.Object(
-  {
-    label: Type.String({ description: "分组名称，如 系统管理" }),
-    system: Type.Union([
-      Type.Literal("system", { description: "系统管理" }),
-      Type.Literal("shop", { description: "商城管理" }),
-      Type.Literal("portal", { description: "门户管理" }),
-      Type.Literal("special", { description: "特殊权限" }),
-    ]),
-    options: Type.Array(Type.Ref("availableScopeItem")),
-  },
-  { $id: "availableScopeGroup" },
-);
-
-/** 可用权限范围响应 */
-export const AvailableScopesRespSchema = successResponse({
-  data: Type.Object({
-    groups: Type.Array(Type.Ref("availableScopeGroup")),
-  }),
-  $id: "availableScopesResp",
-});
-
 export const registerApiToken = (fastify: FastifyInstance) => {
   fastify.addSchema(ApiTokenRecordSchema);
   fastify.addSchema(ApiTokenDurationSchema);
@@ -162,10 +117,6 @@ export const registerApiToken = (fastify: FastifyInstance) => {
   fastify.addSchema(ApiTokenRecordRespSchema);
   fastify.addSchema(ApiTokenListRespSchema);
   fastify.addSchema(ApiTokenDeleteRespSchema);
-  // Available scopes schemas
-  fastify.addSchema(AvailableScopeItemSchema);
-  fastify.addSchema(AvailableScopeGroupSchema);
-  fastify.addSchema(AvailableScopesRespSchema);
 };
 
 export default registerApiToken;

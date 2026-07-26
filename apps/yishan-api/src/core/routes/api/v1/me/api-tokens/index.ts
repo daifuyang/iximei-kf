@@ -2,8 +2,10 @@ import { createRouteRegistrar } from '../../../../route-registrar.js';
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { Type } from "@sinclair/typebox";
 import { ResponseUtil } from "../../../../../../utils/response.js";
-import { ApiTokenService, getAvailableScopesForUser } from "../../../../../services/api-token.service.js";
+import { ApiTokenService } from "../../../../../services/api-token.service.js";
 import { registerPermissions, type PermissionRef } from '../../../../../permissions/catalog.js';
+import { BusinessError } from "../../../../../../exceptions/business-error.js";
+import { ValidationErrorCode } from "../../../../../../constants/business-codes/validation.js";
 
 const PERMS: { readonly [k: string]: PermissionRef } = Object.freeze({
   MANAGE: { code: 'system:api-token:manage', label: 'API Token-管理', group: 'system' },
@@ -47,11 +49,18 @@ const apiTokens: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         scopes?: string[];
       };
 
+      // 拒绝旧客户端携带 scopes 的请求
+      if (body.scopes && body.scopes.length > 0) {
+        throw new BusinessError(
+          ValidationErrorCode.INVALID_PARAMETER,
+          "scopes 已废弃，Token 权限继承所属用户当前 RBAC 角色。请移除 scopes 参数后重试。",
+        );
+      }
+
       const data = await ApiTokenService.createToken(userId, {
         name: body.name,
         duration: body.duration,
         expiresAt: body.expiresAt,
-        scopes: body.scopes,
       });
 
       return ResponseUtil.success(reply, data, "API Token 创建成功,请妥善保存明文 token");
@@ -122,26 +131,6 @@ const apiTokens: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     },
   );
 
-  // GET /api/v1/me/api-tokens/available-scopes
-  route.get(
-    "/available-scopes",
-    {
-      access: { permission: PERMS.MANAGE },
-      schema: {
-        summary: "获取当前用户可授予的权限范围",
-        description: "返回当前用户可授予的权限列表，按 system/shop/portal/special 分组。仅返回用户当前持有的且在系统中已登记的权限码。",
-        operationId: "meListAvailableScopes",
-        tags: ["me-api-tokens"],
-        security: [{ bearerAuth: [] }],
-        response: { 200: { $ref: "availableScopesResp#" } },
-      },
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = request.currentUser.id;
-      const groups = await getAvailableScopesForUser(userId);
-      return ResponseUtil.success(reply, { groups }, "获取成功");
-    },
-  );
 };
 
 export default apiTokens;

@@ -136,9 +136,6 @@ export default fp(async (fastify) => {
       }
 
       request.currentUser = currentUser
-      // Section 2 — PAT 用户必须仅在 tokenScope 范围内有权限：
-      // `requirePermission` 在校验时会与 role-based perms 取交集。
-      ;(request as any).tokenScope = apiToken.scopes ?? []
       setImmediate(() => {
         ApiTokenRepository.touch(apiToken.id, request.ip ?? null).catch((err) => {
           request.log.warn({ err, apiTokenId: apiToken.id }, 'Failed to update API token last-used metadata')
@@ -236,7 +233,6 @@ export default fp(async (fastify) => {
         )
       }
       request.currentUser = currentUser
-      ;(request as any).tokenScope = apiToken.scopes ?? []
       setImmediate(() => {
         ApiTokenRepository.touch(apiToken.id, request.ip ?? null).catch((err) => {
           request.log.warn({ err, apiTokenId: apiToken.id }, 'Failed to update API token last-used metadata')

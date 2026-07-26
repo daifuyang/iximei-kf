@@ -4,7 +4,6 @@ import registerCommonSchemas from "../src/core/schemas/common.ts";
 import { registerApiToken } from "../src/core/schemas/api-token.ts";
 import errorHandlerPlugin from "../src/core/plugins/external/error-handler.ts";
 import { ApiTokenRepository } from "../src/core/repositories/api-token.repository.ts";
-import { PermissionService } from "../src/core/services/permission.service.ts";
 import { AuthErrorCode } from "../src/constants/business-codes/auth.ts";
 import { ValidationErrorCode } from "../src/constants/business-codes/validation.ts";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -259,98 +258,22 @@ describe("Me API token routes", () => {
     await app.close();
   });
 
-  describe("GET /api/v1/me/api-tokens/available-scopes", () => {
-    it("returns 401 without auth", async () => {
-      const app = await buildApp();
+  it("POST /api/v1/me/api-tokens with scopes returns 400 (deprecated)", async () => {
+    const app = await buildApp();
 
-      const res = await app.inject({
-        method: "GET",
-        url: "/api/v1/me/api-tokens/available-scopes",
-      });
-
-      expect(res.statusCode).toBe(401);
-      await app.close();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/me/api-tokens",
+      headers: { Authorization: "Bearer access-token" },
+      payload: { name: "old-client", scopes: ["system:user:list"] },
     });
 
-    it("returns grouped scopes for normal user", async () => {
-      const app = await buildApp();
-      vi.spyOn(PermissionService, "loadRoleIdsForUser").mockResolvedValueOnce([2]);
-      vi.spyOn(PermissionService, "loadForRoleIds").mockResolvedValueOnce({
-        perms: new Set(["system:user:list", "system:user:create"]),
-        roleCodes: new Set(["normal_user"]),
-      });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.success).toBe(false);
+    expect(body.code).toBe(ValidationErrorCode.INVALID_PARAMETER);
+    expect(body.message).toContain("scopes");
 
-      const res = await app.inject({
-        method: "GET",
-        url: "/api/v1/me/api-tokens/available-scopes",
-        headers: { Authorization: "Bearer access-token" },
-      });
-
-      expect(res.statusCode).toBe(200);
-      const body = res.json();
-      expect(body.success).toBe(true);
-      expect(body.data.groups).toBeInstanceOf(Array);
-      // Should have "系统管理" group
-      const systemGroup = body.data.groups.find((g: any) => g.system === "system");
-      expect(systemGroup).toBeDefined();
-      expect(systemGroup.options.some((o: any) => o.value === "system:user:list")).toBe(true);
-      // Normal user should NOT see wildcard or super_admin bypass
-      const specialGroup = body.data.groups.find((g: any) => g.system === "special");
-      expect(specialGroup).toBeUndefined();
-
-      await app.close();
-    });
-
-    it("super_admin sees wildcard option", async () => {
-      const app = await buildApp();
-      vi.spyOn(PermissionService, "loadRoleIdsForUser").mockResolvedValueOnce([1]);
-      vi.spyOn(PermissionService, "loadForRoleIds").mockResolvedValueOnce({
-        perms: new Set(["system:user:list", "__super_admin__"]),
-        roleCodes: new Set(["super_admin"]),
-      });
-
-      const res = await app.inject({
-        method: "GET",
-        url: "/api/v1/me/api-tokens/available-scopes",
-        headers: { Authorization: "Bearer access-token" },
-      });
-
-      expect(res.statusCode).toBe(200);
-      const body = res.json();
-      expect(body.success).toBe(true);
-      // Super admin should see special group with wildcard
-      const specialGroup = body.data.groups.find((g: any) => g.system === "special");
-      expect(specialGroup).toBeDefined();
-      expect(specialGroup.options.some((o: any) => o.value === "*")).toBe(true);
-      expect(specialGroup.options.some((o: any) => o.value === "__super_admin__")).toBe(true);
-
-      await app.close();
-    });
-
-    it("only returns known permission codes", async () => {
-      const app = await buildApp();
-      vi.spyOn(PermissionService, "loadRoleIdsForUser").mockResolvedValueOnce([2]);
-      // Simulate role has some unknown/manifest-only codes
-      vi.spyOn(PermissionService, "loadForRoleIds").mockResolvedValueOnce({
-        perms: new Set(["system:user:list", "plugin:custom:action", "unknown:code"]),
-        roleCodes: new Set(["normal_user"]),
-      });
-
-      const res = await app.inject({
-        method: "GET",
-        url: "/api/v1/me/api-tokens/available-scopes",
-        headers: { Authorization: "Bearer access-token" },
-      });
-
-      expect(res.statusCode).toBe(200);
-      const body = res.json();
-      // Should only contain known codes
-      const allValues = body.data.groups.flatMap((g: any) => g.options.map((o: any) => o.value));
-      expect(allValues).toContain("system:user:list");
-      expect(allValues).not.toContain("plugin:custom:action");
-      expect(allValues).not.toContain("unknown:code");
-
-      await app.close();
-    });
+    await app.close();
   });
 });

@@ -36,7 +36,7 @@ const weixin: FastifyPluginAsync = async (app) => {
         summary: '微信绑定医院（小程序端签名校验）',
         description:
           '签名校验：md5("hospital_bind" + hospital_id)。当前 PERM 是占位，业务侧会再做签名校验。',
-        operationId: 'crmV1PublicWeixinHospitalBind',
+        operationId: 'bindCrmWeixinHospital',
         querystring: CrmWeixinBindQuerystringSchema,
       },
     },

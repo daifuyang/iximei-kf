@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, like, or, ne } from 'drizzle-orm'
+import { and, count, desc, eq, getTableColumns, inArray, isNull, like, or, ne } from 'drizzle-orm'
 import { drizzleDb, type AppQueryDb } from '@/db'
 import { crmHospital, crmHospitalAccount } from '../db/schema.js'
 import { sysRole, sysUser, sysUserRole } from '@/db/schema'
@@ -7,7 +7,7 @@ const HOSPITAL_ACCOUNT_ROLE_CODE = 'hospital_account'
 const active = (t: any) => isNull(t.deletedAt)
 const page = (q: any, p: any) => p.pageSize === 0 ? q : q.limit(p.pageSize).offset((p.page - 1) * p.pageSize)
 export class HospitalsRepository {
- static async list(query:any, db:AppQueryDb=drizzleDb) { const c:any[]=[active(crmHospital)]; if(query.status!==undefined)c.push(eq(crmHospital.status,Number(query.status))); if(query.keyword)c.push(or(like(crmHospital.hospitalName,`%${query.keyword}%`),like(crmHospital.hospitalPhone,`%${query.keyword}%`),like(crmHospital.hospitalSelling,`%${query.keyword}%`))!); const where=and(...c); const [items,totals]=await Promise.all([page(db.select().from(crmHospital).where(where).orderBy(desc(crmHospital.createdAt)),query),db.select({total:count()}).from(crmHospital).where(where)]); return {list:items,total:Number(totals[0]?.total??0)} }
+ static async list(query:any, db:AppQueryDb=drizzleDb) { const c:any[]=[active(crmHospital)]; if(query.status!==undefined)c.push(eq(crmHospital.status,Number(query.status))); if(query.keyword)c.push(or(like(crmHospital.hospitalName,`%${query.keyword}%`),like(crmHospital.hospitalPhone,`%${query.keyword}%`),like(crmHospital.hospitalSelling,`%${query.keyword}%`))!); if(query.hospitalIds&&query.hospitalIds.length)c.push(inArray(crmHospital.id,query.hospitalIds)); const where=and(...c); const [items,totals]=await Promise.all([page(db.select({...getTableColumns(crmHospital),accountCount:count(crmHospitalAccount.id)}).from(crmHospital).leftJoin(crmHospitalAccount,and(eq(crmHospitalAccount.hospitalId,crmHospital.id),active(crmHospitalAccount))).where(where).groupBy(crmHospital.id).orderBy(desc(crmHospital.createdAt)),query),db.select({total:count()}).from(crmHospital).where(where)]); return {list:items,total:Number(totals[0]?.total??0)} }
  static async findById(id:number,db:AppQueryDb=drizzleDb){const [r]=await db.select().from(crmHospital).where(and(eq(crmHospital.id,id),active(crmHospital))).limit(1); return r??null}
  static async create(input:any,db:AppQueryDb=drizzleDb){const r=await db.insert(crmHospital).values(input);return this.findById(Number(r[0].insertId),db)}
  static async update(id:number,input:any,db:AppQueryDb=drizzleDb){await db.update(crmHospital).set(input).where(eq(crmHospital.id,id));return this.findById(id,db)}

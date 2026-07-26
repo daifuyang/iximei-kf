@@ -13,8 +13,6 @@ import type { ApiTokenRecord, ApiTokenWithRaw } from "../repositories/api-token.
 export interface ApiTokenRecordResp {
   id: number;
   name: string;
-  /** Section 2: 当前 PAT 的授权范围，空数组表示无任何权限。 */
-  scopes: string[];
   userId: number;
   expiresAt: string | null;
   lastUsedAt: string | null;
@@ -27,7 +25,6 @@ export interface ApiTokenRecordResp {
 export interface ApiTokenCreateResp {
   id: number;
   name: string;
-  scopes: string[];
   userId: number;
   expiresAt: string | null;
   createdAt: string;
@@ -43,7 +40,6 @@ export class ApiTokenMapper {
     return {
       id: row.id,
       name: row.name,
-      scopes: row.scopes ?? [],
       userId: row.userId,
       expiresAt: row.expiresAt ? dateUtils.formatISO(row.expiresAt) : null,
       lastUsedAt: row.lastUsedAt ? dateUtils.formatISO(row.lastUsedAt) : null,
@@ -57,7 +53,6 @@ export class ApiTokenMapper {
     return {
       id: record.id,
       name: record.name,
-      scopes: record.scopes ?? [],
       userId: record.userId,
       expiresAt: record.expiresAt ? dateUtils.formatISO(record.expiresAt) : null,
       createdAt: dateUtils.formatISO(record.createdAt)!,
