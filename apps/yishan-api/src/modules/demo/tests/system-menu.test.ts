@@ -29,17 +29,17 @@ describe('flattenMenuTree', () => {
 
   it('铺平后节点总数 === 顶级 + 所有后代', () => {
     const flat = flattenMenuTree(tree)
-    // demo JSON 共 1 顶级 + 3 页面 + 6 按钮 = 10
-    // (quickstart 1 + health 1 + todos 4)
-    expect(flat.length).toBe(10)
+    // demo JSON 共 1 顶级 + 4 页面 + 7 按钮 = 12
+    // (quickstart 1 + health 1 + todos 4 + region 1)
+    expect(flat.length).toBe(12)
   })
 
   it('深度按层级递增：顶级 depth=0，页面 depth=1，按钮 depth=2', () => {
     const flat = flattenMenuTree(tree)
     const depths = flat.map((f) => f.depth)
     expect(depths.filter((d) => d === 0).length).toBe(1)
-    expect(depths.filter((d) => d === 1).length).toBe(3)
-    expect(depths.filter((d) => d === 2).length).toBe(6)
+    expect(depths.filter((d) => d === 1).length).toBe(4)
+    expect(depths.filter((d) => d === 2).length).toBe(7)
   })
 
   it('铺平顺序与 JSON 出现顺序一致（深度优先）', () => {
@@ -111,10 +111,10 @@ describe('flattenMenuTree', () => {
   it('permissionCodes 字段在铺平后仍可访问', () => {
     const flat = flattenMenuTree(tree)
     const withCodes = flat.filter((f) => f.node.permissionCodes && f.node.permissionCodes.length > 0)
-    // demo JSON 里每个按钮节点都有一个 permissionCode
-    expect(withCodes.length).toBeGreaterThanOrEqual(6)
+    // 每个按钮节点都有至少一个权限码；地区查看按钮含多个权限码。
+    expect(withCodes.length).toBeGreaterThanOrEqual(7)
     for (const f of withCodes) {
-      expect(f.node.permissionCodes![0]).toMatch(/^demo:/)
+      expect(f.node.permissionCodes!.every((code) => /^[a-z]+:[a-z]+(?::[a-z]+)?$/.test(code))).toBe(true)
     }
   })
 
@@ -125,7 +125,7 @@ describe('flattenMenuTree', () => {
     expect(buttons.every((b) => b.node.hideInMenu === 1)).toBe(true)
     // isDefaultAction 只在「查看」按钮上为 1
     const defaultActions = buttons.filter((b) => b.node.isDefaultAction === 1)
-    expect(defaultActions.length).toBe(3) // 3 个查看按钮
+    expect(defaultActions.length).toBe(4) // 4 个查看按钮
   })
 })
 
@@ -152,8 +152,8 @@ describe('按钮节点（type=2）', () => {
   const flat = flattenMenuTree(tree)
   const buttons = flat.filter((f) => f.node.type === 2)
 
-  it('至少存在 6 个按钮节点', () => {
-    expect(buttons.length).toBeGreaterThanOrEqual(6)
+  it('至少存在 7 个按钮节点', () => {
+    expect(buttons.length).toBeGreaterThanOrEqual(7)
   })
 
   it('按钮节点没有 path 字段（与系统约定一致）', () => {
@@ -167,11 +167,13 @@ describe('按钮节点（type=2）', () => {
     }
   })
 
-  it('按钮都带 permissionCodes，且形如 demo:<area>:<action>', () => {
+  it('按钮都带有效的 permissionCodes', () => {
     for (const b of buttons) {
       expect(b.node.permissionCodes).toBeDefined()
-      expect(b.node.permissionCodes!.length).toBe(1)
-      expect(b.node.permissionCodes![0]).toMatch(/^demo:[a-z]+:[a-z]+$/)
+      expect(b.node.permissionCodes!.length).toBeGreaterThan(0)
+      for (const code of b.node.permissionCodes!) {
+        expect(code).toMatch(/^[a-z]+:[a-z]+(?::[a-z]+)?$/)
+      }
     }
   })
 })
