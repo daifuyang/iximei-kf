@@ -4,6 +4,7 @@
     "name": "示例插件",
     "path": "/demo",
     "sortOrder": 10,
+    "hideInMenu": 1,
     "icon": "ExperimentOutlined",
     "children": [
       {
@@ -11,6 +12,7 @@
         "name": "快速入门",
         "path": "/demo/quickstart",
         "sortOrder": 1,
+        "hideInMenu": 1,
         "icon": "ReadOutlined",
         "component": "./modules/demo/quickstart",
         "children": [
@@ -29,6 +31,7 @@
         "name": "健康检查",
         "path": "/demo/health",
         "sortOrder": 2,
+        "hideInMenu": 1,
         "icon": "SmileOutlined",
         "component": "./modules/demo/health",
         "children": [
@@ -47,6 +50,7 @@
         "name": "Todo 示例",
         "path": "/demo/todos",
         "sortOrder": 3,
+        "hideInMenu": 1,
         "icon": "ClipboardListOutlined",
         "component": "./modules/demo/todos",
         "children": [
@@ -61,6 +65,7 @@
         "name": "省市级联",
         "path": "/demo/region",
         "sortOrder": 4,
+        "hideInMenu": 1,
         "icon": "EnvironmentOutlined",
         "component": "./modules/demo/region",
         "children": [
