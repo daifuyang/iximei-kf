@@ -157,7 +157,7 @@ export const ProFormRegionCascader: React.FC<ProFormRegionCascaderProps> = ({
   );
 
   return (
-    <Form.Item name={name} label={label} extra={extra}>
+    <Form.Item name={name} label={label} extra={extra as any}>
       <Cascader
         options={tree}
         placeholder={placeholder}
