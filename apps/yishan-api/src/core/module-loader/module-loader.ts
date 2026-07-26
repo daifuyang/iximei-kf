@@ -48,13 +48,16 @@ export async function scanDiskModulesPure(
   distRoot: string,
   logger?: FastifyBaseLogger,
 ): Promise<ModuleDiskMeta[]> {
-  const srcModulesDir = join(srcRoot, 'modules')
-  if (!existsSync(srcModulesDir)) return []
+  // 运行时（尤其是 FC 函数包）只携带 dist，不保证 src 存在。模块发现必须
+  // 以实际可加载的编译产物为准；否则生产环境会扫描到 0 个模块，导致模块
+  // 路由和权限注册均未挂载。
+  const distModulesDir = join(distRoot, 'modules')
+  if (!existsSync(distModulesDir)) return []
   const out: ModuleDiskMeta[] = []
-  for (const id of readdirSync(srcModulesDir)) {
-    const srcModuleDir = join(srcModulesDir, id)
-    if (!statSync(srcModuleDir).isDirectory()) continue
-    const distModuleJs = join(distRoot, 'modules', id, 'module.js')
+  for (const id of readdirSync(distModulesDir)) {
+    const distModuleDir = join(distModulesDir, id)
+    if (!statSync(distModuleDir).isDirectory()) continue
+    const distModuleJs = join(distModuleDir, 'module.js')
     if (!existsSync(distModuleJs)) {
       logger?.warn(
         { module: id },
@@ -80,7 +83,10 @@ export async function scanDiskModulesPure(
       version: typeof meta.version === 'string' && meta.version.length > 0
         ? meta.version
         : '0.0.0',
-      moduleDir: srcModuleDir,
+      // dev 工具可继续使用源目录；函数包中则回退到 dist 目录。
+      moduleDir: existsSync(join(srcRoot, 'modules', id))
+        ? join(srcRoot, 'modules', id)
+        : distModuleDir,
     })
   }
   out.sort((a, b) => a.id.localeCompare(b.id))
