@@ -10,6 +10,7 @@ on:
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
+      - "scripts/check-main-baseline.mjs"
   pull_request:
     paths:
       - ".github/workflows/**"
@@ -19,6 +20,7 @@ on:
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
+      - "scripts/check-main-baseline.mjs"
 
 jobs:
   verify:
