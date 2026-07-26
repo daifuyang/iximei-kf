@@ -13,7 +13,6 @@ declare namespace API {
   type apiTokenCreateData = {
     id: number;
     name: string;
-    scopes: string[];
     userId: number;
     expiresAt: string | null;
     createdAt: string;
@@ -25,7 +24,7 @@ declare namespace API {
     duration?: apiTokenDuration;
     /** 自定义过期时间(ISO datetime)。与 duration 互斥。 */
     expiresAt?: string;
-    /** 授权范围（permission code 列表）。为空/不传 = 创建空 scopes（保守默认，无任何资源授权）。 特殊值：'*' = 完全继承用户角色权限（含 super_admin 旁路）；'__super_admin__' = 显式要求保留 super_admin 旁路；其余 code 必须是 PERMISSION_CODES 中已登记的静态 code 或 manifest 注册的扩展 code，未知 code 将被拒绝（400 INVALID_PARAMETER）。 */
+    /** 【已废弃】scopes 参数不再接受。Token 权限继承所属用户当前 RBAC 角色。传入非空数组将被拒绝（400 INVALID_PARAMETER）。 */
     scopes?: string[];
   };
 
@@ -67,8 +66,6 @@ declare namespace API {
   type apiTokenRecord = {
     id: number;
     name: string;
-    /** 授权范围 (Section 2 PAT scopes)。空数组表示无任何权限。 */
-    scopes: string[];
     userId: number;
     expiresAt: string | null;
     lastUsedAt: string | null;
@@ -96,6 +93,14 @@ declare namespace API {
   type appGetMyLoginLogsParams = {
     page?: number;
     pageSize?: number;
+  };
+
+  type assignCrmHospitalAccountParams = {
+    id: number;
+  };
+
+  type assignCrmHospitalAccountParams = {
+    id: number;
   };
 
   type attachmentBatchDeleteReq = {
@@ -207,30 +212,6 @@ declare namespace API {
     pagination: paginationResponse;
   };
 
-  type availableScopeGroup = {
-    /** 分组名称，如 系统管理 */
-    label: string;
-    system: "system" | "shop" | "portal" | "special";
-    options: availableScopeItem[];
-  };
-
-  type availableScopeItem = {
-    /** 权限码，如 system:user:list */
-    value: string;
-    /** 展示用中文标签，如 用户管理-列表 */
-    label: string;
-    /** 可选的描述/提示文本 */
-    description?: string;
-  };
-
-  type availableScopesResp = {
-    code: number;
-    message: string;
-    success: boolean;
-    data: { groups: availableScopeGroup[] };
-    timestamp: string;
-  };
-
   type batchGetSystemOptionByQueryParams = {
     /** 通过数组语法传参：?key[]=a&key[]=b */
     "key[]": systemOptionKey[];
@@ -263,6 +244,18 @@ declare namespace API {
         message?: string;
       }[];
     };
+  };
+
+  type bindCrmWeixinHospitalParams = {
+    hospital_id: number;
+    openid: string;
+    signature: string;
+  };
+
+  type bindCrmWeixinHospitalParams = {
+    hospital_id: number;
+    openid: string;
+    signature: string;
   };
 
   type cleanupTokensReq = {
@@ -317,6 +310,46 @@ declare namespace API {
     metadata?: any;
   };
 
+  type createCrmCustomerRemarkParams = {
+    id: number;
+  };
+
+  type createCrmCustomerRemarkParams = {
+    id: number;
+  };
+
+  type createCrmDispatchLogParams = {
+    id: number;
+  };
+
+  type createCrmDispatchLogParams = {
+    id: number;
+  };
+
+  type createCrmDispatchReplyParams = {
+    id: number;
+  };
+
+  type createCrmDispatchReplyParams = {
+    id: number;
+  };
+
+  type createCrmHospitalAccountParams = {
+    id: number;
+  };
+
+  type createCrmHospitalAccountParams = {
+    id: number;
+  };
+
+  type createCrmMemberRemarkParams = {
+    id: number;
+  };
+
+  type createCrmMemberRemarkParams = {
+    id: number;
+  };
+
   type createDeptReq = {
     /** 部门名称 */
     name: string;
@@ -358,280 +391,36 @@ declare namespace API {
     roleIds?: number[];
   };
 
-  type crmV1AddCustomerRemarkParams = {
-    id: number;
-  };
-
-  type crmV1AddCustomerRemarkParams = {
-    id: number;
-  };
-
-  type crmV1AddDispatchLogParams = {
-    id: number;
-  };
-
-  type crmV1AddDispatchLogParams = {
-    id: number;
-  };
-
-  type crmV1AddDispatchReplyParams = {
-    id: number;
-  };
-
-  type crmV1AddDispatchReplyParams = {
-    id: number;
-  };
-
-  type crmV1AddMemberRemarkParams = {
-    id: number;
-  };
-
-  type crmV1AddMemberRemarkParams = {
-    id: number;
-  };
-
-  type crmV1AssignHospitalAccountParams = {
-    id: number;
-  };
-
-  type crmV1AssignHospitalAccountParams = {
-    id: number;
-  };
-
-  type crmV1CreateHospitalAccountParams = {
-    id: number;
-  };
-
-  type crmV1CreateHospitalAccountParams = {
-    id: number;
-  };
-
-  type crmV1DeleteCustomerParams = {
-    id: number;
-  };
-
-  type crmV1DeleteCustomerParams = {
-    id: number;
-  };
-
-  type crmV1DeleteDispatchParams = {
-    id: number;
-  };
-
-  type crmV1DeleteDispatchParams = {
-    id: number;
-  };
-
-  type crmV1DeleteHospitalAccountParams = {
-    id: number;
-    userId: number;
-  };
-
-  type crmV1DeleteHospitalAccountParams = {
-    id: number;
-    userId: number;
-  };
-
-  type crmV1DeleteHospitalParams = {
-    id: number;
-  };
-
-  type crmV1DeleteHospitalParams = {
-    id: number;
-  };
-
-  type crmV1DeleteMemberParams = {
-    id: number;
-  };
-
-  type crmV1DeleteMemberParams = {
-    id: number;
-  };
-
-  type crmV1DispatchCustomerParams = {
-    id: number;
-  };
-
-  type crmV1DispatchCustomerParams = {
-    id: number;
-  };
-
-  type crmV1GetCustomerParams = {
-    id: number;
-  };
-
-  type crmV1GetCustomerParams = {
-    id: number;
-  };
-
-  type crmV1GetDispatchParams = {
-    id: number;
-  };
-
-  type crmV1GetDispatchParams = {
-    id: number;
-  };
-
-  type crmV1GetHospitalParams = {
-    id: number;
-  };
-
-  type crmV1GetHospitalParams = {
-    id: number;
-  };
-
-  type crmV1GetMemberParams = {
-    id: number;
-  };
-
-  type crmV1GetMemberParams = {
-    id: number;
-  };
-
-  type crmV1ListCustomersParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-    statusId?: number;
-    ownerUserId?: number;
-  };
-
-  type crmV1ListCustomersParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-    statusId?: number;
-    ownerUserId?: number;
-  };
-
-  type crmV1ListDispatchesParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-    statusId?: number;
-  };
-
-  type crmV1ListDispatchesParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-    statusId?: number;
-  };
-
-  type crmV1ListHospitalAccountsParams = {
-    id: number;
-  };
-
-  type crmV1ListHospitalAccountsParams = {
-    id: number;
-  };
-
-  type crmV1ListHospitalsParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-  };
-
-  type crmV1ListHospitalsParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-  };
-
-  type crmV1ListMembersParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-  };
-
-  type crmV1ListMembersParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
-  };
-
-  type crmV1PublicWeixinHospitalBindParams = {
-    hospital_id: number;
-    openid: string;
-    signature: string;
-  };
-
-  type crmV1PublicWeixinHospitalBindParams = {
-    hospital_id: number;
-    openid: string;
-    signature: string;
-  };
-
-  type crmV1SearchHospitalsParams = {
-    keyword?: string;
-    provinceId?: number;
-    cityId?: number;
-    districtId?: number;
-  };
-
-  type crmV1SearchHospitalsParams = {
-    keyword?: string;
-    provinceId?: number;
-    cityId?: number;
-    districtId?: number;
-  };
-
-  type crmV1UpdateCustomerParams = {
-    id: number;
-  };
-
-  type crmV1UpdateCustomerParams = {
-    id: number;
-  };
-
-  type crmV1UpdateDispatchParams = {
-    id: number;
-  };
-
-  type crmV1UpdateDispatchParams = {
-    id: number;
-  };
-
-  type crmV1UpdateHospitalAccountParams = {
-    id: number;
-    userId: number;
-  };
-
-  type crmV1UpdateHospitalAccountParams = {
-    id: number;
-    userId: number;
-  };
-
-  type crmV1UpdateHospitalParams = {
-    id: number;
-  };
-
-  type crmV1UpdateHospitalParams = {
-    id: number;
-  };
-
-  type crmV1UpdateMemberParams = {
-    id: number;
-  };
-
-  type crmV1UpdateMemberParams = {
-    id: number;
+  type crmDashboardStats = {
+    generatedAt?: string;
+    hospitals: {
+      total: number;
+      periodNew: number;
+      activeCount: number;
+      monthNew: number;
+      weekNew: number;
+    };
+    customers: {
+      total: number;
+      periodNew: number;
+      monthNew: number;
+      weekNew: number;
+      dayNew: number;
+    };
+    dispatches: {
+      total: number;
+      periodNew: number;
+      periodCompleted: number;
+      monthNew: number;
+      weekNew: number;
+      monthCompleted: number;
+    };
+    customerByStatus: { name: string; count: number }[];
+    dispatchByStatus: { name: string; count: number }[];
+    monthlyTrend: {
+      customers: { month: string; count: number }[];
+      dispatches: { month: string; count: number }[];
+    };
   };
 
   type currentUser = {
@@ -695,6 +484,48 @@ declare namespace API {
     id: number;
   };
 
+  type deleteCrmCustomerParams = {
+    id: number;
+  };
+
+  type deleteCrmCustomerParams = {
+    id: number;
+  };
+
+  type deleteCrmDispatchParams = {
+    id: number;
+  };
+
+  type deleteCrmDispatchParams = {
+    id: number;
+  };
+
+  type deleteCrmHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type deleteCrmHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type deleteCrmHospitalParams = {
+    id: number;
+  };
+
+  type deleteCrmHospitalParams = {
+    id: number;
+  };
+
+  type deleteCrmMemberParams = {
+    id: number;
+  };
+
+  type deleteCrmMemberParams = {
+    id: number;
+  };
+
   type deleteDeptParams = {
     /** 部门ID */
     id: number;
@@ -728,15 +559,15 @@ declare namespace API {
     id: number;
   };
 
-  type demoV1TodosDeleteParams = {
+  type deleteDemoTodoParams = {
     id: string;
   };
 
-  type demoV1TodosDetailParams = {
+  type getDemoTodoParams = {
     id: string;
   };
 
-  type demoV1TodosUpdateParams = {
+  type updateDemoTodoParams = {
     id: string;
   };
 
@@ -908,6 +739,14 @@ declare namespace API {
     pagination: paginationResponse;
   };
 
+  type dispatchCrmCustomerParams = {
+    id: number;
+  };
+
+  type dispatchCrmCustomerParams = {
+    id: number;
+  };
+
   type getAttachmentDetailParams = {
     /** 素材ID */
     id: number;
@@ -954,6 +793,50 @@ declare namespace API {
     status?: "0" | "1";
     sortBy?: "createdAt" | "size" | "updatedAt";
     sortOrder?: "asc" | "desc";
+  };
+
+  type getCrmCustomerParams = {
+    id: number;
+  };
+
+  type getCrmCustomerParams = {
+    id: number;
+  };
+
+  type getCrmDashboardStatsParams = {
+    startDate?: string;
+    endDate?: string;
+    hospitalId?: number;
+  };
+
+  type getCrmDashboardStatsParams = {
+    startDate?: string;
+    endDate?: string;
+    hospitalId?: number;
+  };
+
+  type getCrmDispatchParams = {
+    id: number;
+  };
+
+  type getCrmDispatchParams = {
+    id: number;
+  };
+
+  type getCrmHospitalParams = {
+    id: number;
+  };
+
+  type getCrmHospitalParams = {
+    id: number;
+  };
+
+  type getCrmMemberParams = {
+    id: number;
+  };
+
+  type getCrmMemberParams = {
+    id: number;
   };
 
   type getDeptDetailParams = {
@@ -1165,6 +1048,84 @@ declare namespace API {
     /** 图片链接，单次最多导入 20 个 */
     urls: string[];
     folderId?: number | null;
+  };
+
+  type listCrmCustomersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+    ownerUserId?: number;
+  };
+
+  type listCrmCustomersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+    ownerUserId?: number;
+  };
+
+  type listCrmDispatchesParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+  };
+
+  type listCrmDispatchesParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+  };
+
+  type listCrmHospitalAccountsParams = {
+    id: number;
+  };
+
+  type listCrmHospitalAccountsParams = {
+    id: number;
+  };
+
+  type listCrmHospitalsParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type listCrmHospitalsParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type listCrmMembersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+
+  type listCrmMembersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
   };
 
   type listSystemRegionsParams = {
@@ -1533,6 +1494,20 @@ declare namespace API {
     menuIds?: number[];
     /** 后端功能/API 权限码列表 */
     permissionCodes?: string[];
+  };
+
+  type searchCrmHospitalsParams = {
+    keyword?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
+  };
+
+  type searchCrmHospitalsParams = {
+    keyword?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
   };
 
   type setSystemOptionParams = {
@@ -2022,6 +1997,48 @@ declare namespace API {
     status?: "0" | "1";
     /** 扩展信息 */
     metadata?: any;
+  };
+
+  type updateCrmCustomerParams = {
+    id: number;
+  };
+
+  type updateCrmCustomerParams = {
+    id: number;
+  };
+
+  type updateCrmDispatchParams = {
+    id: number;
+  };
+
+  type updateCrmDispatchParams = {
+    id: number;
+  };
+
+  type updateCrmHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type updateCrmHospitalAccountParams = {
+    id: number;
+    userId: number;
+  };
+
+  type updateCrmHospitalParams = {
+    id: number;
+  };
+
+  type updateCrmHospitalParams = {
+    id: number;
+  };
+
+  type updateCrmMemberParams = {
+    id: number;
+  };
+
+  type updateCrmMemberParams = {
+    id: number;
   };
 
   type updateDeptParams = {
