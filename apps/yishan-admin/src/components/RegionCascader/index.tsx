@@ -14,7 +14,8 @@
  *   - loadAll=true：一次拉整树 ~3400 条
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Cascader, Form, type CascaderProps, type FormItemProps } from 'antd';
+import { Cascader, Form, type CascaderProps } from 'antd';
+import type { FormItemProps } from 'antd/es/form';
 import {
   getSystemRegionTree,
   listSystemRegions,
@@ -157,7 +158,7 @@ export const ProFormRegionCascader: React.FC<ProFormRegionCascaderProps> = ({
   );
 
   return (
-    <Form.Item name={name} label={label} extra={extra as FormItemProps['extra']}>
+    <Form.Item name={name} label={label} extra={extra as unknown as FormItemProps['extra']}>
       <Cascader
         options={tree}
         placeholder={placeholder}
