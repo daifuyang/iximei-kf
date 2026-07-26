@@ -230,7 +230,9 @@ jobs:
           YISHAN_FC_REGION: ${{ vars.FUNCTION_REGION || 'cn-shanghai' }}
           YISHAN_FC_LAYER_NAME: ${{ vars.YISHAN_FC_LAYER_NAME || 'yishan-api-runtime-layer' }}
           YISHAN_FC_ACCESS_ALIAS: enterprise
-          ALIBABA_CLOUD_ACCOUNT_ID: ${{ vars.ALIBABA_CLOUD_ACCOUNT_ID }}
+          # 与上方 Serverless Devs 凭证配置保持同一来源。该值是账号标识，
+          # publish 脚本需要它将 FC CLI 返回的脱敏 ARN 还原为完整 ARN。
+          ALIBABA_CLOUD_ACCOUNT_ID: ${{ secrets.ALIBABA_CLOUD_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           bash ./deploy/fc3/scripts/publish-runtime-layer.sh | tee /tmp/publish_layer.log
