@@ -2,6 +2,7 @@
   "version": "7",
   "dialect": "mysql",
   "entries": [
-    { "idx": 0, "version": "7", "when": 0, "tag": "0000_init", "breakpoints": true }
+    { "idx": 0, "version": "7", "when": 0, "tag": "0000_init", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1722000000, "tag": "0001_member_enhance", "breakpoints": true }
   ]
 }

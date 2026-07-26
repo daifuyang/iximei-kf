@@ -1,55 +1,54 @@
 /**
- * CRM admin 端 API 适配层（fork 历史的 crm pages 用的 wrapper 形状）。
+ * CRM admin 端 API 适配层。
  *
- * - 旧 fork 的 `pnpm openapi` 拆成 crmCustomers/crmDispatches/... 多个文件，命名用
- *   `crmListXxx` 这种 camelCase。前端 pages 用 `getXxx/createXxx/...` 这种语义层
- *   wrapper 调用，保持业务调用与 HTTP 协议脱钩。
- *
- * - 当前 upstream 的 `pnpm openapi` 把整模块合成 `crm.ts`，函数名按 operationId
- *   推成 `crmV1ListXxx`。这里把函数映射到历史 wrapper 形状，让 page 不变。
- *
- * - 系统基础数据（区域 / 用户）来自 core，仍由 systemRegions / sysUsers 提供。
+ * - 生成的 API 客户端在 `@/services/generated/crm`，函数名由后端 operationId 决定
+ *   （命名规范：`<action><Domain><Resource>`，如 `listCrmCustomers`）。
+ * - 本文件提供语义层 wrapper（`getCustomers` / `createCustomer` / ...），
+ *   让业务页面与 HTTP 协议脱钩。
+ * - 系统基础数据（区域 / 用户）来自 core，由 systemRegions / sysUsers 提供。
  */
 
 import {
-  crmV1ListCustomerStatuses,
-  crmV1ListCustomers,
-  crmV1CreateCustomer,
-  crmV1UpdateCustomer,
-  crmV1DispatchCustomer,
-  crmV1AddCustomerRemark,
+  listCrmCustomerStatuses,
+  listCrmCustomers,
+  createCrmCustomer,
+  updateCrmCustomer,
+  dispatchCrmCustomer,
+  createCrmCustomerRemark,
 } from '@/services/generated/crm'
 
 import {
-  crmV1ListDispatchStatuses,
-  crmV1ListDispatches,
-  crmV1GetDispatch,
-  crmV1UpdateDispatch,
-  crmV1AddDispatchReply,
-  crmV1AddDispatchLog,
+  listCrmDispatchStatuses,
+  listCrmDispatches,
+  getCrmDispatch,
+  updateCrmDispatch,
+  createCrmDispatchReply,
+  createCrmDispatchLog,
 } from '@/services/generated/crm'
 
 import {
-  crmV1ListHospitals,
-  crmV1SearchHospitals,
-  crmV1GetHospital,
-  crmV1CreateHospital,
-  crmV1UpdateHospital,
-  crmV1DeleteHospital,
-  crmV1ListHospitalAccounts,
-  crmV1CreateHospitalAccount,
-  crmV1AssignHospitalAccount,
-  crmV1UpdateHospitalAccount,
-  crmV1DeleteHospitalAccount,
+  listCrmHospitals,
+  searchCrmHospitals,
+  getCrmHospital,
+  createCrmHospital,
+  updateCrmHospital,
+  deleteCrmHospital,
+  listCrmHospitalAccounts,
+  createCrmHospitalAccount,
+  assignCrmHospitalAccount,
+  updateCrmHospitalAccount,
+  deleteCrmHospitalAccount,
 } from '@/services/generated/crm'
 
 import {
-  crmV1ListMembers,
-  crmV1GetMember,
-  crmV1CreateMember,
-  crmV1UpdateMember,
-  crmV1AddMemberRemark,
+  listCrmMembers,
+  getCrmMember,
+  createCrmMember,
+  updateCrmMember,
+  createCrmMemberRemark,
 } from '@/services/generated/crm'
+
+import { getCrmDashboardStats } from '@/services/generated/crm'
 
 import { getSystemRegionTree } from '@/services/generated/systemRegions'
 import { getUserList } from '@/services/generated/sysUsers'
@@ -61,54 +60,125 @@ export const getUsers = (params: object) => getUserList(params as never)
 
 /* ---------- 客户 ---------- */
 
-export const getCustomerStatuses = crmV1ListCustomerStatuses
-export const getCustomers = (params: object) => crmV1ListCustomers(params as never)
-export const createCustomer = (body: object) => crmV1CreateCustomer(body as never)
+export const getCustomerStatuses = listCrmCustomerStatuses
+export const getCustomers = (params: object) => listCrmCustomers(params as never)
+export const createCustomer = (body: object) => createCrmCustomer(body as never)
 export const updateCustomer = (id: number, body: object) =>
-  crmV1UpdateCustomer({ id }, body as never)
+  updateCrmCustomer({ id }, body as never)
 export const dispatchCustomer = (id: number, body: object) =>
-  crmV1DispatchCustomer({ id }, body as never)
+  dispatchCrmCustomer({ id }, body as never)
 export const addCustomerRemark = (id: number, body: object) =>
-  crmV1AddCustomerRemark({ id }, body as never)
+  createCrmCustomerRemark({ id }, body as never)
 
 /* ---------- 派单 ---------- */
 
-export const getDispatchStatuses = crmV1ListDispatchStatuses
-export const getDispatches = (params: object) => crmV1ListDispatches(params as never)
-export const getDispatch = (id: number) => crmV1GetDispatch({ id })
+export const getDispatchStatuses = listCrmDispatchStatuses
+export const getDispatches = (params: object) => listCrmDispatches(params as never)
+export const getDispatch = (id: number) => getCrmDispatch({ id })
 export const updateDispatch = (id: number, body: object) =>
-  crmV1UpdateDispatch({ id }, body as never)
+  updateCrmDispatch({ id }, body as never)
 export const addDispatchReply = (id: number, body: object) =>
-  crmV1AddDispatchReply({ id }, body as never)
+  createCrmDispatchReply({ id }, body as never)
 export const addDispatchLog = (id: number, body: object) =>
-  crmV1AddDispatchLog({ id }, body as never)
+  createCrmDispatchLog({ id }, body as never)
 
 /* ---------- 医院 ---------- */
 
-export const getHospitals = (params: object) => crmV1ListHospitals(params as never)
-export const searchHospitals = (params: object) => crmV1SearchHospitals(params as never)
-export const getHospital = (id: number) => crmV1GetHospital({ id })
-export const createHospital = (body: object) => crmV1CreateHospital(body as never)
+export const getHospitals = (params: object) => listCrmHospitals(params as never)
+export const searchHospitals = (params: object) => searchCrmHospitals(params as never)
+export const getHospital = (id: number) => getCrmHospital({ id })
+export const createHospital = (body: object) => createCrmHospital(body as never)
 export const updateHospital = (id: number, body: object) =>
-  crmV1UpdateHospital({ id }, body as never)
-export const deleteHospital = (id: number) => crmV1DeleteHospital({ id })
+  updateCrmHospital({ id }, body as never)
+export const deleteHospital = (id: number) => deleteCrmHospital({ id })
 
-export const getHospitalAccounts = (id: number) => crmV1ListHospitalAccounts({ id })
+export const getHospitalAccounts = (id: number) => listCrmHospitalAccounts({ id })
 export const createHospitalAccount = (id: number, body: object) =>
-  crmV1CreateHospitalAccount({ id }, body as never)
+  createCrmHospitalAccount({ id }, body as never)
 export const updateHospitalAccount = (id: number, userId: number, body: object) =>
-  crmV1UpdateHospitalAccount({ id, userId }, body as never)
+  updateCrmHospitalAccount({ id, userId }, body as never)
 export const deleteHospitalAccount = (id: number, userId: number) =>
-  crmV1DeleteHospitalAccount({ id, userId })
+  deleteCrmHospitalAccount({ id, userId })
 export const assignHospitalAccount = (id: number, body: object) =>
-  crmV1AssignHospitalAccount({ id }, body as never)
+  assignCrmHospitalAccount({ id }, body as never)
 
 /* ---------- 会员 ---------- */
 
-export const getMembers = (params: object) => crmV1ListMembers(params as never)
-export const getMember = (id: number) => crmV1GetMember({ id })
-export const createMember = (body: object) => crmV1CreateMember(body as never)
+import { request } from '@umijs/max'
+
+export const getMembers = (params: object) => listCrmMembers(params as never)
+export const getMember = (id: number) => getCrmMember({ id })
+export const getMemberBrief = (id: number) => request<any>(`/api/crm/v1/members/${id}/brief`)
+export const createMember = (body: object) => createCrmMember(body as never)
 export const updateMember = (id: number, body: object) =>
-  crmV1UpdateMember({ id }, body as never)
+  updateCrmMember({ id }, body as never)
 export const addMemberRemark = (id: number, body: object) =>
-  crmV1AddMemberRemark({ id }, body as never)
+  createCrmMemberRemark({ id }, body as never)
+
+/** 从客户转会员 */
+export const createMemberFromCustomer = (body: object) =>
+  request<any>('/api/crm/v1/members/from-customer', { method: 'POST', data: body })
+
+/** 直接新增会员 */
+export const createMemberDirect = (body: object) =>
+  request<any>('/api/crm/v1/members/direct', { method: 'POST', data: body })
+
+/** 添加跟进记录 */
+export const addMemberFollowUp = (id: number, body: object) =>
+  request<any>(`/api/crm/v1/members/${id}/follow-ups`, { method: 'POST', data: body })
+
+/** 跟进记录列表 */
+export const getMemberFollowUps = (id: number) =>
+  request<any>(`/api/crm/v1/members/${id}/follow-ups`)
+
+/** 创建派单 */
+export const createMemberDispatch = (id: number, body: object) =>
+  request<any>(`/api/crm/v1/members/${id}/dispatches`, { method: 'POST', data: body })
+
+/** 批量分配 */
+export const batchAssignMembers = (body: object) =>
+  request<any>('/api/crm/v1/members/batch-assign', { method: 'POST', data: body })
+
+/** 批量打标签 */
+export const batchTagMembers = (body: object) =>
+  request<any>('/api/crm/v1/members/batch-tags', { method: 'POST', data: body })
+
+/** 批量作废 */
+export const batchInvalidateMembers = (body: object) =>
+  request<any>('/api/crm/v1/members/batch-invalidate', { method: 'POST', data: body })
+
+/** 单条作废 */
+export const invalidateMember = (id: number) =>
+  request<any>(`/api/crm/v1/members/${id}/invalidate`, { method: 'POST' })
+
+/** 恢复会员 */
+export const restoreMember = (id: number, body?: object) =>
+  request<any>(`/api/crm/v1/members/${id}/restore`, { method: 'POST', data: body || {} })
+
+/** 标签列表 */
+export const getMemberTags = () =>
+  request<any>('/api/crm/v1/member-tags')
+
+/** 创建标签 */
+export const createMemberTag = (body: object) =>
+  request<any>('/api/crm/v1/member-tags', { method: 'POST', data: body })
+
+/** 删除标签 */
+export const deleteMemberTag = (id: number) =>
+  request<any>(`/api/crm/v1/member-tags/${id}`, { method: 'DELETE' })
+
+/** 会员概览统计 */
+export const getMemberOverview = () =>
+  request<any>('/api/crm/v1/members/overview')
+
+/** 可转会员的客户列表 */
+export const getSelectableCustomers = (params: object) =>
+  request<any>('/api/crm/v1/customers/selectable', { params })
+
+/* ---------- 数据看板 ---------- */
+
+export const getDashboardStats = (params?: {
+  startDate?: string;
+  endDate?: string;
+  hospitalId?: number;
+}) => getCrmDashboardStats(params || {})

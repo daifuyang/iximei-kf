@@ -1,6 +1,17 @@
 [
   {
     "type": 1,
+    "name": "数据看板",
+    "path": "/crm/dashboard",
+    "sortOrder": 29,
+    "icon": "appstore",
+    "component": "./modules/crm/dashboard",
+    "children": [
+      { "type": 2, "name": "查看", "permissionCodes": ["crm:dashboard:view"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 }
+    ]
+  },
+  {
+    "type": 1,
     "name": "医院管理",
     "path": "/crm/hospitals",
     "sortOrder": 30,
@@ -52,7 +63,25 @@
       { "type": 2, "name": "查看", "permissionCodes": ["crm:members:list"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 },
       { "type": 2, "name": "新建", "permissionCodes": ["crm:members:create"], "sortOrder": 2, "hideInMenu": 1 },
       { "type": 2, "name": "编辑", "permissionCodes": ["crm:members:update"], "sortOrder": 3, "hideInMenu": 1 },
-      { "type": 2, "name": "备注", "permissionCodes": ["crm:members:remark"], "sortOrder": 4, "hideInMenu": 1 }
+      { "type": 2, "name": "备注", "permissionCodes": ["crm:members:remark"], "sortOrder": 4, "hideInMenu": 1 },
+      { "type": 2, "name": "跟进", "permissionCodes": ["crm:members:follow_up"], "sortOrder": 5, "hideInMenu": 1 },
+      { "type": 2, "name": "分配", "permissionCodes": ["crm:members:assign"], "sortOrder": 6, "hideInMenu": 1 },
+      { "type": 2, "name": "标签", "permissionCodes": ["crm:members:tag"], "sortOrder": 7, "hideInMenu": 1 },
+      { "type": 2, "name": "作废", "permissionCodes": ["crm:members:invalidate"], "sortOrder": 8, "hideInMenu": 1 },
+      { "type": 2, "name": "恢复", "permissionCodes": ["crm:members:restore"], "sortOrder": 9, "hideInMenu": 1 },
+      { "type": 2, "name": "导出", "permissionCodes": ["crm:members:export"], "sortOrder": 10, "hideInMenu": 1 }
+    ]
+  },
+  {
+    "type": 1,
+    "name": "作废会员",
+    "path": "/crm/members/invalid",
+    "sortOrder": 34,
+    "icon": "stop-circle",
+    "component": "./modules/crm/members/invalid",
+    "children": [
+      { "type": 2, "name": "查看", "permissionCodes": ["crm:members:list"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 },
+      { "type": 2, "name": "恢复", "permissionCodes": ["crm:members:restore"], "sortOrder": 2, "hideInMenu": 1 }
     ]
   }
 ]
