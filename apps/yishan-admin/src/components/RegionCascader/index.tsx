@@ -75,8 +75,8 @@ export interface ProFormRegionCascaderProps {
   disabled?: boolean;
   /** 加载策略：false（默认）= 懒加载；true = 一次拉整树 */
   loadAll?: boolean;
-  /** Form.Item 的 extra 说明文本 */
-  extra?: React.ReactNode;
+  /** Form.Item 的 extra 说明文本，使用 antd FormItemProps 类型避免 React 18/19 冲突 */
+  extra?: FormItemProps['extra'];
   /** cascader 自身配置（只能覆盖，不含 options/loadData/fieldNames/onChange/value） */
   fieldProps?: Omit<
     CascaderProps,
@@ -158,7 +158,7 @@ export const ProFormRegionCascader: React.FC<ProFormRegionCascaderProps> = ({
   );
 
   return (
-    <Form.Item name={name} label={label} extra={extra as unknown as FormItemProps['extra']}>
+    <Form.Item name={name} label={label} extra={extra}>
       <Cascader
         options={tree}
         placeholder={placeholder}
