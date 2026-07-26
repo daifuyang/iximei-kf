@@ -3,7 +3,7 @@
     "type": 1,
     "name": "数据看板",
     "path": "/crm/dashboard",
-    "sortOrder": 29,
+    "sortOrder": -1,
     "icon": "appstore",
     "component": "./modules/crm/dashboard",
     "children": [
