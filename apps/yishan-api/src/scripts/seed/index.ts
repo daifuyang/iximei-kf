@@ -126,6 +126,12 @@ export async function runSeed() {
     throw new Error(`onboard-modules 退出码 ${onboard.code}`);
   }
 
+  // 模块 seed 会新增 CRM 等业务菜单，必须在模块入驻后重新绑定角色菜单，
+  // 否则菜单虽已写入但不会出现在任何角色的导航中。
+  console.log('[seed] 重新绑定角色菜单（含模块菜单）...');
+  await bindRoleMenusByDefault(drizzleDb);
+  console.log('[seed] 角色菜单重新绑定完成');
+
   // 模块入驻后才注册了 CRM 等业务权限码，重新绑一次角色权限。
   // 先在父进程加载模块的权限注册（子进程中注册的权限码不会透传到父进程）。
   console.log('[seed] 加载模块权限码（CRM + Demo）...');
