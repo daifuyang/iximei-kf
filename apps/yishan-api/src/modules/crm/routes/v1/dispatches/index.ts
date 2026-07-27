@@ -78,7 +78,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const d = await DispatchesService.getById(id(req), uid(req), roleCodes(req), scope(req))
-      if (!d) throw new Error('派单不存在或无权访问')
+      if (!d) return ResponseUtil.error(reply, 40401, '派单不存在或无权访问')
       return ResponseUtil.success(reply, d)
     },
   )
@@ -151,6 +151,39 @@ const dispatches: FastifyPluginAsync = async (app) => {
     async (req: any, reply: any) => {
       const result = await DispatchesService.delete(id(req), uid(req), roleCodes(req), scope(req))
       return ResponseUtil.success(reply, result)
+    },
+  )
+
+  route.get(
+    '/admin/dispatches/export',
+    {
+      access: { permission: PERMS.DISPATCH_LIST },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '导出派单 CSV',
+        operationId: 'exportCrmDispatches',
+        querystring: CrmDispatchListQuerySchema,
+      },
+    },
+    async (req: any, reply: any) => {
+      const data = await DispatchesService.exportAll(req.query, uid(req), roleCodes(req), scope(req))
+      const csvHeader = 'ID,客户姓名,客户手机,医院名称,状态,接收QQ,接收微信,创建时间,完成时间\n'
+      const csvRows = data.map((d: any) =>
+        [
+          d.id,
+          `"${(d.customerName ?? '').replace(/"/g, '""')}"`,
+          d.customerMobile,
+          `"${(d.hospitalName ?? '').replace(/"/g, '""')}"`,
+          d.statusName,
+          d.receiveQq,
+          d.receiveWechat,
+          d.createdAt,
+          d.finishedAt,
+        ].join(','),
+      ).join('\n')
+      reply.header('Content-Type', 'text/csv; charset=utf-8')
+      reply.header('Content-Disposition', 'attachment; filename="dispatches.csv"')
+      return csvHeader + csvRows
     },
   )
 }

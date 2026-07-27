@@ -141,5 +141,15 @@ export class DispatchesService {
     }
     return DispatchesRepository.update(id, { deletedAt: new Date(), updaterId: userId })
   }
+
+  static async exportAll(
+    q: any,
+    userId: number,
+    roleCodes: ReadonlyArray<string>,
+    scope: DataScopeCode,
+  ) {
+    const extra = await dispatchFilters(roleCodes, userId)
+    return DispatchesRepository.exportAll({ ...q, ...extra })
+  }
 }
 void compact

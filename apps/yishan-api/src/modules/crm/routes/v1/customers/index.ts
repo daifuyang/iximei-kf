@@ -77,7 +77,7 @@ const customers: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const data = await CustomersService.getById(id(req), uid(req), scope(req))
-      if (!data) throw new Error('客户不存在')
+      if (!data) return ResponseUtil.error(reply, 40401, '客户不存在')
       return ResponseUtil.success(reply, data)
     },
   )
@@ -141,13 +141,16 @@ const customers: FastifyPluginAsync = async (app) => {
       access: { permission: PERMS.CUSTOMER_UPDATE },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '客户备注（占位）',
+        summary: '客户备注',
         operationId: 'createCrmCustomerRemark',
         params: CrmIdParamsSchema,
         body: CrmCustomerRemarkReqSchema,
       },
     },
-    async (_req: any, reply: any) => ResponseUtil.success(reply, { ok: true }),
+    async (req: any, reply: any) => {
+      const result = await CustomersService.addRemark(id(req), req.body.content, uid(req), scope(req))
+      return ResponseUtil.success(reply, result)
+    },
   )
 
   route.delete(

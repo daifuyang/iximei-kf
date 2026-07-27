@@ -127,5 +127,20 @@ export class DispatchesRepository {
   static addLog(id: number, userId: number, content: string) {
     return drizzleDb.insert(crmDispatchFollowLog).values({ dispatchId: id, userId, content })
   }
+
+  static async exportAll(q: any) {
+    const listResult = await this.list(q)
+    return listResult.list.map((d: any) => ({
+      id: d.id,
+      customerName: d.customer?.name ?? '',
+      customerMobile: d.customer?.mobile ?? '',
+      hospitalName: d.hospital?.hospitalName ?? '',
+      statusName: d.status?.name ?? '',
+      receiveQq: d.receiveQq ?? '',
+      receiveWechat: d.receiveWechat ?? '',
+      createdAt: d.createdAt,
+      finishedAt: d.finishedAt ?? '',
+    }))
+  }
 }
 export { active }
