@@ -56,11 +56,16 @@ const ChartCard: React.FC<ChartCardProps> = ({
 
     if (empty) {
       return (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={emptyText}
-          style={{ padding: '24px 0' }}
-        />
+        <div
+          style={{
+            minHeight: height,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Empty description={emptyText} />
+        </div>
       );
     }
 

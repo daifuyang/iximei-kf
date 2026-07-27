@@ -1,5 +1,5 @@
 import { BarChartOutlined } from '@ant-design/icons';
-import { Empty, Space, Tooltip } from 'antd';
+import { Space, Tooltip } from 'antd';
 import React, { useMemo } from 'react';
 import { history } from '@umijs/max';
 import ChartCard from './ChartCard';
@@ -19,6 +19,8 @@ interface DispatchStatusCardProps {
  *
  * 替代原来的饼图，按数量降序排列，每个状态一行：
  * 状态名称 | 横向进度条 | 数量 | 占比
+ *
+ * data 为空时由 ChartCard 显示 Empty（无 description，垂直居中）。
  */
 const DispatchStatusCard: React.FC<DispatchStatusCardProps> = ({
   data,
@@ -33,12 +35,20 @@ const DispatchStatusCard: React.FC<DispatchStatusCardProps> = ({
   const maxCount = sorted.length > 0 ? sorted[0].count : 0;
   const total = sorted.reduce((s, i) => s + i.count, 0);
 
-  const renderContent = () => {
-    if (!sorted.length) {
-      return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无派单状态数据" />;
-    }
-
-    return (
+  return (
+    <ChartCard
+      title={
+        <Space size={8}>
+          <BarChartOutlined style={{ color: '#1677FF' }} />
+          <span>派单状态分布</span>
+        </Space>
+      }
+      loading={loading}
+      error={error}
+      empty={!sorted.length}
+      emptyText="暂无派单状态数据"
+      height={CHART_HEIGHT}
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: CHART_HEIGHT - 40 }}>
         {/* 表头 */}
         <div
@@ -126,24 +136,6 @@ const DispatchStatusCard: React.FC<DispatchStatusCardProps> = ({
           <span style={{ width: 52, textAlign: 'right', flexShrink: 0 }}>100%</span>
         </div>
       </div>
-    );
-  };
-
-  return (
-    <ChartCard
-      title={
-        <Space size={8}>
-          <BarChartOutlined style={{ color: '#1677FF' }} />
-          <span>派单状态分布</span>
-        </Space>
-      }
-      loading={loading}
-      error={error}
-      empty={!sorted.length}
-      emptyText="暂无派单状态数据"
-      height={CHART_HEIGHT}
-    >
-      {renderContent()}
     </ChartCard>
   );
 };

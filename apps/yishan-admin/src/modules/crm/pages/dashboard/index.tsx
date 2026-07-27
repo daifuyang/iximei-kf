@@ -21,11 +21,11 @@ import React, {
   useState,
 } from 'react';
 import { getDashboardStats, searchHospitals } from '../../api';
-import BusinessInsightsCard from './components/BusinessInsightsCard';
+// TODO: 接入真实 AI 分析后恢复
+// import BusinessInsightsCard from './components/BusinessInsightsCard';
 import ConversionFunnelCard from './components/ConversionFunnelCard';
 import CustomerStatusCard from './components/CustomerStatusCard';
 import CustomerTrendCard from './components/CustomerTrendCard';
-import DashboardEmpty from './components/DashboardEmpty';
 import DashboardError from './components/DashboardError';
 import DashboardSkeleton from './components/DashboardSkeleton';
 import DashboardToolbar from './components/DashboardToolbar';
@@ -41,7 +41,7 @@ import {
   buildHospitalRankings,
   buildMetrics,
   buildRecentActivities,
-  generateInsights,
+  // generateInsights, // 见上方 BusinessInsightsCard 注释
 } from './utils';
 
 /* ──────── 主组件 ──────── */
@@ -198,10 +198,11 @@ const DashboardPage: React.FC = () => {
     [stats],
   );
 
-  const insights = useMemo(
-    () => (stats ? generateInsights(stats) : []),
-    [stats],
-  );
+  // 经营分析与建议暂时隐藏，等接入真实 AI 分析后恢复
+  // const insights = useMemo(
+  //   () => (stats ? generateInsights(stats) : []),
+  //   [stats],
+  // );
 
   const activities = useMemo(
     () => (stats ? buildRecentActivities(stats, hasPeriodFilter) : []),
@@ -269,22 +270,7 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  // 空数据（所有指标均为 0）
-  if (stats) {
-    const isEmpty =
-      stats.hospitals.total === 0 &&
-      stats.customers.total === 0 &&
-      stats.dispatches.total === 0;
-    if (isEmpty) {
-      return (
-        <PageContainer>
-          <DashboardEmpty onRefresh={fetchData} />
-        </PageContainer>
-      );
-    }
-  }
-
-  /* ---------- 正常渲染 ---------- */
+  /* ---------- 正常渲染（无数据时各卡片自行渲染 0 高度的图，不显示 Empty）---------- */
 
   return (
     <PageContainer
@@ -348,11 +334,11 @@ const DashboardPage: React.FC = () => {
           </Col>
         </Row>
 
-        {/* 4. 经营分析与建议 */}
-        <BusinessInsightsCard
+        {/* 4. 经营分析与建议 — 暂时隐藏，等接入真实 AI 分析后再放出 */}
+        {/* <BusinessInsightsCard
           insights={insights}
           loading={loading && !!stats}
-        />
+        /> */}
 
         {/* 5. 本期摘要 + 医院效率榜 */}
         <Row gutter={[16, 16]}>

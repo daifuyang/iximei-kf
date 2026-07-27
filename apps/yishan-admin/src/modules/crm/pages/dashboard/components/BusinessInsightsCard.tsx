@@ -2,6 +2,7 @@ import {
   BulbOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  RightOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { ProCard } from '@ant-design/pro-components';
@@ -47,6 +48,8 @@ const INSIGHT_META: Record<
  *
  * 按语义类型（success/warning/error/info）展示经营洞察。
  * 默认显示最多 3 条，通过 Drawer 查看全部。
+ *
+ * 空数据：显示一行简洁灰色提示，不渲染 Empty 组件。
  */
 const BusinessInsightsCard: React.FC<BusinessInsightsCardProps> = ({
   insights,
@@ -87,27 +90,6 @@ const BusinessInsightsCard: React.FC<BusinessInsightsCardProps> = ({
     );
   };
 
-  if (!insights.length) {
-    return (
-      <ProCard
-        title={
-          <Space size={8}>
-            <BulbOutlined style={{ color: '#1677FF' }} />
-            <span>经营分析与建议</span>
-          </Space>
-        }
-        style={{ marginBottom: 16 }}
-        styles={{ body: { padding: '20px 24px' } }}
-      >
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="暂无经营建议"
-          style={{ padding: '16px 0' }}
-        />
-      </ProCard>
-    );
-  }
-
   return (
     <>
       <ProCard
@@ -119,18 +101,43 @@ const BusinessInsightsCard: React.FC<BusinessInsightsCardProps> = ({
         }
         extra={
           insights.length > 3 ? (
-            <Button type="link" size="small" onClick={() => setDrawerOpen(true)}>
-              查看全部建议
-            </Button>
+            <a
+              onClick={() => setDrawerOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                color: '#1677FF',
+                fontSize: 13,
+                cursor: 'pointer',
+                lineHeight: 1,
+              }}
+            >
+              <span>查看更多</span>
+              <RightOutlined style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center' }} />
+            </a>
           ) : undefined
         }
         loading={loading}
         style={{ marginBottom: 16 }}
         styles={{ body: { padding: '20px 24px' } }}
       >
-        <div className={styles.insightList}>
-          {displayInsights.map(renderInsightItem)}
-        </div>
+        {insights.length === 0 ? (
+          <div
+            style={{
+              minHeight: 120,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Empty description="暂无经营建议" />
+          </div>
+        ) : (
+          <div className={styles.insightList}>
+            {displayInsights.map(renderInsightItem)}
+          </div>
+        )}
       </ProCard>
 
       {/* 查看全部 Drawer */}

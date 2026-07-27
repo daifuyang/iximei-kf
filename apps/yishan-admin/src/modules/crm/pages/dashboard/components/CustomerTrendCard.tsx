@@ -99,7 +99,7 @@ const CustomerTrendCard: React.FC<CustomerTrendCardProps> = ({
         </div>
       )}
 
-      {/* 柱状图 */}
+      {/* 柱状图（空数据时由 ChartCard 显示 Empty，不渲染 children） */}
       {chartData.length > 0 && (
         <Column
           data={chartData}

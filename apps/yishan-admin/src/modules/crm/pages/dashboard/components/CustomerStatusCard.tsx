@@ -1,6 +1,6 @@
 import { Pie } from '@ant-design/charts';
-import { PieChartOutlined } from '@ant-design/icons';
-import { Button, Empty, Space } from 'antd';
+import { PieChartOutlined, RightOutlined } from '@ant-design/icons';
+import { Empty, Space } from 'antd';
 import React, { useMemo } from 'react';
 import { history } from '@umijs/max';
 import ChartCard from './ChartCard';
@@ -20,6 +20,7 @@ interface CustomerStatusCardProps {
  *
  * - 多状态（≥2 且非单一状态）：小型 Donut 图 + 状态明细
  * - 单一状态（≥95% 集中）：改为信息型展示，不强行画 100% 圆环
+ * - data 为空：由 ChartCard 显示 antd Empty 默认效果
  */
 const CustomerStatusCard: React.FC<CustomerStatusCardProps> = ({
   data,
@@ -31,7 +32,7 @@ const CustomerStatusCard: React.FC<CustomerStatusCardProps> = ({
   const mainStatus = data.length > 0 ? data.reduce((a, b) => (a.count > b.count ? a : b)) : null;
 
   const renderContent = () => {
-    // 单一状态 → 信息型展示
+    // 单一状态 → 信息型展示（按钮放在卡片标题右侧 extra，不在内容里）
     if (singleStatus && mainStatus) {
       return (
         <div
@@ -51,16 +52,9 @@ const CustomerStatusCard: React.FC<CustomerStatusCardProps> = ({
           <div style={{ fontSize: 14, color: 'rgba(0,0,0,0.65)', marginBottom: 4 }}>
             {total} 位客户均处于「{mainStatus.name}」阶段
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
             暂无已派单客户
           </div>
-          <Button
-            type="primary"
-            size="small"
-            onClick={() => history.push('/crm/customers')}
-          >
-            查看客户列表
-          </Button>
         </div>
       );
     }
@@ -140,7 +134,7 @@ const CustomerStatusCard: React.FC<CustomerStatusCardProps> = ({
       );
     }
 
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无客户状态数据" />;
+    return null;
   };
 
   return (
@@ -150,6 +144,25 @@ const CustomerStatusCard: React.FC<CustomerStatusCardProps> = ({
           <PieChartOutlined style={{ color: '#1677FF' }} />
           <span>客户状态分布</span>
         </Space>
+      }
+      extra={
+        singleStatus ? (
+          <a
+            onClick={() => history.push('/crm/customers')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              color: '#1677FF',
+              fontSize: 13,
+              cursor: 'pointer',
+              lineHeight: 1,
+            }}
+          >
+            <span>查看更多</span>
+            <RightOutlined style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center' }} />
+          </a>
+        ) : undefined
       }
       loading={loading}
       error={error}

@@ -23,6 +23,8 @@ interface RecentActivityCardProps {
  *
  * 汇总当前统计周期的关键数据，非真实操作记录。
  * 展示本期各维度的汇总数字，便于运营人员快速了解本期概况。
+ *
+ * activities 为空时显示 antd Empty 默认效果。
  */
 const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
   activities,
@@ -41,11 +43,16 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
       styles={{ body: { padding: '12px 20px 20px' } }}
     >
       {activities.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="暂无摘要数据"
-          style={{ padding: '16px 0' }}
-        />
+        <div
+          style={{
+            minHeight: 180,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Empty description="暂无摘要数据" />
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {activities.slice(0, 5).map((item) => (

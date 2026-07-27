@@ -1,5 +1,5 @@
 import { InfoCircleOutlined, FunnelPlotOutlined } from '@ant-design/icons';
-import { Empty, Space, Tooltip } from 'antd';
+import { Space, Tooltip } from 'antd';
 import React, { useMemo } from 'react';
 import ChartCard from './ChartCard';
 import type { FunnelStage } from '../types';
@@ -20,6 +20,8 @@ const FUNNEL_COLORS = ['#1677FF', '#69B1FF', '#91CAFF', '#52C41A'];
  *
  * 按客户当前所处状态展示人数分布，非严格转化漏斗。
  * 统计口径：全量客户按当前状态去重。
+ *
+ * stages 为空时由 ChartCard 显示 Empty（无 description，垂直居中）。
  */
 const ConversionFunnelCard: React.FC<ConversionFunnelCardProps> = ({
   stages,
@@ -32,12 +34,25 @@ const ConversionFunnelCard: React.FC<ConversionFunnelCardProps> = ({
     [stages, hasData],
   );
 
-  const renderContent = () => {
-    if (!hasData) {
-      return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无客户状态数据" />;
-    }
-
-    return (
+  return (
+    <ChartCard
+      title={
+        <Space size={8}>
+          <FunnelPlotOutlined style={{ color: '#1677FF' }} />
+          <span>客户状态结构</span>
+          <Tooltip title="按客户当前所处状态展示人数分布，非严格转化漏斗。">
+            <InfoCircleOutlined
+              style={{ fontSize: 13, color: 'rgba(0,0,0,0.25)', cursor: 'help' }}
+            />
+          </Tooltip>
+        </Space>
+      }
+      loading={loading}
+      error={error}
+      empty={!hasData}
+      emptyText="暂无客户状态数据"
+      height={CHART_HEIGHT}
+    >
       <div style={{ minHeight: CHART_HEIGHT - 40 }}>
         {stages.map((stage, i) => {
           const barWidth = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
@@ -111,29 +126,6 @@ const ConversionFunnelCard: React.FC<ConversionFunnelCardProps> = ({
           </span>
         </div>
       </div>
-    );
-  };
-
-  return (
-    <ChartCard
-      title={
-        <Space size={8}>
-          <FunnelPlotOutlined style={{ color: '#1677FF' }} />
-          <span>客户状态结构</span>
-          <Tooltip title="按客户当前所处状态展示人数分布，非严格转化漏斗。">
-            <InfoCircleOutlined
-              style={{ fontSize: 13, color: 'rgba(0,0,0,0.25)', cursor: 'help' }}
-            />
-          </Tooltip>
-        </Space>
-      }
-      loading={loading}
-      error={error}
-      empty={!hasData}
-      emptyText="暂无客户状态数据"
-      height={CHART_HEIGHT}
-    >
-      {renderContent()}
     </ChartCard>
   );
 };

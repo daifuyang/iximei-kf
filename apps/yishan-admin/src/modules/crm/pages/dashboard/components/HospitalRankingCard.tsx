@@ -17,6 +17,8 @@ interface HospitalRankingCardProps {
  *
  * 使用小型表格展示医院排名，前 3 名有奖牌标识。
  * 点击医院名可跳转医院详情。
+ *
+ * rankings 为空时显示 Empty 图标（垂直居中、无 description）。
  */
 const HospitalRankingCard: React.FC<HospitalRankingCardProps> = ({
   rankings,
@@ -105,20 +107,16 @@ const HospitalRankingCard: React.FC<HospitalRankingCardProps> = ({
       styles={{ body: { padding: '12px 20px 20px' } }}
     >
       {rankings.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <div>
-              <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.85)' }}>
-                暂无排名数据
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)', marginTop: 4 }}>
-                医院排名数据暂不可用，请联系管理员
-              </div>
-            </div>
-          }
-          style={{ padding: '24px 0' }}
-        />
+        <div
+          style={{
+            minHeight: 180,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Empty description="暂无排名数据" />
+        </div>
       ) : (
         <Table
           className={styles.rankingTable}
