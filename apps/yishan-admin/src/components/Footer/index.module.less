@@ -1,0 +1,11 @@
+/**
+ * ProLayout 的 GlobalFooter 默认带 marginBlockStart: 48 / marginBlockEnd: 24，
+ * 加上文字行高约 94px，对后台页面来说过高。这里收窄到 16/16。
+ * 用 data-testid 而非 .ant-pro-global-footer，避免依赖 prefixCls 配置。
+ */
+.footer {
+  :global([data-testid='pro-global-footer']) {
+    margin-block-start: 16px;
+    margin-block-end: 16px;
+  }
+}

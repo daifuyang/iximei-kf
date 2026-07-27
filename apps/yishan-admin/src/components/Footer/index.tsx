@@ -1,35 +1,16 @@
-import { GithubOutlined } from '@ant-design/icons'
 import { DefaultFooter } from '@ant-design/pro-components'
 import React from 'react'
+import styles from './index.module.less'
 
 const Footer: React.FC = () => {
   return (
     <DefaultFooter
+      className={styles.footer}
       style={{
         background: 'none',
       }}
       copyright={`${new Date().getFullYear()} Powered by zerocmf`}
-      links={[
-        {
-          key: 'docs',
-          title: '使用文档',
-          href: '/docs',
-          blankTarget: true,
-        },
-        {
-          key: 'github',
-          title: <GithubOutlined />,
-          href: 'https://github.com/zerocmf/yishan',
-          blankTarget: true,
-        },
-
-        {
-          key: 'openapi',
-          title: 'OpenAPI',
-          href: '/docs/api',
-          blankTarget: true,
-        },
-      ]}
+      links={[]}
     />
   )
 }

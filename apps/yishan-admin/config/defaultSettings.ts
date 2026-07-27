@@ -23,7 +23,7 @@ const Settings: ProLayoutProps & {
   fixedHeader: false,
   fixSiderbar: true,
   colorWeak: false,
-  title: '移山后台管理系统',
+  title: '熙爱美客户管理系统',
   pwa: true,
   logo: `${normalizePublicPath(publicPath)}logo.svg`,
   iconfontUrl: '',
