@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { execSync, spawn } from 'node:child_process';
 import {
   accountMenusSeed,
+  announcementsMenusSeed,
   assertSeedEnvironment,
   deptTreeSeed,
   dictsSeed,
@@ -57,7 +58,7 @@ async function runSeedTransaction(db: SeedDb) {
   const { superAdminRole } = await ensureSystemRoles(db, adminUser.id);
   await bindUserRole(db, adminUser.id, superAdminRole.id);
 
-  await seedMenus(db, adminUser.id, [systemMenusSeed, accountMenusSeed]);
+  await seedMenus(db, adminUser.id, [announcementsMenusSeed, systemMenusSeed, accountMenusSeed]);
   await bindRoleMenusByDefault(db);
   await bindRolePermissionsByDefault(db, adminUser.id);
 

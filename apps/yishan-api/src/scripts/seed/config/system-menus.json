@@ -9,7 +9,7 @@
       "type": 1,
       "name": "仪表盘",
       "path": "/",
-      "sortOrder": 0,
+      "sortOrder": 1,
       "component": "./index",
       "hideInMenu": true,
       "children": [

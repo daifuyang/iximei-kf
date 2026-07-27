@@ -1,0 +1,20 @@
+{
+  "name": "系统公告",
+  "path": "/system/announcements",
+  "type": 1,
+  "sortOrder": -2,
+  "icon": "notification",
+  "component": "./system/announcements",
+  "children": [
+    {
+      "type": 2,
+      "name": "查看",
+      "permissionCodes": [
+        "system:announcement:read"
+      ],
+      "sortOrder": 1,
+      "hideInMenu": true,
+      "isDefaultAction": true
+    }
+  ]
+}

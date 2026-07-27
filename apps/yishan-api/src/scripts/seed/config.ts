@@ -16,6 +16,7 @@ import rolesJson from './config/roles.json'
 import departmentsJson from './config/departments.json'
 import postsJson from './config/posts.json'
 import dictsJson from './config/dicts.json'
+import announcementsMenusJson from './config/announcements-menu.json'
 import systemMenusJson from './config/system-menus.json'
 import accountMenusJson from './config/account-menus.json'
 import sysOptionsJson from './config/sys-options.json'
@@ -145,6 +146,7 @@ export const seedConfig = {
   dictsSeed: dictsJson as DictSeedConfig[],
   systemMenusSeed: systemMenusJson as MenuSeedNode,
   accountMenusSeed: accountMenusJson as MenuSeedNode,
+  announcementsMenusSeed: announcementsMenusJson as MenuSeedNode,
   sysOptionsSeed: sysOptionsJson as SysOptionSeed[],
   portalCategoriesSeed: portalCategoriesJson as PortalCategorySeed[],
   portalPagesSeed: portalPagesJson as PortalPageSeed[],
@@ -162,6 +164,7 @@ export const postsSeed = seedConfig.postsSeed;
 export const dictsSeed = seedConfig.dictsSeed;
 export const systemMenusSeed = seedConfig.systemMenusSeed;
 export const accountMenusSeed = seedConfig.accountMenusSeed;
+export const announcementsMenusSeed = seedConfig.announcementsMenusSeed;
 export const sysOptionsSeed = seedConfig.sysOptionsSeed;
 export const portalCategoriesSeed = seedConfig.portalCategoriesSeed;
 export const portalPagesSeed = seedConfig.portalPagesSeed;
