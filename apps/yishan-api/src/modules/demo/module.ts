@@ -7,5 +7,6 @@
  */
 export const meta = {
   id: 'demo',
-  enabled: true,
+  // demo 仅作为开发模板保留，不进入 Iximei CRM 的运行发行物。
+  enabled: false,
 }

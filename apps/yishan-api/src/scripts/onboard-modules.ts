@@ -31,6 +31,14 @@ const MODULES_SRC = join(APP_ROOT_SRC, 'modules')
 const MODULES_DIST = join(APP_ROOT_DIST, 'modules')
 const DRIZZLE_KIT = join(APP_ROOT_DIST, '..', 'node_modules', '.bin', 'drizzle-kit')
 
+/**
+ * 发行物级别的业务模块白名单。
+ *
+ * `src/modules/demo` 保留作开发模板，但不属于 Iximei CRM 的运行发行物；
+ * 因此不能让 db:seed / db:reset 对它执行迁移或写入示例菜单。
+ */
+const ONBOARDED_MODULE_IDS = new Set(['crm'])
+
 interface StepOutcome {
   ok: boolean
   message: string
@@ -54,7 +62,12 @@ async function listModules(): Promise<string[]> {
       ids.push(id)
     }
   }
-  return ids.sort()
+  const discovered = ids.sort()
+  const excluded = discovered.filter((id) => !ONBOARDED_MODULE_IDS.has(id))
+  if (excluded.length > 0) {
+    console.log(`跳过非发行模块：${excluded.join(', ')}`)
+  }
+  return discovered.filter((id) => ONBOARDED_MODULE_IDS.has(id))
 }
 
 async function runDrizzleKit(

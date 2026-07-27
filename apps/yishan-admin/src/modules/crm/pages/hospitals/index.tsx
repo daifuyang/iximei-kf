@@ -246,7 +246,7 @@ const HospitalPage: React.FC = () => {
       modal.confirm({
         title: '医院改名将撤销该账号所有会话',
         content:
-          '改名后登录用户名会同步变更、医院账号已签发的 JWT/PAT 全部失效，请确认业务侧已通知到位。',
+          '该账号已签发的 JWT/PAT 全部失效，请确认业务侧已通知到位。',
         okText: '确认改名',
         cancelText: '取消',
         onOk: () => resolve(true),
@@ -277,16 +277,10 @@ const HospitalPage: React.FC = () => {
   const columns: ProColumns<any>[] = [
     { title: 'ID', dataIndex: 'id', search: false, width: 72 },
     {
-      title: '医院名称（登录用户名）',
+      title: '医院名称',
       dataIndex: 'hospitalName',
-      render: (_, r) => (
-        <Space size={4} direction="vertical" style={{ lineHeight: 1.4 }}>
-          <span>{r.hospitalName}</span>
-          <span style={{ color: '#999', fontSize: 12 }}>
-            登录账号 = 医院名称
-          </span>
-        </Space>
-      ),
+      copyable: true,
+      ellipsis: true,
     },
     {
       title: '账号状态',
@@ -407,7 +401,7 @@ const HospitalPage: React.FC = () => {
               <Col {...thirdCol}>
                 <Form.Item
                   name="hospitalName"
-                  label="医院名称（同时作为登录用户名）"
+                  label="医院名称"
                   rules={[
                     { required: true, message: '请输入医院名称' },
                     { max: 50, message: '医院名称最长 50 字' },
@@ -453,7 +447,7 @@ const HospitalPage: React.FC = () => {
           {!editing && (
             <>
               <Divider titlePlacement="left" plain>
-                账号信息（登录用户名 = 医院名称）
+                账号信息
               </Divider>
               <Row gutter={formGutter}>
                 <Col {...thirdCol}>
@@ -694,7 +688,7 @@ const HospitalPage: React.FC = () => {
             </Row>
             <Divider />
             <Form form={accountForm} layout="vertical">
-              <Form.Item label="登录用户名" tooltip="与医院名称保持一致">
+              <Form.Item label="登录用户名">
                 <Input value={account.username} disabled />
               </Form.Item>
               <Form.Item
@@ -750,13 +744,13 @@ const HospitalPage: React.FC = () => {
         <Alert
           showIcon
           type="warning"
-          message="改名后将同步更新登录用户名、撤销该账号所有活跃会话与 Token，并写入审计日志。"
+          message="改名后将撤销该账号所有活跃会话与 Token。"
           style={{ marginBottom: 16 }}
         />
         <Form form={renameForm} layout="vertical">
           <Form.Item
             name="newHospitalName"
-            label="新医院名称（同时作为新的登录用户名）"
+            label="新医院名称"
             rules={[
               { required: true, message: '请输入新医院名称' },
               { max: 50, message: '医院名称最长 50 字' },
