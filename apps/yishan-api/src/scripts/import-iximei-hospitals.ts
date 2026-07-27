@@ -3,7 +3,7 @@ import { createPool } from 'mysql2/promise'
 import { and, eq, isNull } from 'drizzle-orm'
 import { drizzleDb, pool as drizzlePool } from '@/db'
 import { sysRegion, sysRole, sysUser, sysUserRole } from '@/db/schema'
-import { crmHospital, crmCustomer, crmDispatch } from '@/modules/crm/db/schema'
+import { crmHospital, crmCustomer, crmDispatch, crmDispatchReply } from '@/modules/crm/db/schema'
 import { dateUtils } from '../utils/date.js'
 
 /**
@@ -58,6 +58,10 @@ type OldDispatch = {
   receive_qq: number | null; receive_wechat: string | null
   create_time: number; finsh_time: number | null; status: number; image: string | null
 }
+type OldReply = {
+  id: number; dispatch_id: number; content: string; userid: number
+  create_time: number; image: string | null
+}
 
 // ---- helpers -----------------------------------------------------------------
 const SYS_ADMIN_ID = 1
@@ -79,6 +83,15 @@ function ns(v: string | null | undefined): string | null {
 function nz(v: number | null | undefined): number | null {
   if (v == null || v === 0) return null; return v
 }
+function legacyReplyContent(content: string | null | undefined, image: string | null): string {
+  const imagePath = ns(image)
+  if (!imagePath) return content ?? ''
+  // 老库图片保存在旧站的 upload 目录；默认保留可访问的绝对链接，也可通过环境变量
+  // IMPORT_IXIMEI_ASSET_BASE_URL 指向迁移后的静态资源域名。
+  const baseUrl = (process.env.IMPORT_IXIMEI_ASSET_BASE_URL ?? 'https://kf.iximei.cn/upload').replace(/\/+$/, '')
+  const src = new URL(imagePath.replace(/^[/\\]+/, ''), `${baseUrl}/`).toString()
+  return `${content ?? ''}<p><img src="${src}" alt="历史回复图片"></p>`
+}
 
 async function q<T>(pool: ReturnType<typeof createPool>, sql: string): Promise<T[]> {
   const [rows] = await pool.execute(sql); return rows as T[]
@@ -89,9 +102,10 @@ async function main() {
   console.log('[import-business] start')
 
   let regionCnt = 0, hospitalCnt = 0, hospitalAcctCnt = 0
-  let customerCnt = 0, dispatchCnt = 0
+  let customerCnt = 0, dispatchCnt = 0, replyCnt = 0
   let failed = 0
   let dispMissingRef = 0
+  let replyMissingRef = 0
   /** 一院一账号阻断报告：每个不通过的 hospital_id → 原因 */
   const blockingIssues: Array<{ hospitalId: number; hospitalName: string; reason: string }> = []
   /** 导入后用户名与医院名不一致的清单（需业务确认后同步改名） */
@@ -101,7 +115,7 @@ async function main() {
 
   try {
     // ---- load source ---------------------------------------------------------
-    const [regions, hospitals, userRefs, customs, dispatches] = await Promise.all([
+    const [regions, hospitals, userRefs, customs, dispatches, replies] = await Promise.all([
       q<OldRegion>(src, 'SELECT area_id,area_name,area_type,parent_id FROM hj_region ORDER BY area_id'),
       q<OldHospital>(src, `SELECT id,hospital_name,hospital_introduction,province,city,district,
         hospital_address,hospital_phone,hospital_selling,hospital_website,hospital_nature,
@@ -114,13 +128,16 @@ async function main() {
         FROM hj_custom ORDER BY id`),
       q<OldDispatch>(src, `SELECT id,custom_id,hospital_id,receive_qq,receive_wechat,
         create_time,finsh_time,status,image FROM hj_dispatch ORDER BY id`),
+      q<OldReply>(src, `SELECT id,dispatch_id,content,userid,create_time,image
+        FROM hj_reply ORDER BY id`),
     ])
-    console.log(`[import-business] loaded: regions=${regions.length} hosps=${hospitals.length} users=${userRefs.length} customs=${customs.length} dispatches=${dispatches.length}`)
+    console.log(`[import-business] loaded: regions=${regions.length} hosps=${hospitals.length} users=${userRefs.length} customs=${customs.length} dispatches=${dispatches.length} replies=${replies.length}`)
 
-    // ---- old → new user 映射（仅 hospital_id IS NULL 的内部用户）-------------
+    // ---- old → new user 映射 -------------------------------------------------
     // 医院账号在本脚本内新建（username = hospital_name，不沿用 user_login）；
     // 内部用户（admin / customer_service 等）由 import-iximei.ts 预先创建，
-    // 这里按 user_login 回查它们的 sys_user.id，供 customer.ownerUserId 使用。
+    // 这里按 user_login 回查它们的 sys_user.id，供 customer.ownerUserId 及回复作者使用。
+    // 医院账号在下方创建后也会补入该映射，不能根据新旧自增 ID 猜测作者。
     const targetUsers = await drizzleDb.query.sysUser.findMany({
       columns: { id: true, username: true },
       where: (f, { isNull }) => isNull(f.deletedAt),
@@ -296,6 +313,7 @@ async function main() {
           version: 1,
         })
         const newUserId: number = Number(ur.insertId)
+        oldUid2new.set(oldUser.oldId, newUserId)
         // 绑定 hospital_account 角色
         await tx
           .insert(sysUserRole)
@@ -408,6 +426,7 @@ async function main() {
     console.log(`[import-business] customers: ${customerCnt}`)
 
     // ---- 4) dispatches -------------------------------------------------------
+    const oldDispatch2new = new Map<number, number>()
     await drizzleDb.transaction(async tx => {
       // 孤儿派单（custSynced=false 或 hospSynced=false）跳过不导入，
       // 由 dispMissingRef 统计并打印。这些是源库 FK 约束缺失导致的孤儿（老
@@ -420,17 +439,40 @@ async function main() {
         }
         const statusId = DISPATCH_STATUS_MAP[d.status] ?? 1
         const ct = fromUnix(d.create_time) ?? dateUtils.now(); const ft = d.finsh_time ? fromUnix(d.finsh_time) : null
-        await tx.insert(crmDispatch).values({
+        const [r] = await tx.insert(crmDispatch).values({
           customerId: custId, hospitalId: hospId, statusId,
           image: ns(d.image), receiveQq: d.receive_qq ? String(d.receive_qq) : null,
           receiveWechat: ns(d.receive_wechat), finishedAt: ft,
           creatorId: SYS_ADMIN_ID, updaterId: SYS_ADMIN_ID,
           createdAt: ct, updatedAt: ct, deletedAt: null, version: 1,
         })
+        oldDispatch2new.set(d.id, Number(r.insertId))
         dispatchCnt++
       }
     })
     console.log(`[import-business] dispatches: ${dispatchCnt} (orphan skipped: ${dispMissingRef})`)
+
+    // ---- 5) replies ----------------------------------------------------------
+    // 必须经由上述两张映射表关联，不能把旧 dispatch_id / userid 直接写到新库：
+    // 同步时若有孤儿记录或自增 ID 不连续，直接写入会把消息挂到错误的派单或账号上。
+    await drizzleDb.transaction(async tx => {
+      for (const reply of replies) {
+        const dispatchId = oldDispatch2new.get(reply.dispatch_id)
+        const userId = oldUid2new.get(reply.userid)
+        if (!dispatchId || !userId) {
+          replyMissingRef++
+          continue
+        }
+        await tx.insert(crmDispatchReply).values({
+          dispatchId,
+          userId,
+          content: legacyReplyContent(reply.content, reply.image),
+          createdAt: fromUnix(reply.create_time) ?? dateUtils.now(),
+        })
+        replyCnt++
+      }
+    })
+    console.log(`[import-business] replies: ${replyCnt} (orphan skipped: ${replyMissingRef})`)
   } finally {
     await src.end().catch(() => {})
     await drizzlePool.end().catch(() => {})
@@ -441,6 +483,7 @@ async function main() {
   console.log(`hospitals  : ${hospitalCnt}  accounts: ${hospitalAcctCnt}`)
   console.log(`customers  : ${customerCnt}`)
   console.log(`dispatches : ${dispatchCnt}  orphanSkipped: ${dispMissingRef}`)
+  console.log(`replies    : ${replyCnt}  orphanSkipped: ${replyMissingRef}`)
   console.log(`failed: ${failed}`)
   if (blockingIssues.length > 0) {
     console.log(`\n[BLOCKED] ${blockingIssues.length} hospital(s) violate 一院一账号:`)

@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, or } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
 import { crmCustomer, crmDispatch, crmDispatchFollowLog, crmDispatchReply, crmDispatchStatus, crmHospital } from '../db/schema.js'
+import { sysUser } from '@/db/schema'
 
 const active = (t: any) => isNull(t.deletedAt)
 const page = (q: any, p: any) =>
@@ -88,8 +89,20 @@ export class DispatchesRepository {
       .where(eq(crmDispatchStatus.id, d.statusId))
       .limit(1)
     const replies = await drizzleDb
-      .select()
+      .select({
+        id: crmDispatchReply.id,
+        dispatchId: crmDispatchReply.dispatchId,
+        userId: crmDispatchReply.userId,
+        content: crmDispatchReply.content,
+        createdAt: crmDispatchReply.createdAt,
+        user: {
+          id: sysUser.id,
+          username: sysUser.username,
+          realName: sysUser.realName,
+        },
+      })
       .from(crmDispatchReply)
+      .leftJoin(sysUser, eq(sysUser.id, crmDispatchReply.userId))
       .where(eq(crmDispatchReply.dispatchId, id))
       .orderBy(asc(crmDispatchReply.createdAt))
     const logs = await drizzleDb
@@ -97,7 +110,14 @@ export class DispatchesRepository {
       .from(crmDispatchFollowLog)
       .where(eq(crmDispatchFollowLog.dispatchId, id))
       .orderBy(asc(crmDispatchFollowLog.createdAt))
-    return { ...d, customer: customer ?? null, hospital: hospital ?? null, status: status ?? null, replies, logs }
+    // 一个医院只有一个登录账号，因此可用回复人和该医院账号的关系确定气泡方向。
+    // 将这一语义由接口明确返回，前端无需猜测当前登录用户或角色。
+    const repliesWithAuthorType = replies.map((reply) => ({
+      ...reply,
+      authorType:
+        reply.userId === hospital?.accountUserId ? 'hospital' : 'service',
+    }))
+    return { ...d, customer: customer ?? null, hospital: hospital ?? null, status: status ?? null, replies: repliesWithAuthorType, logs }
   }
 
   static listStatuses() {
