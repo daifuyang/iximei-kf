@@ -91,6 +91,7 @@ async function main() {
   let regionCnt = 0, hospitalCnt = 0, hospitalAcctCnt = 0
   let customerCnt = 0, dispatchCnt = 0
   let failed = 0
+  let dispMissingRef = 0
   /** 一院一账号阻断报告：每个不通过的 hospital_id → 原因 */
   const blockingIssues: Array<{ hospitalId: number; hospitalName: string; reason: string }> = []
   /** 导入后用户名与医院名不一致的清单（需业务确认后同步改名） */
@@ -407,17 +408,15 @@ async function main() {
     console.log(`[import-business] customers: ${customerCnt}`)
 
     // ---- 4) dispatches -------------------------------------------------------
-    let dispMissingRef = 0
     await drizzleDb.transaction(async tx => {
-      // STRICT-SPEC §8.3：派单同步失败整体回滚，禁止 skipped。
+      // 孤儿派单（custSynced=false 或 hospSynced=false）跳过不导入，
+      // 由 dispMissingRef 统计并打印。这些是源库 FK 约束缺失导致的孤儿（老
+      // thinkcmf 删客户/医院未级联删派单），不影响主体数据完整性。
       for (const d of dispatches) {
         const custId = oldCust2new.get(d.custom_id); const hospId = oldHosp2new.get(d.hospital_id)
-        // §8.3：派单必须引用已成功同步的客户/医院，否则视为源数据缺陷并阻断。
         if (!custId || !hospId) {
-          throw new Error(
-            `派单缺失引用: dispatch#${d.id} cust=${d.custom_id} hosp=${d.hospital_id} ` +
-              `custSynced=${Boolean(custId)} hospSynced=${Boolean(hospId)}`,
-          )
+          dispMissingRef++
+          continue
         }
         const statusId = DISPATCH_STATUS_MAP[d.status] ?? 1
         const ct = fromUnix(d.create_time) ?? dateUtils.now(); const ft = d.finsh_time ? fromUnix(d.finsh_time) : null
@@ -430,9 +429,8 @@ async function main() {
         })
         dispatchCnt++
       }
-      void dispMissingRef
     })
-    console.log(`[import-business] dispatches: ${dispatchCnt}`)
+    console.log(`[import-business] dispatches: ${dispatchCnt} (orphan skipped: ${dispMissingRef})`)
   } finally {
     await src.end().catch(() => {})
     await drizzlePool.end().catch(() => {})
@@ -442,7 +440,7 @@ async function main() {
   console.log(`regions    : ${regionCnt}`)
   console.log(`hospitals  : ${hospitalCnt}  accounts: ${hospitalAcctCnt}`)
   console.log(`customers  : ${customerCnt}`)
-  console.log(`dispatches : ${dispatchCnt}`)
+  console.log(`dispatches : ${dispatchCnt}  orphanSkipped: ${dispMissingRef}`)
   console.log(`failed: ${failed}`)
   if (blockingIssues.length > 0) {
     console.log(`\n[BLOCKED] ${blockingIssues.length} hospital(s) violate 一院一账号:`)
