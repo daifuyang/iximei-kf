@@ -72,10 +72,12 @@ export type SysUserResp = Static<typeof SysUserSchema>;
 // 这里统一去掉 default，由 Service 层（createUser 的 toCreateUserInput）负责设置缺省值。
 const CreateUserReqSchema = Type.Object(
   {
-    username: Type.Optional(Type.String({
+    // 一院一账号后, sys_user.username 在 DB 层已 NOT NULL；创建接口也强制要求。
+    username: Type.String({
       description: "用户名",
+      minLength: 1,
       maxLength: 50,
-    })),
+    }),
     email: Type.Optional(Type.String({ format: "email", description: "邮箱" })),
     password: Type.String({
       description: "用户密码",

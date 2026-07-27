@@ -139,8 +139,15 @@ const auth: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       const currentUser = request.currentUser;
       const roleIds = currentUser?.roleIds ?? [];
       const accessPath = await MenuService.getAuthorizedMenuPaths(roleIds);
-      const { roleCodes } = await PermissionService.loadForRoleIds(roleIds);
-      const result = { ...currentUser, accessPath, roleCodes: [...roleCodes] } as any;
+      const { roleCodes, perms } = await PermissionService.loadForRoleIds(roleIds);
+      // STRICT-SPEC §4.1 / §7.4：前端权限判断按权限码（crm:hospitals:rename 等），
+      // 不依赖 roleCodes 字符串匹配。返回的 permissions 是该用户有效权限码集合。
+      const result = {
+        ...currentUser,
+        accessPath,
+        roleCodes: [...roleCodes],
+        permissions: [...perms],
+      } as any;
       const message = getAuthMessage(AuthMessageKeys.USER_INFO_SUCCESS, request.headers["accept-language"] as string);
       return ResponseUtil.success(reply, result, message);
     }

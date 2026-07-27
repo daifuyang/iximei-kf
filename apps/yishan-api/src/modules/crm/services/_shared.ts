@@ -8,8 +8,6 @@ export const sanitizeReplyContent=(content:string)=>sanitizeHtml(content,{allowe
 export const hasReplyContent=(content:string)=>/<img\b/i.test(content)||Boolean(sanitizeHtml(content,{allowedAttributes:{},allowedTags:[]}).replaceAll('&nbsp;',' ').trim())
 export const sanitizeDispatchReplies=(dispatch:any)=>({...dispatch,replies:dispatch.replies?.map((r:any)=>({...r,content:sanitizeReplyContent(r.content)}))})
 export function normalizeContractPhotos(v:unknown){if(v===undefined)return undefined;if(v===null||v==='')return null;if(typeof v==='string'){try{return JSON.parse(v)}catch{return [{url:v,name:''}]}}return v}
-export const HOSPITAL_ACCOUNT_ROLES=['owner','admin','member'] as const
-export function assertHospitalAccountRole(role:unknown):asserts role is (typeof HOSPITAL_ACCOUNT_ROLES)[number]{if(!HOSPITAL_ACCOUNT_ROLES.includes(role as any))throw new Error('无效的角色')}
 
 /**
  * 全局查看权：sys_user.role.code ∈ { super_admin, admin } 视为看全部。

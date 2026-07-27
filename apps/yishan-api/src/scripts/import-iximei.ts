@@ -116,11 +116,15 @@ function truncate(value: string | null | undefined, max: number): string | undef
 }
 
 async function loadLegacyUsers(sourcePool: ReturnType<typeof createPool>): Promise<LegacyUserRow[]> {
+  // STRICT-SPEC §8.1：医院账号由 import-iximei-hospitals.ts 唯一负责导入，
+  // 本脚本只导入内部用户（hospital_id IS NULL）。否则会与医院同步脚本创建
+  // 同 username 的 sys_user，触发 sys_user_username_key 唯一索引冲突。
   const [rows] = await sourcePool.execute(
     `SELECT id, user_login, user_pass, user_nickname, user_email, mobile,
             user_status, sex, birthday, avatar, hospital_id,
             create_time, last_login_time
        FROM hj_user
+       WHERE hospital_id IS NULL
        ORDER BY id ASC`,
   )
   return rows as LegacyUserRow[]

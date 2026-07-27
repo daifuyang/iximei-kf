@@ -37,6 +37,11 @@ export interface CurrentUser {
   /** 已绑定角色编码（如 super_admin / admin），用于硬编码 dev-only 菜单的可见性判断 */
   roleCodes?: string[]
   /**
+   * 已授予的权限码集合（如 crm:hospitals:rename / crm:hospitals:list）。
+   * STRICT-SPEC §4.1 / §7.4：前端按钮可见性必须基于权限码，不依赖 roleCodes 字符串匹配。
+   */
+  permissions?: string[]
+  /**
    * 密码 hash 算法格式。
    * 0 = 老 iximei（`###md5`），已被自动升级为 scrypt v1 后变 1；
    * 1 = 新系统 scrypt v1。

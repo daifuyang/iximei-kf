@@ -1,51 +1,64 @@
 /**
- * 医院资源路由。
+ * 医院资源路由 — 一院一账号版本。
  *
- * 单一职责：医院档案 + 医院账号管理的所有 endpoint。
+ * 单一职责：医院档案 + 唯一医院账号的只读 / 联系方式更新 / 重置密码。
  * 路由 prefix 由 module-loader 推导为 `/api/crm/v1`，本文件只声明子路径。
  */
 
 import type { FastifyPluginAsync } from 'fastify'
 import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
 import { ResponseUtil } from '@/utils/response.js'
+import { BusinessError } from '@/exceptions/business-error.js'
+import { AuthErrorCode } from '@/constants/business-codes/auth.js'
 import { PERMS } from '../../../permissions.js'
 import { HospitalsService } from '../../../services/hospitals.service.js'
 import { HospitalsRepository } from '../../../repositories/hospitals.repository.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import {
-  CrmHospitalAccountAssignReqSchema,
-  CrmHospitalAccountCreateReqSchema,
+  CrmHospitalAccountResetPasswordReqSchema,
   CrmHospitalAccountUpdateReqSchema,
+  CrmHospitalRenameReqSchema,
   CrmHospitalReqSchema,
   CrmHospitalSearchQuerySchema,
   CrmHospitalUpdateReqSchema,
 } from '../../../schemas/hospitals.schema.js'
 import {
-  CrmHospitalAccountParamsSchema,
   CrmIdParamsSchema,
   CrmPageQuerySchema,
 } from '../../../schemas/shared.schema.js'
-
-const SUPER_ADMIN_CODE = 'super_admin'
-const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
 
 const hospitals: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
   const uid = (req: any) => req.currentUser.id
   const id = (req: any) => Number(req.params.id)
-  const userId = (req: any) => Number(req.params.userId)
-  void HospitalsService // 当前 handler 通过静态方法访问，保留 import 用于将来的实例化迁移
 
-  /** 为 hospital_account 角色注入可访问医院 ID 列表；客服角色不提供医院搜索 */
+  /** hospital_account 角色收敛可见医院；其余角色无限制。
+   * 0 结果由 HospitalsService.requireAccessibleHospitalIds 抛 403，不回退为全量。 */
   async function resolveHospitalIds(req: any): Promise<number[] | undefined> {
     const roleCodes: string[] = req.currentUser?.roleCodes ?? []
-    if (roleCodes.includes(SUPER_ADMIN_CODE)) return undefined // 无限制
-    if (roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) {
-      const ids = await HospitalsRepository.accessibleHospitalIds(req.currentUser.id)
-      return ids.map((x: any) => x.hospitalId)
+    if (!roleCodes.includes('hospital_account')) return undefined
+    const ids = await HospitalsService.requireAccessibleHospitalIds(req.currentUser.id, roleCodes)
+    return ids
+  }
+
+  /**
+   * STRICT-SPEC §4.3 / §9.2.3：医院账号访问 :id 路由必须满足
+   *   requestedHospitalId === currentUser's only accessible hospitalId
+   * 不满足直接返回 403；不返回 404 / 空列表 / 其他医院信息。
+   *
+   * 作为 preHandler 挂载：req.params.id 是路由解析出的目标 id；
+   * 非 hospital_account 角色直接放行。
+   */
+  async function assertHospitalAccountOwnership(req: any, _reply: any) {
+    const roleCodes: string[] = req.currentUser?.roleCodes ?? []
+    if (!roleCodes.includes('hospital_account')) return
+    const targetId = Number(req.params?.id)
+    if (!Number.isFinite(targetId)) return
+    const accessible = await HospitalsRepository.accessibleHospitalIds(req.currentUser.id)
+    const ownIds = accessible.map((r: any) => Number(r.hospitalId))
+    if (ownIds.length === 0 || !ownIds.includes(targetId)) {
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '医院账号无权访问其他医院资源')
     }
-    // 客服等角色不提供医院搜索，返回无结果 ID
-    return [-1]
   }
 
   /* ---------- 医院档案 ---------- */
@@ -61,8 +74,12 @@ const hospitals: FastifyPluginAsync = async (app) => {
         querystring: CrmPageQuerySchema,
       },
     },
-    async (_req: any, reply: any) => {
-      const result = await HospitalsService.list(_req.query)
+    async (req: any, reply: any) => {
+      // STRICT-SPEC §4.3 / §7.5：医院账号角色必须收敛到自身医院；不允许列出其他医院。
+      // 非 hospital_account 角色不限制；resolveHospitalIds() 内部已做权限分流。
+      const hospitalIds = await resolveHospitalIds(req)
+      const query = hospitalIds ? { ...req.query, hospitalIds } : req.query
+      const result = await HospitalsService.list(query)
       return ResponseUtil.paginated(reply, result.list, result.page, result.pageSize, result.total)
     },
   )
@@ -96,6 +113,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
         operationId: 'getCrmHospital',
         params: CrmIdParamsSchema,
       },
+      preHandler: [assertHospitalAccountOwnership],
     },
     async (req: any, reply: any) => {
       const data = await HospitalsService.getById(id(req))
@@ -110,13 +128,13 @@ const hospitals: FastifyPluginAsync = async (app) => {
       access: { permission: PERMS.HOSPITAL_CREATE },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '创建医院',
+        summary: '创建医院（含唯一账号）',
         operationId: 'createCrmHospital',
         body: CrmHospitalReqSchema,
       },
     },
     async (req: any, reply: any) => {
-      const result = await HospitalsService.save(req.body, uid(req))
+      const result = await HospitalsService.createWithAccount(req.body, uid(req))
       return ResponseUtil.success(reply, result)
     },
   )
@@ -127,14 +145,15 @@ const hospitals: FastifyPluginAsync = async (app) => {
       access: { permission: PERMS.HOSPITAL_UPDATE },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '更新医院',
+        summary: '更新医院（改名会同步账号用户名）',
         operationId: 'updateCrmHospital',
         params: CrmIdParamsSchema,
         body: CrmHospitalUpdateReqSchema,
       },
+      preHandler: [assertHospitalAccountOwnership],
     },
     async (req: any, reply: any) => {
-      const result = await HospitalsService.save(req.body, uid(req), id(req))
+      const result = await HospitalsService.update(req.body, uid(req), id(req))
       return ResponseUtil.success(reply, result)
     },
   )
@@ -145,10 +164,11 @@ const hospitals: FastifyPluginAsync = async (app) => {
       access: { permission: PERMS.HOSPITAL_DELETE },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '删除医院',
+        summary: '删除医院（软删 + 禁用账号 + 撤销 Token）',
         operationId: 'deleteCrmHospital',
         params: CrmIdParamsSchema,
       },
+      preHandler: [assertHospitalAccountOwnership],
     },
     async (req: any, reply: any) => {
       const result = await HospitalsService.delete(id(req), uid(req))
@@ -156,93 +176,88 @@ const hospitals: FastifyPluginAsync = async (app) => {
     },
   )
 
-  /* ---------- 医院账号 ---------- */
+  route.post(
+    '/hospitals/:id/rename',
+    {
+      // 仅系统管理员（持有 crm:hospitals:rename 权限）可调用
+      access: { permission: PERMS.HOSPITAL_RENAME },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '医院改名（仅系统管理员；同步 username + 撤销 Token + 审计）',
+        operationId: 'renameCrmHospital',
+        params: CrmIdParamsSchema,
+        body: CrmHospitalRenameReqSchema,
+      },
+      preHandler: [assertHospitalAccountOwnership],
+    },
+    async (req: any, reply: any) => {
+      const result = await HospitalsService.renameHospital(
+        id(req),
+        req.body.newHospitalName,
+        uid(req),
+        req,
+      )
+      return ResponseUtil.success(reply, result)
+    },
+  )
+
+  /* ---------- 唯一账号 ---------- */
 
   route.get(
-    '/hospitals/:id/accounts',
+    '/hospitals/:id/account',
     {
       access: { permission: PERMS.HOSPITAL_LIST },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '医院账号列表',
-        operationId: 'listCrmHospitalAccounts',
+        summary: '医院唯一账号',
+        operationId: 'getCrmHospitalAccount',
         params: CrmIdParamsSchema,
+        // STRICT-SPEC §5.3：不声明 raw response schema，由 ResponseUtil.success() 信封自行序列化
       },
+      preHandler: [assertHospitalAccountOwnership],
     },
     async (req: any, reply: any) => {
-      const result = await HospitalsService.listAccounts(id(req))
-      return ResponseUtil.success(reply, result)
-    },
-  )
-
-  route.post(
-    '/hospitals/:id/accounts',
-    {
-      access: { permission: PERMS.HOSPITAL_UPDATE },
-      schema: {
-        tags: [ROUTE_TAG],
-        summary: '新建并分配医院账号',
-        operationId: 'createCrmHospitalAccount',
-        params: CrmIdParamsSchema,
-        body: CrmHospitalAccountCreateReqSchema,
-      },
-    },
-    async (req: any, reply: any) => {
-      const result = await HospitalsService.createAccount(id(req), req.body, uid(req))
-      return ResponseUtil.success(reply, result)
-    },
-  )
-
-  route.post(
-    '/hospitals/:id/accounts/assign',
-    {
-      access: { permission: PERMS.HOSPITAL_UPDATE },
-      schema: {
-        tags: [ROUTE_TAG],
-        summary: '分配已有用户到医院',
-        operationId: 'assignCrmHospitalAccount',
-        params: CrmIdParamsSchema,
-        body: CrmHospitalAccountAssignReqSchema,
-      },
-    },
-    async (req: any, reply: any) => {
-      const result = await HospitalsService.assignAccount(id(req), req.body, uid(req))
-      return ResponseUtil.success(reply, result)
+      const account = await HospitalsService.getAccount(id(req))
+      if (!account) throw new Error('医院账号不存在')
+      return ResponseUtil.success(reply, account)
     },
   )
 
   route.patch(
-    '/hospitals/:id/accounts/:userId',
+    '/hospitals/:id/account',
     {
       access: { permission: PERMS.HOSPITAL_UPDATE },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '更新医院账号',
+        summary: '更新医院账号联系方式 / 启停',
         operationId: 'updateCrmHospitalAccount',
-        params: CrmHospitalAccountParamsSchema,
+        params: CrmIdParamsSchema,
         body: CrmHospitalAccountUpdateReqSchema,
       },
+      preHandler: [assertHospitalAccountOwnership],
     },
     async (req: any, reply: any) => {
-      const result = await HospitalsService.updateAccount(id(req), userId(req), req.body, uid(req))
-      return ResponseUtil.success(reply, result)
+      const account = await HospitalsService.updateAccountContact(id(req), req.body)
+      return ResponseUtil.success(reply, account)
     },
   )
 
-  route.delete(
-    '/hospitals/:id/accounts/:userId',
+  route.post(
+    '/hospitals/:id/account/reset-password',
     {
       access: { permission: PERMS.HOSPITAL_UPDATE },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '解除医院账号',
-        operationId: 'deleteCrmHospitalAccount',
-        params: CrmHospitalAccountParamsSchema,
+        summary: '重置医院账号密码',
+        operationId: 'resetCrmHospitalAccountPassword',
+        params: CrmIdParamsSchema,
+        body: CrmHospitalAccountResetPasswordReqSchema,
       },
+      preHandler: [assertHospitalAccountOwnership],
     },
     async (req: any, reply: any) => {
-      const result = await HospitalsService.deleteAccount(id(req), userId(req), uid(req))
-      return ResponseUtil.success(reply, result)
+      await HospitalsService.resetAccountPassword(id(req), req.body.newPassword)
+      return ResponseUtil.success(reply, { ok: true })
     },
   )
 }

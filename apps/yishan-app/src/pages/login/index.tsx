@@ -61,7 +61,7 @@ export default function LoginPage() {
           <Text className={styles.login__label}>账号</Text>
           <Input
             className={styles.login__input}
-            placeholder="请输入用户名 / 邮箱"
+            placeholder="医院名称或后台用户名 / 邮箱"
             placeholderClass={styles.login__placeholder}
             value={username}
             onInput={(e) => setUsername(e.detail.value)}

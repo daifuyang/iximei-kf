@@ -199,7 +199,7 @@ export const sysUser = mysqlTable(
   'sys_user',
   {
   id: int('id').primaryKey().autoincrement().notNull(),
-  username: varchar('username', { length: 50 }),
+  username: varchar('username', { length: 50 }).notNull(),
   email: varchar('email', { length: 100 }),
   phone: varchar('phone', { length: 20 }),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),

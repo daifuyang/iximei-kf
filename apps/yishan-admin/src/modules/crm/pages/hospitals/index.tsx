@@ -5,7 +5,9 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
+import { useModel } from '@umijs/max';
 import {
+  Alert,
   App,
   Button,
   Cascader,
@@ -19,6 +21,7 @@ import {
   Row,
   Select,
   Space,
+  Statistic,
   Tag,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -26,21 +29,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FormEditor, type ImageUploadAdapter } from 'yishan-tiptap';
 import { AttachmentMultiSelect } from '@/components';
 import {
-  createHospital,
-  createHospitalAccount,
-  deleteHospital,
-  deleteHospitalAccount,
-  getHospitalAccounts,
-  getHospitals,
-  getRegionTree,
-  updateHospital,
-  updateHospitalAccount,
-} from '../../api';
-import {
   fetchCloudStorageConfig,
   resolveAttachmentPublicUrl,
   uploadAttachmentFile,
 } from '@/utils/attachmentUpload';
+import {
+  createHospital,
+  deleteHospital,
+  getHospitalAccount,
+  getHospitals,
+  getRegionTree,
+  renameHospital,
+  resetHospitalAccountPassword,
+  updateHospital,
+  updateHospitalAccount,
+} from '../../api';
 
 const natureMap: Record<number, string> = {
   [-1]: '未选择',
@@ -83,17 +86,25 @@ const toRegionOptions = (nodes: any[] = []): any[] =>
 
 const HospitalPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
-  const { message: antMessage } = App.useApp();
+  const { message: antMessage, modal } = App.useApp();
+  // STRICT-SPEC §4.1 / §7.3 / §7.4：基于权限码判断，不依赖 roleCodes 字符串。
+  const { initialState } = useModel('@@initialState');
+  const canRenameHospital =
+    initialState?.currentUser?.permissions?.includes('crm:hospitals:rename') ??
+    false;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>();
   const [form] = Form.useForm();
+  // 唯一账号侧栏：显示只读信息 + 提供「启停 / 重置密码」入口
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
-  const [accountHospitalId, setAccountHospitalId] = useState<number>();
-  const [accountList, setAccountList] = useState<any[]>([]);
-  const [accountListLoading, setAccountListLoading] = useState(false);
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [accountEditing, setAccountEditing] = useState<any>();
+  const [accountHospital, setAccountHospital] = useState<any>();
+  const [account, setAccount] = useState<any>();
+  const [accountLoading, setAccountLoading] = useState(false);
   const [accountForm] = Form.useForm();
+  const [resetPwdModalOpen, setResetPwdModalOpen] = useState(false);
+  const [resetPwdForm] = Form.useForm();
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameForm] = Form.useForm();
   const [regionOptions, setRegionOptions] = useState<any[]>([]);
   const [regionLoading, setRegionLoading] = useState(false);
 
@@ -120,117 +131,184 @@ const HospitalPage: React.FC = () => {
 
   const submit = async () => {
     const values = await form.validateFields();
-    const { regionCodes, ...restValues } = values;
-    const payload = {
+    const { regionCodes, confirmPassword: _cp, ...restValues } = values;
+    const payload: any = {
       ...restValues,
       provinceId: regionCodes?.[0],
       cityId: regionCodes?.[1],
       districtId: regionCodes?.[2],
     };
-    const res = editing?.id
-      ? await updateHospital(editing.id, payload)
-      : await createHospital(payload);
+    let res: any;
+    if (editing?.id) {
+      // STRICT-SPEC §7.1：编辑模式删除创建专用字段（密码/邮箱/手机号/hospitalName）
+      //   联系方式通过独立 PATCH /hospitals/:id/account 维护；
+      //   密码通过独立 /hospitals/:id/account/reset-password 维护；
+      //   改名通过独立 /hospitals/:id/rename 维护。
+      delete payload.accountPassword;
+      delete payload.accountEmail;
+      delete payload.accountPhone;
+      delete payload.hospitalName;
+      res = await updateHospital(editing.id, payload);
+    } else {
+      // STRICT-SPEC §7.1：新建模式必须提交 accountPassword。
+      //   confirmPassword 仅前端比对，已经从 restValues 移除。
+      res = await createHospital(payload);
+    }
     if (res.success) antMessage.success(res.message);
     setOpen(false);
     actionRef.current?.reload();
   };
 
-  const loadAccounts = async (hospitalId: number) => {
-    setAccountListLoading(true);
-    try {
-      const res = await getHospitalAccounts(hospitalId);
-      if (res.success) setAccountList(res.data || []);
-    } finally {
-      setAccountListLoading(false);
-    }
-  };
-
-  const openAccountDrawer = async (hospitalId: number) => {
-    setAccountHospitalId(hospitalId);
+  const openAccountDrawer = async (record: any) => {
+    setAccountHospital(record);
     setAccountDrawerOpen(true);
-    await loadAccounts(hospitalId);
+    setAccount(undefined);
+    await loadAccount(record.id);
   };
 
-  const openAccountModal = (editingRow?: any) => {
-    setAccountEditing(editingRow);
-    if (editingRow) {
-      accountForm.setFieldsValue({
-        username: editingRow.user?.username,
-        realName: editingRow.user?.realName,
-        phone: editingRow.user?.phone,
-        email: editingRow.user?.email,
-        role: editingRow.role,
-        status: editingRow.status,
-        remark: editingRow.remark ?? '',
-      });
-    } else {
-      accountForm.resetFields();
+  const loadAccount = async (hospitalId: number) => {
+    setAccountLoading(true);
+    try {
+      const res = await getHospitalAccount(hospitalId);
+      if (res.success) {
+        setAccount(res.data);
+        accountForm.setFieldsValue({
+          email: res.data?.email ?? '',
+          phone: res.data?.phone ?? '',
+          status: res.data?.status ?? 1,
+        });
+      }
+    } finally {
+      setAccountLoading(false);
     }
-    setAccountModalOpen(true);
   };
 
-  const submitAccountCreate = async () => {
-    if (!accountHospitalId) return;
+  const submitAccountContact = async () => {
+    if (!accountHospital) return;
     const values = await accountForm.validateFields();
-    // 后端 create schema 不接受 status 字段,新建后后端会强制 status=1(启用)。
-    // 如果用户希望停用,请创建后通过编辑账号调整。这里从 payload 中过滤掉。
-    const { status: _unusedStatus, ...payload } = values;
-    const res = await createHospitalAccount(accountHospitalId, payload);
+    const res = await updateHospitalAccount(accountHospital.id, values);
     if (!res.success) {
       antMessage.error(res.message);
       return;
     }
     antMessage.success(res.message);
-    setAccountModalOpen(false);
-    accountForm.resetFields();
-    await loadAccounts(accountHospitalId);
+    await loadAccount(accountHospital.id);
   };
 
-  const submitAccountEdit = async () => {
-    if (!accountHospitalId || !accountEditing) return;
-    const values = await accountForm.validateFields();
-    const res = await updateHospitalAccount(
-      accountHospitalId,
-      accountEditing.userId,
-      values,
+  const toggleAccountStatus = async () => {
+    if (!accountHospital || !account) return;
+    const next = account.status === 1 ? 0 : 1;
+    const res = await updateHospitalAccount(accountHospital.id, {
+      status: next,
+    });
+    if (!res.success) {
+      antMessage.error(res.message);
+      return;
+    }
+    antMessage.success(next === 1 ? '账号已启用' : '账号已停用');
+    await loadAccount(accountHospital.id);
+  };
+
+  const openResetPwd = () => {
+    resetPwdForm.resetFields();
+    setResetPwdModalOpen(true);
+  };
+
+  const submitResetPwd = async () => {
+    if (!accountHospital) return;
+    const values = await resetPwdForm.validateFields();
+    const res = await resetHospitalAccountPassword(
+      accountHospital.id,
+      values.newPassword,
     );
     if (!res.success) {
       antMessage.error(res.message);
       return;
     }
-    antMessage.success(res.message);
-    setAccountModalOpen(false);
-    accountForm.resetFields();
-    setAccountEditing(undefined);
-    await loadAccounts(accountHospitalId);
+    antMessage.success('密码已重置');
+    setResetPwdModalOpen(false);
+    resetPwdForm.resetFields();
   };
 
-  const handleAccountDelete = async (userId: number) => {
-    if (!accountHospitalId) return;
-    const res = await deleteHospitalAccount(accountHospitalId, userId);
+  const openRenameModal = () => {
+    renameForm.resetFields();
+    setRenameModalOpen(true);
+  };
+
+  const submitRename = async () => {
+    if (!accountHospital) return;
+    const values = await renameForm.validateFields();
+    if (values.newHospitalName === accountHospital.hospitalName) {
+      antMessage.warning('新名称与当前名称一致');
+      return;
+    }
+    const confirmed = await new Promise<boolean>((resolve) => {
+      modal.confirm({
+        title: '医院改名将撤销该账号所有会话',
+        content:
+          '改名后登录用户名会同步变更、医院账号已签发的 JWT/PAT 全部失效，请确认业务侧已通知到位。',
+        okText: '确认改名',
+        cancelText: '取消',
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!confirmed) return;
+    const res = await renameHospital(
+      accountHospital.id,
+      values.newHospitalName,
+    );
     if (!res.success) {
       antMessage.error(res.message);
       return;
     }
-    antMessage.success(res.message);
-    await loadAccounts(accountHospitalId);
+    antMessage.success('医院已改名，旧会话已撤销');
+    setRenameModalOpen(false);
+    renameForm.resetFields();
+    // 同步更新侧栏与列表展示
+    setAccountHospital((prev: any) => ({
+      ...prev,
+      hospitalName: values.newHospitalName,
+    }));
+    await loadAccount(accountHospital.id);
+    actionRef.current?.reload();
   };
 
   const columns: ProColumns<any>[] = [
     { title: 'ID', dataIndex: 'id', search: false, width: 72 },
-    { title: '医院名称', dataIndex: 'hospitalName' },
     {
-      title: '账号数',
-      dataIndex: 'accountCount',
-      search: false,
-      render: (_, record) => (
-        <Button type="link" onClick={() => openAccountDrawer(record.id)}>
-          {record.accountCount || 0}
-        </Button>
+      title: '医院名称（登录用户名）',
+      dataIndex: 'hospitalName',
+      render: (_, r) => (
+        <Space size={4} direction="vertical" style={{ lineHeight: 1.4 }}>
+          <span>{r.hospitalName}</span>
+          <span style={{ color: '#999', fontSize: 12 }}>
+            登录账号 = 医院名称
+          </span>
+        </Space>
       ),
     },
-    { title: '咨询电话', dataIndex: 'hospitalPhone', search: false },
-    { title: '营销电话', dataIndex: 'hospitalSelling', search: false },
+    {
+      title: '账号状态',
+      dataIndex: 'hospitalStatus',
+      search: false,
+      width: 90,
+      render: (_, r) => (
+        <Tag color={r.status === 1 ? 'green' : 'red'}>
+          {r.status === 1 ? '启用' : '停用'}
+        </Tag>
+      ),
+    },
+    {
+      title: '咨询电话',
+      dataIndex: 'hospitalPhone',
+      search: false,
+    },
+    {
+      title: '营销电话',
+      dataIndex: 'hospitalSelling',
+      search: false,
+    },
     {
       title: '性质',
       dataIndex: 'hospitalNature',
@@ -245,22 +323,14 @@ const HospitalPage: React.FC = () => {
         r.wechatOpenid ? <Tag color="green">已绑定</Tag> : <Tag>未绑定</Tag>,
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      valueEnum: {
-        1: { text: '启用', status: 'Success' },
-        0: { text: '停用', status: 'Default' },
-      },
-    },
-    {
       title: '操作',
       dataIndex: 'option',
       valueType: 'option',
       fixed: 'right',
-      width: 180,
+      width: 200,
       render: (_, record) => (
         <Space size={16}>
-          <a key="accounts" onClick={() => openAccountDrawer(record.id)}>
+          <a key="account" onClick={() => openAccountDrawer(record)}>
             账号管理
           </a>
           <a key="edit" onClick={() => showForm(record)}>
@@ -268,7 +338,7 @@ const HospitalPage: React.FC = () => {
           </a>
           <Popconfirm
             key="delete"
-            title="确定删除该医院吗？"
+            title="确定删除该医院吗？将同时禁用账号并撤销 Token。"
             onConfirm={async () => {
               const res = await deleteHospital(record.id);
               if (res.success) antMessage.success(res.message);
@@ -276,67 +346,6 @@ const HospitalPage: React.FC = () => {
             }}
           >
             <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  const accountColumns: ProColumns<any>[] = [
-    { title: 'ID', dataIndex: 'id', search: false, width: 72 },
-    {
-      title: '账号名称',
-      dataIndex: ['user', 'username'],
-      render: (_, r: any) => (
-        <Space size={4}>
-          <span>{r.user?.realName || '-'}</span>
-          <span style={{ color: '#999' }}>({r.user?.username || '-'})</span>
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      search: false,
-      render: (_, r: any) => (
-        <Tag color={r.status === 1 ? 'green' : 'red'}>
-          {r.status === 1 ? '启用' : '停用'}
-        </Tag>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      search: false,
-      width: 170,
-      render: (_, r: any) =>
-        r.createdAt ? dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-',
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      search: false,
-      width: 170,
-      render: (_, r: any) =>
-        r.updatedAt ? dayjs(r.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-',
-    },
-    {
-      title: '操作',
-      dataIndex: 'option',
-      valueType: 'option',
-      fixed: 'right',
-      width: 120,
-      render: (_, record: any) => (
-        <Space size={16}>
-          <a key="edit" onClick={() => openAccountModal(record)}>
-            编辑
-          </a>
-          <Popconfirm
-            key="delete"
-            title="确定解除该账号关联?"
-            onConfirm={() => handleAccountDelete(record.userId)}
-          >
-            <a style={{ color: '#ff4d4f' }}>解除</a>
           </Popconfirm>
         </Space>
       ),
@@ -375,6 +384,8 @@ const HospitalPage: React.FC = () => {
           </Button>,
         ]}
       />
+
+      {/* 医院档案：新建 / 编辑 */}
       <Modal
         title={editing ? '编辑医院' : '新建医院'}
         open={open}
@@ -392,20 +403,29 @@ const HospitalPage: React.FC = () => {
             基本信息
           </Divider>
           <Row gutter={formGutter}>
+            {!editing && (
+              <Col {...thirdCol}>
+                <Form.Item
+                  name="hospitalName"
+                  label="医院名称（同时作为登录用户名）"
+                  rules={[
+                    { required: true, message: '请输入医院名称' },
+                    { max: 50, message: '医院名称最长 50 字' },
+                  ]}
+                >
+                  <Input placeholder="请输入医院名称" />
+                </Form.Item>
+              </Col>
+            )}
+            {editing && (
+              <Col {...thirdCol}>
+                <Form.Item label="医院名称">
+                  <Input value={editing.hospitalName} disabled />
+                </Form.Item>
+              </Col>
+            )}
             <Col {...thirdCol}>
-              <Form.Item
-                name="hospitalName"
-                label="医院名称"
-                rules={[{ required: true, message: '请输入医院名称' }]}
-              >
-                <Input
-                  disabled={Boolean(editing?.id)}
-                  placeholder="请输入医院名称"
-                />
-              </Form.Item>
-            </Col>
-            <Col {...thirdCol}>
-              <Form.Item name="status" label="状态">
+              <Form.Item name="status" label="医院状态">
                 <Select
                   placeholder="请选择状态"
                   options={[
@@ -428,6 +448,68 @@ const HospitalPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* 仅新建时需要账号字段 */}
+          {!editing && (
+            <>
+              <Divider titlePlacement="left" plain>
+                账号信息（登录用户名 = 医院名称）
+              </Divider>
+              <Row gutter={formGutter}>
+                <Col {...thirdCol}>
+                  <Form.Item
+                    name="accountPassword"
+                    label="初始密码"
+                    rules={[
+                      { required: true, message: '请输入初始密码' },
+                      { min: 8, max: 128, message: '密码长度 8–128 字' },
+                    ]}
+                  >
+                    <Input.Password
+                      placeholder="请输入初始密码"
+                      autoComplete="new-password"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col {...thirdCol}>
+                  <Form.Item
+                    name="confirmPassword"
+                    label="确认密码"
+                    dependencies={['accountPassword']}
+                    rules={[
+                      { required: true, message: '请再次输入初始密码' },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (
+                            !value ||
+                            getFieldValue('accountPassword') === value
+                          ) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(new Error('两次密码不一致'));
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input.Password
+                      placeholder="请再次输入初始密码"
+                      autoComplete="new-password"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col {...thirdCol}>
+                  <Form.Item name="accountEmail" label="账号邮箱">
+                    <Input placeholder="可选, 用于找回密码" />
+                  </Form.Item>
+                </Col>
+                <Col {...thirdCol}>
+                  <Form.Item name="accountPhone" label="账号手机号">
+                    <Input placeholder="可选" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
+          )}
 
           <Divider titlePlacement="left" plain>
             地址信息
@@ -567,130 +649,163 @@ const HospitalPage: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* 唯一账号侧栏：只读视图 + 启停 + 重置密码 */}
       <Drawer
-        title="账号管理"
+        title={`账号管理 — ${accountHospital?.hospitalName ?? ''}`}
         open={accountDrawerOpen}
         onClose={() => setAccountDrawerOpen(false)}
-        width={1024}
+        width={640}
+        loading={accountLoading}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Space>
             <Button onClick={() => setAccountDrawerOpen(false)}>关闭</Button>
-          </div>
+            <Button type="primary" onClick={submitAccountContact}>
+              保存联系方式
+            </Button>
+          </Space>
         }
       >
-        <ProTable
-          rowKey={(rec: any) => rec.userId}
-          loading={accountListLoading}
-          search={false}
-          options={false}
-          dataSource={accountList}
-          pagination={false}
-          columns={accountColumns}
-          toolBarRender={() => [
-            <Button
-              key="create"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => openAccountModal()}
-            >
-              新建
-            </Button>,
-          ]}
-        />
-      </Drawer>
-
-      <Modal
-        title={accountEditing ? '编辑账号' : '新建账号'}
-        open={accountModalOpen}
-        onOk={accountEditing ? submitAccountEdit : submitAccountCreate}
-        onCancel={() => setAccountModalOpen(false)}
-        width={760}
-        destroyOnHidden
-      >
-        <Form form={accountForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="username"
-                label="账号"
-                rules={[{ required: true }]}
-              >
-                <Input placeholder="请输入账号" />
+        {account && (
+          <>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic
+                  title="账号状态"
+                  value={account.status === 1 ? '启用' : '停用'}
+                  valueStyle={{
+                    color: account.status === 1 ? '#52c41a' : '#ff4d4f',
+                    fontSize: 18,
+                  }}
+                />
+              </Col>
+              <Col span={12}>
+                <Statistic
+                  title="最近登录"
+                  value={
+                    account.lastLoginTime
+                      ? dayjs(account.lastLoginTime).format(
+                          'YYYY-MM-DD HH:mm:ss',
+                        )
+                      : '从未登录'
+                  }
+                  valueStyle={{ fontSize: 14 }}
+                />
+              </Col>
+            </Row>
+            <Divider />
+            <Form form={accountForm} layout="vertical">
+              <Form.Item label="登录用户名" tooltip="与医院名称保持一致">
+                <Input value={account.username} disabled />
               </Form.Item>
-            </Col>
-            <Col span={12}>
               <Form.Item
-                name="password"
-                label="密码"
-                rules={[{ required: !accountEditing }]}
-                extra={accountEditing ? '留空则不修改' : undefined}
+                name="email"
+                label="邮箱"
+                rules={[{ type: 'email', message: '邮箱格式不正确' }]}
               >
-                <Input.Password
-                  placeholder={accountEditing ? '留空则不修改' : '请输入密码'}
-                  autoComplete="new-password"
+                <Input placeholder="账号邮箱" />
+              </Form.Item>
+              <Form.Item name="phone" label="手机号">
+                <Input placeholder="账号手机号" />
+              </Form.Item>
+              <Form.Item name="status" label="账号启停">
+                <Select
+                  options={[
+                    { label: '启用', value: 1 },
+                    { label: '停用', value: 0 },
+                  ]}
                 />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="phone"
-                label="手机号"
-                rules={[{ required: true }]}
+            </Form>
+            <Divider />
+            <Space wrap>
+              <Button onClick={openResetPwd}>重置密码</Button>
+              {canRenameHospital && (
+                <Button onClick={openRenameModal}>改名</Button>
+              )}
+              <Popconfirm
+                title={
+                  account.status === 1 ? '确定停用该账号？' : '确定启用该账号？'
+                }
+                onConfirm={toggleAccountStatus}
               >
-                <Input placeholder="请输入手机号" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="email" label="邮箱">
-                <Input placeholder="请输入邮箱" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="role"
-                label="医院内角色"
-                rules={[{ required: true }]}
-                initialValue={!accountEditing ? 'member' : undefined}
-              >
-                <Select placeholder="请选择角色">
-                  <Select.Option value="owner">负责人</Select.Option>
-                  <Select.Option value="admin">管理员</Select.Option>
-                  <Select.Option value="member">普通账号</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="status"
-                label="状态"
-                rules={[{ required: true }]}
-                initialValue={!accountEditing ? 1 : undefined}
-              >
-                <Select placeholder="请选择状态">
-                  <Select.Option value={1}>启用</Select.Option>
-                  <Select.Option value={0}>停用</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="realName" label="真实姓名">
-                <Input placeholder="请输入真实姓名" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={24}>
-              <Form.Item name="remark" label="备注">
-                <Input.TextArea placeholder="请输入备注" rows={3} />
-              </Form.Item>
-            </Col>
-          </Row>
+                <Button danger={account.status === 1}>
+                  {account.status === 1 ? '停用账号' : '启用账号'}
+                </Button>
+              </Popconfirm>
+            </Space>
+          </>
+        )}
+      </Drawer>
+
+      {/* 仅超管可触发的医院改名：同步更新用户名、撤销会话/Token、记审计日志 */}
+      <Modal
+        title={`医院改名 — ${accountHospital?.hospitalName ?? ''}`}
+        open={renameModalOpen}
+        onOk={submitRename}
+        onCancel={() => setRenameModalOpen(false)}
+        destroyOnHidden
+        okText="确认改名"
+        cancelText="取消"
+      >
+        <Alert
+          showIcon
+          type="warning"
+          message="改名后将同步更新登录用户名、撤销该账号所有活跃会话与 Token，并写入审计日志。"
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={renameForm} layout="vertical">
+          <Form.Item
+            name="newHospitalName"
+            label="新医院名称（同时作为新的登录用户名）"
+            rules={[
+              { required: true, message: '请输入新医院名称' },
+              { max: 50, message: '医院名称最长 50 字' },
+            ]}
+          >
+            <Input placeholder="请输入新医院名称" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="重置账号密码"
+        open={resetPwdModalOpen}
+        onOk={submitResetPwd}
+        onCancel={() => setResetPwdModalOpen(false)}
+        destroyOnHidden
+      >
+        <Form form={resetPwdForm} layout="vertical">
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 8, max: 128, message: '密码长度 8–128 字' },
+            ]}
+          >
+            <Input.Password placeholder="新密码" autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            name="confirmNewPassword"
+            label="确认新密码"
+            dependencies={['newPassword']}
+            rules={[
+              { required: true, message: '请再次输入新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('两次密码不一致'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              placeholder="再次输入新密码"
+              autoComplete="new-password"
+            />
+          </Form.Item>
         </Form>
       </Modal>
     </PageContainer>

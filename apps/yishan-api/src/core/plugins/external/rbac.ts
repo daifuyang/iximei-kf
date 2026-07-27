@@ -73,6 +73,8 @@ export const makeRequirePermissionHandler = (
     (request as any).effectivePermissions = effectivePerms;
     // 把数据权限一并写到 request，供下游 service / repository 据此过滤 WHERE。
     (request as any).currentUser.dataScope = effectiveDataScope;
+    // 把角色 code 列表也写到 request，供下游按角色分支（如医院搜索按 hospital_account 收敛）。
+    (request as any).currentUser.roleCodes = [...result.roleCodes];
   };
 
 export default fp(
