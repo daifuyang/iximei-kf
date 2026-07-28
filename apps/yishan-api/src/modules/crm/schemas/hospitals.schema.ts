@@ -59,7 +59,7 @@ export const CrmHospitalReqSchema = Type.Object(
   {
     ...CrmHospitalFieldsSchema.properties,
     accountPassword: Type.String({ minLength: 8, maxLength: 128 }),
-    accountEmail: Type.Optional(Type.String({ maxLength: 100 })),
+    accountEmail: Type.Optional(Type.String({ format: 'email', maxLength: 100 })),
     accountPhone: Type.Optional(Type.String({ maxLength: 20 })),
   },
   { $id: 'crmHospitalReq' },
@@ -106,7 +106,7 @@ export const CrmHospitalAccountRespSchema = Type.Object(
  */
 export const CrmHospitalAccountUpdateReqSchema = Type.Object(
   {
-    email: Type.Optional(Type.Union([Type.String({ maxLength: 100 }), Type.Null()])),
+    email: Type.Optional(Type.Union([Type.String({ format: 'email', maxLength: 100 }), Type.Null()])),
     phone: Type.Optional(Type.Union([Type.String({ maxLength: 20 }), Type.Null()])),
     status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
   },
