@@ -1,6 +1,6 @@
 import { aliasedTable, and, asc, desc, eq, getTableColumns, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
 import { drizzleDb, type AppQueryDb } from "@/db";
-import { sysUser, sysUserDept, sysUserRole } from "@/db/schema";
+import { sysUser, sysUserDept, sysUserRole, sysRole } from "@/db/schema";
 import { dateUtils } from "../../utils/date.js";
 import { UserTokenRepository } from "./user-token.repository.js";
 import { clampOffset } from "./_pagination.js";
@@ -86,7 +86,7 @@ function resolveUserOrderColumn(sortBy: string | undefined) {
   return USER_ORDER_COLUMNS[DEFAULT_USER_ORDER_BY];
 }
 
-function buildUserWhere(opts: { keyword?: string; status?: string | number; startTime?: Date; endTime?: Date }): SQL | undefined {
+async function buildUserWhere(opts: { keyword?: string; status?: string | number; startTime?: Date; endTime?: Date; roleCode?: string }): Promise<SQL | undefined> {
   const conds: SQL[] = [isNull(sysUser.deletedAt)];
   if (opts.keyword) {
     const like_ = `%${opts.keyword}%`;
@@ -108,6 +108,18 @@ function buildUserWhere(opts: { keyword?: string; status?: string | number; star
   }
   if (opts.endTime) {
     conds.push(sql`${sysUser.createdAt} <= ${opts.endTime}`);
+  }
+  if (opts.roleCode) {
+    // 按角色 code 过滤（不区分角色层级）。
+    // 用 EXISTS 子查询比 IN + 子查询更易被 MySQL 优化器稳定命中。
+    conds.push(sql`EXISTS (
+      SELECT 1 FROM ${sysUserRole} ur
+      INNER JOIN ${sysRole} r ON r.id = ur.role_id
+      WHERE ur.user_id = ${sysUser.id}
+        AND ur.deleted_at IS NULL
+        AND r.deleted_at IS NULL
+        AND r.code = ${opts.roleCode}
+    )`)
   }
   return and(...conds);
 }
@@ -158,9 +170,9 @@ export type UserListRowWithRelations = PublicUserRow & {
 
 export class UserRepository {
   // 新的标准方法
-  static async list(query: { page?: number; pageSize?: number; keyword?: string; status?: string | number; sortBy?: string; sortOrder?: string; startTime?: Date; endTime?: Date } = {}): Promise<UserListRowWithRelations[]> {
+  static async list(query: { page?: number; pageSize?: number; keyword?: string; status?: string | number; sortBy?: string; sortOrder?: string; startTime?: Date; endTime?: Date; roleCode?: string } = {}): Promise<UserListRowWithRelations[]> {
     const { page = 1, pageSize = 10, sortBy, sortOrder = "desc" } = query;
-    const where = buildUserWhere(query);
+    const where = await buildUserWhere(query);
     const dir = sortOrder === "asc" ? asc : desc;
     const orderCol = resolveUserOrderColumn(sortBy);
 
@@ -182,8 +194,8 @@ export class UserRepository {
     return items;
   }
 
-  static async count(query: { keyword?: string; status?: string | number; startTime?: Date; endTime?: Date } = {}): Promise<number> {
-    const where = buildUserWhere(query);
+  static async count(query: { keyword?: string; status?: string | number; startTime?: Date; endTime?: Date; roleCode?: string } = {}): Promise<number> {
+    const where = await buildUserWhere(query);
     const [row] = await drizzleDb.select({ c: sqlCount() }).from(sysUser).where(where);
     return Number(row?.c ?? 0);
   }

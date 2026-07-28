@@ -24,10 +24,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createCustomer,
   dispatchCustomer,
+  getCustomerServiceUsers,
   getCustomerStatuses,
   getCustomers,
   getRegionTree,
-  getUsers,
   searchHospitals,
   updateCustomer,
 } from '../../api';
@@ -98,7 +98,7 @@ const CustomerPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    getUsers({ pageSize: 100, status: '1' }).then((res) => {
+    getCustomerServiceUsers({ pageSize: 100 }).then((res) => {
       if (!res.success) return;
       setCustomerServiceOptions(
         (res.data || []).map((user) => ({

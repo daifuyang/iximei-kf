@@ -25,7 +25,7 @@ import {
   restoreMember, createMemberTag,
   getMemberOverview,
 } from '../../api';
-import { getUsers } from '../../api';
+import { getCustomerServiceUsers } from '../../api';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -197,7 +197,9 @@ const MemberPage: React.FC = () => {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await getUsers({ pageSize: 100 });
+      // 「归属客服」/「目标客服」下拉只允许 customer_service 角色，
+      // 避免医院账号被误选。
+      const res = await getCustomerServiceUsers({ pageSize: 100 });
       if (res?.data) setUsers(res.data);
     } catch { /* ignore */ }
   }, []);

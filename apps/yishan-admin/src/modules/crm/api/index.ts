@@ -44,6 +44,16 @@ export const getRegionTree = (params: object) =>
   getSystemRegionTree(params as never);
 export const getUsers = (params: object) => getUserList(params as never);
 
+/** 「归属客服」下拉专用：只取 customer_service 角色、启用状态的用户。
+ *  避免医院账号误选到客户/会员的归属客服。 */
+export const getCustomerServiceUsers = (params: { keyword?: string; pageSize?: number } = {}) =>
+  getUserList({
+    pageSize: params.pageSize ?? 100,
+    status: '1',
+    roleCode: 'customer_service',
+    ...(params.keyword ? { keyword: params.keyword } : {}),
+  } as never);
+
 /* ---------- 客户 ---------- */
 
 export const getCustomerStatuses = listCrmCustomerStatuses;

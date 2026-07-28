@@ -173,6 +173,11 @@ const UserListQuerySchema = Type.Object(
         description: "排序方向",
       })
     ),
+    roleCode: Type.Optional(
+      Type.String({
+        description: "角色 code 过滤（如 customer_service / hospital_account）",
+      })
+    ),
   },
   { $id: "userListQuery" }
 );
