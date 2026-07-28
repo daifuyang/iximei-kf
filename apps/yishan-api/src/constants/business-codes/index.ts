@@ -85,6 +85,7 @@ import {
 import {
   AttachmentErrorMessages
 } from './attachment.js';
+import { ResourceErrorMessages, ResourceHttpStatusMap } from './resource.js';
 
 // 合并所有错误消息
 const ErrorMessages = {
@@ -99,6 +100,7 @@ const ErrorMessages = {
   ...MenuErrorMessages,
   ...DictErrorMessages,
   ...AttachmentErrorMessages,
+  ...ResourceErrorMessages,
 } as const;
 
 // 合并所有HTTP状态码映射
@@ -107,6 +109,7 @@ const HttpStatusMap = {
   ...ValidationHttpStatusMap,
   ...AuthHttpStatusMap,
   ...SystemManageHttpStatusMap,
+  ...ResourceHttpStatusMap,
 } as const;
 
 /**

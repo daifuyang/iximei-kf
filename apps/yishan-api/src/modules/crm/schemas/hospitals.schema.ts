@@ -45,7 +45,7 @@ const CrmHospitalFieldsSchema = Type.Object(
     returnPoint: Type.Optional(Type.String({ maxLength: 50 })),
     hospitalIntroduction: Type.Optional(Type.String({ maxLength: 5000 })),
     contractPhotos: Type.Optional(Type.Array(Type.String({ maxLength: 500 }))),
-    wechatOpenid: Type.Optional(Type.String({ maxLength: 100 })),
+    wechatOpenid: Type.Optional(Type.String({ maxLength: 64 })),
     status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
   },
   { $id: 'crmHospitalFields' },

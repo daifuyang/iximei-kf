@@ -96,7 +96,7 @@ describe('createWithAccount — 一院一账号原子性', () => {
         { hospitalName: longName, accountPassword: 'Passw0rd!' } as any,
         1,
       ),
-    ).rejects.toThrow(/1–50/);
+    ).rejects.toThrow(/医院名称/);
     expect(HospitalsRepository.createWithAccount).not.toHaveBeenCalled();
   });
 
@@ -228,7 +228,7 @@ describe('renameHospital — 独立改名接口（仅超管调用）', () => {
   it('新名称超过 50 字时拒绝', async () => {
     await expect(
       HospitalsService.renameHospital(1, '一'.repeat(51), 99),
-    ).rejects.toThrow(/1–50/);
+    ).rejects.toThrow(/医院名称/);
     expect(HospitalsRepository.renameHospitalAndAccount).not.toHaveBeenCalled();
   });
 

@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, lte, like, or, isNull } from 'drizzle-o
 import { drizzleDb, type AppQueryDb } from '@/db'
 import { crmCustomer, crmCustomerStatus, crmCustomerRemark, crmDispatch } from '../db/schema.js'
 import { sysUser } from '@/db/schema'
+
 const active=(t:any)=>isNull(t.deletedAt); const page=(q:any,p:any)=>p.pageSize===0?q:q.limit(p.pageSize).offset((p.page-1)*p.pageSize)
 export class CustomersRepository {
  static async list(q:any,db:AppQueryDb=drizzleDb){const c:any[]=[active(crmCustomer)];if(q.ownerUserId)c.push(eq(crmCustomer.ownerUserId,q.ownerUserId));if(q.statusId)c.push(eq(crmCustomer.statusId,Number(q.statusId)));if(q.startTime)c.push(gte(crmCustomer.createdAt,new Date(q.startTime)));if(q.endTime)c.push(lte(crmCustomer.createdAt,new Date(q.endTime)));if(q.keyword)c.push(or(like(crmCustomer.mobile,`%${q.keyword}%`),like(crmCustomer.name,`%${q.keyword}%`),like(crmCustomer.numberId,`%${q.keyword}%`))!);const where=and(...c);const [items,totals]=await Promise.all([page(db.select().from(crmCustomer).where(where).orderBy(desc(crmCustomer.createdAt)),q),db.select({total:count()}).from(crmCustomer).where(where)]);return {list:items,total:Number(totals[0]?.total??0)}}

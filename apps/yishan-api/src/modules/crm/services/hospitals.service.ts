@@ -1,9 +1,17 @@
 import { BusinessError } from '@/exceptions/business-error.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
+import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
+import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
+import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
 import { UserTokenRepository } from '@/core/repositories/user-token.repository.js'
 import { HospitalsRepository } from '../repositories/hospitals.repository.js'
 import { compact, normalizeContractPhotos } from './_shared.js'
 import { hashPassword } from '@/utils/password.js'
+import {
+  requireString,
+  optionalString,
+  optionalPhone,
+} from '../_validation.js'
 import type { FastifyRequest } from 'fastify'
 
 const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
@@ -36,54 +44,51 @@ export class HospitalsService {
    * username 固定取 hospitalName；任一步失败回滚。
    */
   static async createWithAccount(input: any, creatorId: number) {
-    const hospitalName = String(input.hospitalName ?? '').trim()
-    if (hospitalName.length < 1 || hospitalName.length > 50) {
-      throw new Error('医院名称必须为 1–50 字')
-    }
+    const hospitalName = requireString(input.hospitalName, { field: '医院名称', min: 1, max: 50 })
     if (await HospitalsRepository.findOtherUserByUsername(hospitalName, 0)) {
-      throw new Error('医院名称已被其他账号占用')
+      throw new BusinessError(ResourceErrorCode.ALREADY_EXISTS, '医院名称已被其他账号占用')
     }
     const hospitalInput = compact({
       hospitalName,
       provinceId: input.provinceId,
       cityId: input.cityId,
       districtId: input.districtId,
-      hospitalAddress: input.hospitalAddress,
-      hospitalPhone: input.hospitalPhone,
-      hospitalSelling: input.hospitalSelling,
-      hospitalWebsite: input.hospitalWebsite,
+      hospitalAddress: optionalString(input.hospitalAddress, { field: '医院地址', max: 255 }) ?? undefined,
+      hospitalPhone: optionalString(input.hospitalPhone, { field: '咨询电话', max: 50 }) ?? undefined,
+      hospitalSelling: optionalString(input.hospitalSelling, { field: '营销卖点', max: 255 }) ?? undefined,
+      hospitalWebsite: optionalString(input.hospitalWebsite, { field: '官网', max: 255 }) ?? undefined,
       hospitalNature: input.hospitalNature,
-      doctorName: input.doctorName,
-      doctorPhone: input.doctorPhone,
-      doctorQq: input.doctorQq,
-      receptionName: input.receptionName,
-      receptionPhone: input.receptionPhone,
-      receptionQq: input.receptionQq,
-      busStation: input.busStation,
-      busAddress: input.busAddress,
-      subwayStation: input.subwayStation,
-      subwayAddress: input.subwayAddress,
-      taxiFare: input.taxiFare,
-      vipDiscount: input.vipDiscount,
-      returnPoint: input.returnPoint,
-      hospitalIntroduction: input.hospitalIntroduction,
+      doctorName: optionalString(input.doctorName, { field: '就医联系人', max: 50 }) ?? undefined,
+      doctorPhone: optionalString(input.doctorPhone, { field: '就医电话', max: 50 }) ?? undefined,
+      doctorQq: optionalString(input.doctorQq, { field: '就医 QQ', max: 50 }) ?? undefined,
+      receptionName: optionalString(input.receptionName, { field: '前台联系人', max: 50 }) ?? undefined,
+      receptionPhone: optionalString(input.receptionPhone, { field: '前台电话', max: 50 }) ?? undefined,
+      receptionQq: optionalString(input.receptionQq, { field: '前台 QQ', max: 50 }) ?? undefined,
+      busStation: optionalString(input.busStation, { field: '公交站', max: 100 }) ?? undefined,
+      busAddress: optionalString(input.busAddress, { field: '公交地址', max: 255 }) ?? undefined,
+      subwayStation: optionalString(input.subwayStation, { field: '地铁站', max: 100 }) ?? undefined,
+      subwayAddress: optionalString(input.subwayAddress, { field: '地铁地址', max: 255 }) ?? undefined,
+      taxiFare: optionalString(input.taxiFare, { field: '出租车费', max: 50 }) ?? undefined,
+      vipDiscount: optionalString(input.vipDiscount, { field: '会员优惠', max: 255 }) ?? undefined,
+      returnPoint: optionalString(input.returnPoint, { field: '医院返点', max: 50 }) ?? undefined,
+      hospitalIntroduction: optionalString(input.hospitalIntroduction, { field: '医院简介', max: 5000 }) ?? undefined,
       contractPhotos: normalizeContractPhotos(input.contractPhotos),
-      wechatOpenid: input.wechatOpenid,
+      wechatOpenid: optionalString(input.wechatOpenid, { field: '微信 openid', max: 64 }) ?? undefined,
       status: input.status ?? 1,
       updaterId: creatorId,
     })
-    return HospitalsRepository.createWithAccount(
+    return withDbErrorMapping(async () => HospitalsRepository.createWithAccount(
       hospitalInput,
       {
         username: hospitalName,
         passwordHash: await hashPassword(input.accountPassword),
         email: input.accountEmail ?? null,
-        phone: input.accountPhone ?? null,
+        phone: optionalPhone(input.accountPhone, '账号手机号'),
         // 医院新建时若为停用状态，账号也必须同步停用。
         status: hospitalInput.status,
       },
       creatorId,
-    )
+    ))
   }
 
   /**
@@ -96,45 +101,43 @@ export class HospitalsService {
       provinceId: input.provinceId,
       cityId: input.cityId,
       districtId: input.districtId,
-      hospitalAddress: input.hospitalAddress,
-      hospitalPhone: input.hospitalPhone,
-      hospitalSelling: input.hospitalSelling,
-      hospitalWebsite: input.hospitalWebsite,
+      hospitalAddress: optionalString(input.hospitalAddress, { field: '医院地址', max: 255 }) ?? undefined,
+      hospitalPhone: optionalString(input.hospitalPhone, { field: '咨询电话', max: 50 }) ?? undefined,
+      hospitalSelling: optionalString(input.hospitalSelling, { field: '营销卖点', max: 255 }) ?? undefined,
+      hospitalWebsite: optionalString(input.hospitalWebsite, { field: '官网', max: 255 }) ?? undefined,
       hospitalNature: input.hospitalNature,
-      doctorName: input.doctorName,
-      doctorPhone: input.doctorPhone,
-      doctorQq: input.doctorQq,
-      receptionName: input.receptionName,
-      receptionPhone: input.receptionPhone,
-      receptionQq: input.receptionQq,
-      busStation: input.busStation,
-      busAddress: input.busAddress,
-      subwayStation: input.subwayStation,
-      subwayAddress: input.subwayAddress,
-      taxiFare: input.taxiFare,
-      vipDiscount: input.vipDiscount,
-      returnPoint: input.returnPoint,
-      hospitalIntroduction: input.hospitalIntroduction,
+      doctorName: optionalString(input.doctorName, { field: '就医联系人', max: 50 }) ?? undefined,
+      doctorPhone: optionalString(input.doctorPhone, { field: '就医电话', max: 50 }) ?? undefined,
+      doctorQq: optionalString(input.doctorQq, { field: '就医 QQ', max: 50 }) ?? undefined,
+      receptionName: optionalString(input.receptionName, { field: '前台联系人', max: 50 }) ?? undefined,
+      receptionPhone: optionalString(input.receptionPhone, { field: '前台电话', max: 50 }) ?? undefined,
+      receptionQq: optionalString(input.receptionQq, { field: '前台 QQ', max: 50 }) ?? undefined,
+      busStation: optionalString(input.busStation, { field: '公交站', max: 100 }) ?? undefined,
+      busAddress: optionalString(input.busAddress, { field: '公交地址', max: 255 }) ?? undefined,
+      subwayStation: optionalString(input.subwayStation, { field: '地铁站', max: 100 }) ?? undefined,
+      subwayAddress: optionalString(input.subwayAddress, { field: '地铁地址', max: 255 }) ?? undefined,
+      taxiFare: optionalString(input.taxiFare, { field: '出租车费', max: 50 }) ?? undefined,
+      vipDiscount: optionalString(input.vipDiscount, { field: '会员优惠', max: 255 }) ?? undefined,
+      returnPoint: optionalString(input.returnPoint, { field: '医院返点', max: 50 }) ?? undefined,
+      hospitalIntroduction: optionalString(input.hospitalIntroduction, { field: '医院简介', max: 5000 }) ?? undefined,
       contractPhotos: normalizeContractPhotos(input.contractPhotos),
-      wechatOpenid: input.wechatOpenid,
+      wechatOpenid: optionalString(input.wechatOpenid, { field: '微信 openid', max: 64 }) ?? undefined,
       status: input.status,
       updaterId: actorId,
     })
     const existing = await HospitalsRepository.findById(id)
-    if (!existing) throw new Error('医院不存在')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院不存在')
     if (data.status === 0) {
       const account = await HospitalsRepository.getAccountByHospitalId(id)
-      if (!account) throw new Error('医院账号不存在')
-      const result = await HospitalsRepository.deactivateHospitalAndAccount(
-        id,
-        account.userId,
-        data,
+      if (!account) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号不存在')
+      const result = await withDbErrorMapping(() =>
+        HospitalsRepository.deactivateHospitalAndAccount(id, account.userId, data),
       )
       await UserTokenRepository.revokeAllByUserId(account.userId)
       return result
     }
     // 医院恢复启用时不自动恢复账号；账号需由管理员单独启用。
-    return HospitalsRepository.update(id, data)
+    return withDbErrorMapping(() => HospitalsRepository.update(id, data))
   }
 
   /**
@@ -149,22 +152,16 @@ export class HospitalsService {
     actorId: number,
     request?: FastifyRequest,
   ) {
-    const trimmed = String(newHospitalName ?? '').trim()
-    if (trimmed.length < 1 || trimmed.length > 50) {
-      throw new Error('医院名称必须为 1–50 字')
-    }
+    const trimmed = requireString(newHospitalName, { field: '医院名称', min: 1, max: 50 })
     const existing = await HospitalsRepository.findById(hospitalId)
-    if (!existing) throw new Error('医院不存在')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院不存在')
     if (trimmed === existing.hospitalName) return existing
 
     const account = await HospitalsRepository.getAccountByHospitalId(hospitalId)
-    if (!account) throw new Error('医院账号缺失，无法同步改名')
+    if (!account) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号缺失，无法同步改名')
 
-    const updated = await HospitalsRepository.renameHospitalAndAccount(
-      hospitalId,
-      account.userId,
-      trimmed,
-      actorId,
+    const updated = await withDbErrorMapping(() =>
+      HospitalsRepository.renameHospitalAndAccount(hospitalId, account.userId, trimmed, actorId),
     )
 
     // 撤销该账号的活跃 Token（plan §5.2.4）
@@ -193,13 +190,15 @@ export class HospitalsService {
    */
   static async delete(id: number, actorId: number) {
     const account = await HospitalsRepository.getAccountByHospitalId(id)
-    await HospitalsRepository.update(id, {
-      deletedAt: new Date(),
-      updaterId: actorId,
-      status: 0,
-    } as any)
+    await withDbErrorMapping(() =>
+      HospitalsRepository.update(id, {
+        deletedAt: new Date(),
+        updaterId: actorId,
+        status: 0,
+      } as any),
+    )
     if (account) {
-      await HospitalsRepository.disableAccount(account.userId)
+      await withDbErrorMapping(() => HospitalsRepository.disableAccount(account.userId))
       await UserTokenRepository.revokeAllByUserId(account.userId)
     }
     return { id, deleted: true, accountDisabled: Boolean(account) }
@@ -213,8 +212,15 @@ export class HospitalsService {
 
   static async updateAccountContact(hospitalId: number, input: any) {
     const acc = await HospitalsRepository.getAccountByHospitalId(hospitalId)
-    if (!acc) throw new Error('医院账号不存在')
-    const updated = await HospitalsRepository.updateAccountContact(acc.userId, compact(input))
+    if (!acc) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号不存在')
+    const data = compact({
+      email: optionalString(input.email, { field: '账号邮箱', max: 100 }) ?? null,
+      phone: optionalPhone(input.phone, '账号手机号'),
+      status: input.status,
+    })
+    const updated = await withDbErrorMapping(() =>
+      HospitalsRepository.updateAccountContact(acc.userId, data),
+    )
     // STRICT-SPEC §6.3：禁用账号时立即撤销该用户所有活跃 Token
     if (input.status === 0) {
       await UserTokenRepository.revokeAllByUserId(acc.userId)
@@ -224,8 +230,13 @@ export class HospitalsService {
 
   static async resetAccountPassword(hospitalId: number, newPassword: string) {
     const acc = await HospitalsRepository.getAccountByHospitalId(hospitalId)
-    if (!acc) throw new Error('医院账号不存在')
-    await HospitalsRepository.resetAccountPassword(acc.userId, await hashPassword(newPassword))
+    if (!acc) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号不存在')
+    if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
+      throw new BusinessError(ValidationErrorCode.PARAMETER_LENGTH_ERROR, '新密码长度 8-128')
+    }
+    await withDbErrorMapping(async () =>
+      HospitalsRepository.resetAccountPassword(acc.userId, await hashPassword(newPassword)),
+    )
     // STRICT-SPEC §6.3：重置密码后立即撤销旧 Token
     await UserTokenRepository.revokeAllByUserId(acc.userId)
   }
@@ -249,9 +260,9 @@ export class HospitalsService {
   static bindWechatOpenid(id: number, signature: string, openid: string) {
     const crypto = require('node:crypto')
     if (crypto.createHash('md5').update(`hospital_bind${id}`).digest('hex') !== signature) {
-      throw new Error('微信绑定签名无效')
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '微信绑定签名无效')
     }
-    return HospitalsRepository.bindWechatOpenid(id, openid)
+    return withDbErrorMapping(() => HospitalsRepository.bindWechatOpenid(id, openid))
   }
 }
 

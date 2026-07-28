@@ -10,6 +10,7 @@ import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
 import { ResponseUtil } from '@/utils/response.js'
 import { BusinessError } from '@/exceptions/business-error.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
+import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 import { PERMS } from '../../../permissions.js'
 import { HospitalsService } from '../../../services/hospitals.service.js'
 import { HospitalsRepository } from '../../../repositories/hospitals.repository.js'
@@ -117,7 +118,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const data = await HospitalsService.getById(id(req))
-      if (!data) throw new Error('医院不存在')
+      if (!data) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院不存在')
       return ResponseUtil.success(reply, data)
     },
   )
@@ -218,7 +219,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const account = await HospitalsService.getAccount(id(req))
-      if (!account) throw new Error('医院账号不存在')
+      if (!account) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号不存在')
       return ResponseUtil.success(reply, account)
     },
   )

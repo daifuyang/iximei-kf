@@ -2,6 +2,8 @@ import { and, count, desc, eq, getTableColumns, inArray, isNull, like, ne, or } 
 import { drizzleDb, type AppQueryDb } from '@/db'
 import { crmHospital } from '../db/schema.js'
 import { sysRole, sysUser, sysUserRole } from '@/db/schema'
+import { BusinessError } from '@/exceptions/business-error.js'
+import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 
 const HOSPITAL_ACCOUNT_ROLE_CODE = 'hospital_account'
 const active = (t: any) => isNull(t.deletedAt)
@@ -250,7 +252,7 @@ export class HospitalsRepository {
         .limit(1)
       const conflict = await HospitalsRepository.findOtherUserByUsername(newHospitalName, userId, tx as any)
       if (conflict) {
-        throw new Error('新医院名称已被其他账号占用')
+        throw new BusinessError(ResourceErrorCode.ALREADY_EXISTS, '新医院名称已被其他账号占用')
       }
       await tx
         .update(crmHospital)
@@ -273,7 +275,7 @@ export class HospitalsRepository {
       .from(sysRole)
       .where(and(eq(sysRole.code, HOSPITAL_ACCOUNT_ROLE_CODE), active(sysRole)))
       .limit(1)
-    if (!role) throw new Error('医院账号全局角色未配置')
+    if (!role) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号全局角色未配置')
     await db
       .insert(sysUserRole)
       .values({ userId, roleId: role.id })

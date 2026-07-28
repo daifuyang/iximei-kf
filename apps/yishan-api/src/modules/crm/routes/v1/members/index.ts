@@ -10,6 +10,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { createRouteRegistrar } from '@/core/routes/route-registrar.js'
 import { ResponseUtil } from '@/utils/response.js'
+import { BusinessError } from '@/exceptions/business-error.js'
+import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 import { PERMS } from '../../../permissions.js'
 import { MembersService } from '../../../services/members.service.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
@@ -89,7 +91,7 @@ const members: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const data = await MembersService.getById(id(req), uid(req), scope(req), true)
-      if (!data) throw new Error('会员不存在或无权访问')
+      if (!data) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
       return ResponseUtil.success(reply, data)
     },
   )
@@ -109,7 +111,7 @@ const members: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const data = await MembersService.getBrief(id(req), uid(req), scope(req))
-      if (!data) throw new Error('会员不存在或无权访问')
+      if (!data) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
       return ResponseUtil.success(reply, data)
     },
   )
@@ -227,8 +229,8 @@ const members: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const member = await MembersService.getById(id(req), uid(req), scope(req))
-      if (!member) throw new Error('会员不存在或无权访问')
-      if (!member.customerId) throw new Error('该会员无关联客户，无法创建派单')
+      if (!member) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
+      if (!member.customerId) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '该会员无关联客户，无法创建派单')
 
       // Reuse existing customer dispatch flow
       const { CustomersService } = await import('../../../services/customers.service.js')

@@ -31,6 +31,12 @@ import {
   searchHospitals,
   updateCustomer,
 } from '../../api';
+import {
+  nameRules,
+  mobileRules,
+  qqRules,
+  wechatRules,
+} from '@/utils/validators';
 
 const toRegionOptions = (nodes: any[] = []): any[] =>
   nodes.map((node) => ({
@@ -161,7 +167,13 @@ const CustomerPage: React.FC = () => {
   };
 
   const submit = async () => {
-    const values = await form.validateFields();
+    let values: any;
+    try {
+      values = await form.validateFields();
+    } catch {
+      // AntD already shows field-level errors
+      return;
+    }
     const { regionCodes, ...restValues } = values;
     const payload = {
       ...restValues,
@@ -170,12 +182,27 @@ const CustomerPage: React.FC = () => {
       cityId: regionCodes?.[1],
       districtId: regionCodes?.[2],
     };
-    const res = editing?.id
-      ? await updateCustomer(editing.id, payload)
-      : await createCustomer(payload);
-    if (res.success) message.success(res.message);
-    setOpen(false);
-    actionRef.current?.reload();
+    try {
+      const res = editing?.id
+        ? await updateCustomer(editing.id, payload)
+        : await createCustomer(payload);
+      if (res.success) {
+        message.success(res.message || '保存成功');
+        setOpen(false);
+        actionRef.current?.reload();
+        return;
+      }
+      message.error(res.message || '操作失败，请稍后重试');
+    } catch (err: any) {
+      // requestErrorConfig.errorThrower 会把后端 success:false 转成 BizError，
+      // 但其 errorHandler 默认会 message.error。这里再兜一次，避免漏提示。
+      const msg =
+        err?.info?.errorMessage ||
+        err?.data?.message ||
+        err?.message ||
+        '请求失败';
+      message.error(msg);
+    }
   };
 
   const columns: ProColumns<any>[] = [
@@ -292,7 +319,7 @@ const CustomerPage: React.FC = () => {
                 name="name"
                 label="客户姓名"
                 required
-                rules={[{ required: true }]}
+                rules={[...nameRules]}
               >
                 <Input placeholder="请输入客户姓名" />
               </Form.Item>
@@ -332,17 +359,17 @@ const CustomerPage: React.FC = () => {
           </Divider>
           <Row gutter={24}>
             <Col xs={24} md={8}>
-              <Form.Item name="mobile" label="手机号">
+              <Form.Item name="mobile" label="手机号" rules={[...mobileRules]}>
                 <Input placeholder="请输入手机号" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="qq" label="QQ号">
+              <Form.Item name="qq" label="QQ号" rules={[...qqRules]}>
                 <Input placeholder="请输入QQ号" />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="wechat" label="微信号">
+              <Form.Item name="wechat" label="微信号" rules={[...wechatRules]}>
                 <Input placeholder="请输入微信号" />
               </Form.Item>
             </Col>

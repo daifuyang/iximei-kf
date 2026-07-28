@@ -1,8 +1,13 @@
+import { BusinessError } from '@/exceptions/business-error.js'
+import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
+import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
+import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
 import { DispatchesRepository } from '../repositories/dispatches.repository.js'
 import { HospitalsRepository } from '../repositories/hospitals.repository.js'
 import { CustomersRepository } from '../repositories/customers.repository.js'
 import { compact, asDate, sanitizeReplyContent, hasReplyContent, sanitizeDispatchReplies, pageArgs } from './_shared.js'
 import { DATA_SCOPE, type DataScopeCode } from '@/core/repositories/permission.repository.js'
+import { optionalString } from '../_validation.js'
 
 const SUPER_ADMIN_CODE = 'super_admin'
 const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
@@ -72,20 +77,20 @@ export class DispatchesService {
     scope: DataScopeCode,
   ) {
     if (!(await this.getById(id, userId, roleCodes, scope))) {
-      throw new Error('派单不存在或无权访问')
+      throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
-    return DispatchesRepository.update(
+    return withDbErrorMapping(() => DispatchesRepository.update(
       id,
       compact({
         hospitalId: input.hospitalId,
         statusId: input.statusId,
-        image: input.image,
-        receiveQq: input.receiveQq,
-        receiveWechat: input.receiveWechat,
+        image: optionalString(input.image, { field: '派单图片', max: 500 }) ?? undefined,
+        receiveQq: optionalString(input.receiveQq, { field: '医院 QQ', max: 50 }) ?? undefined,
+        receiveWechat: optionalString(input.receiveWechat, { field: '医院微信', max: 50 }) ?? undefined,
         finishedAt: asDate(input.finishedAt),
         updaterId: userId,
       }),
-    )
+    ))
   }
 
   static async addReply(
@@ -96,24 +101,24 @@ export class DispatchesService {
     scope: DataScopeCode,
   ) {
     if (!(await this.getById(id, userId, roleCodes, scope))) {
-      throw new Error('派单不存在或无权访问')
+      throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
     const content = input.content === undefined ? undefined : sanitizeReplyContent(input.content)
     if (content !== undefined && !hasReplyContent(content)) {
-      throw new Error('留言不能为空')
+      throw new BusinessError(ValidationErrorCode.MISSING_PARAMETER, '留言不能为空')
     }
-    return DispatchesRepository.reply(
+    return withDbErrorMapping(() => DispatchesRepository.reply(
       id,
       compact({
-        receiveQq: input.receiveQq,
-        receiveWechat: input.receiveWechat,
-        image: input.image,
+        receiveQq: optionalString(input.receiveQq, { field: '医院 QQ', max: 50 }) ?? undefined,
+        receiveWechat: optionalString(input.receiveWechat, { field: '医院微信', max: 50 }) ?? undefined,
+        image: optionalString(input.image, { field: '派单图片', max: 500 }) ?? undefined,
         statusId: input.statusId,
         updaterId: userId,
       }),
       userId,
       content,
-    )
+    ))
   }
 
   static async addLog(
@@ -124,10 +129,12 @@ export class DispatchesService {
     scope: DataScopeCode,
   ) {
     if (!(await this.getById(id, userId, roleCodes, scope))) {
-      throw new Error('派单不存在或无权访问')
+      throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
-    if (!content) throw new Error('跟进内容不能为空')
-    return DispatchesRepository.addLog(id, userId, content)
+    if (typeof content !== 'string' || content.trim().length === 0) {
+      throw new BusinessError(ValidationErrorCode.MISSING_PARAMETER, '跟进内容不能为空')
+    }
+    return withDbErrorMapping(() => DispatchesRepository.addLog(id, userId, content))
   }
 
   static async delete(
@@ -137,9 +144,9 @@ export class DispatchesService {
     scope: DataScopeCode,
   ) {
     if (!(await this.getById(id, userId, roleCodes, scope))) {
-      throw new Error('派单不存在或无权访问')
+      throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
-    return DispatchesRepository.update(id, { deletedAt: new Date(), updaterId: userId })
+    return withDbErrorMapping(() => DispatchesRepository.update(id, { deletedAt: new Date(), updaterId: userId }))
   }
 
   static async exportAll(

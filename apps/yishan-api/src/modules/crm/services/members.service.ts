@@ -1,7 +1,21 @@
+import { BusinessError } from '@/exceptions/business-error.js'
+import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
+import { AuthErrorCode } from '@/constants/business-codes/auth.js'
+import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
+import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
 import { MembersRepository } from '../repositories/members.repository.js'
 import { CustomersRepository } from '../repositories/customers.repository.js'
-import { compact, asDate, pageArgs } from './_shared.js'
+import { compact, pageArgs } from './_shared.js'
 import { DATA_SCOPE, type DataScopeCode } from '@/core/repositories/permission.repository.js'
+import {
+  requireString,
+  optionalString,
+  optionalPhone,
+  optionalQq,
+  optionalWechat,
+  parseDateOrThrow,
+  trimOrNull,
+} from '../_validation.js'
 
 /** owner 字段过滤：SELF 限定，其它档位(ALL)保留全量 */
 function ownerScopeFor(scope: DataScopeCode, userId: number): number | undefined {
@@ -84,20 +98,22 @@ export class MembersService {
 
     // 检查客户是否存在
     const customer = await CustomersRepository.findById(customerId)
-    if (!customer) throw new Error('客户不存在')
-    if (customer.deletedAt) throw new Error('客户已作废')
+    if (!customer) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '客户不存在')
+    if (customer.deletedAt) throw new BusinessError(ResourceErrorCode.ALREADY_EXISTS, '客户已作废')
 
     // 检查客户是否已是会员
     const existingMember = await MembersRepository.findByCustomerId(customerId)
     if (existingMember) {
-      const err: any = new Error('该客户已是会员顾客')
-      err.existingMember = existingMember
-      throw err
+      throw new BusinessError(
+        ValidationErrorCode.PARAMETER_FORMAT_ERROR,
+        '该客户已是会员顾客',
+        JSON.stringify({ existingMemberId: existingMember.id }),
+      )
     }
 
     // 检查权限
     if (ownerScopeFor(scope, userId) === userId && customer.ownerUserId !== userId) {
-      throw new Error('无权操作该客户')
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '无权操作该客户')
     }
 
     // 数据准备
@@ -115,12 +131,12 @@ export class MembersService {
       districtId: customer.districtId,
       address: customer.address,
       source: 'from_customer',
-      businessCategory: memberFields.businessCategory,
-      intentionProject: memberFields.intentionProject,
+      businessCategory: optionalString(memberFields.businessCategory, { field: '业务分类', max: 50 }) ?? undefined,
+      intentionProject: optionalString(memberFields.intentionProject, { field: '意向项目', max: 255 }) ?? undefined,
       memberStage: memberFields.memberStage ?? 'new',
       intentionLevel: memberFields.intentionLevel ?? 'unset',
-      budgetRange: memberFields.budgetRange,
-      expectedDate: asDate(memberFields.expectedDate),
+      budgetRange: optionalString(memberFields.budgetRange, { field: '预算范围', max: 50 }) ?? undefined,
+      expectedDate: parseDateOrThrow(memberFields.expectedDate, '预计到院日期'),
       preferredHospitalId: memberFields.preferredHospitalId === undefined ? undefined : Number(memberFields.preferredHospitalId),
       memberStatus: 'active',
       joinedAt: new Date(),
@@ -128,20 +144,20 @@ export class MembersService {
       creatorId: userId,
       updaterId: userId,
       nextFollowUpAt: memberFields.nextFollowUpAt ? new Date(memberFields.nextFollowUpAt) : undefined,
-      remark: memberFields.remark,
+      remark: trimOrNull(memberFields.remark) ?? undefined,
     })
 
-    const member = await MembersRepository.create(data)
+    const member = await withDbErrorMapping(() => MembersRepository.create(data))
 
     // Set tags
     if (tagIds?.length) {
-      await MembersRepository.setMemberTags(member.id, tagIds)
+      await withDbErrorMapping(() => MembersRepository.setMemberTags(member.id, tagIds))
       member.tags = await MembersRepository.getMemberTagIds(member.id)
     }
 
     // Create initial follow-up if first contact provided
     if (firstContactRecord) {
-      await MembersRepository.createFollowUp({
+      await withDbErrorMapping(() => MembersRepository.createFollowUp({
         memberId: member.id,
         operatorUserId: userId,
         followUpMethod: 'other',
@@ -150,7 +166,7 @@ export class MembersService {
         stageAfter: data.memberStage,
         intentionLevelAfter: data.intentionLevel,
         nextFollowUpAt: data.nextFollowUpAt,
-      })
+      }))
     }
 
     return MembersRepository.findById(member.id, { includeTags: true })
@@ -160,25 +176,31 @@ export class MembersService {
 
   static async createDirect(input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const { tagIds, firstContactRecord, sourceChannel, ...rest } = input
+    requireString(rest.name, { field: '会员姓名', min: 1, max: 50 })
 
     // Check mobile uniqueness
-    if (rest.mobile) {
-      const byMobile = await MembersRepository.findByMobile(rest.mobile)
+    const mobile = optionalPhone(rest.mobile, '手机号')
+    if (mobile) {
+      const byMobile = await MembersRepository.findByMobile(mobile)
       if (byMobile) {
-        const err: any = new Error('该手机号已是会员顾客')
-        err.existingMember = byMobile
-        throw err
+        throw new BusinessError(
+          ValidationErrorCode.PARAMETER_FORMAT_ERROR,
+          '该手机号已是会员顾客',
+          JSON.stringify({ existingMemberId: byMobile.id }),
+        )
       }
 
       // Check if mobile exists in customers
       const customersList = await CustomersRepository.list({
-        keyword: rest.mobile,
+        keyword: mobile,
         pageSize: 1, page: 1,
       })
       if (customersList.list.length > 0) {
-        const err: any = new Error('该手机号已存在客户记录，建议从已有客户转为会员')
-        err.existingCustomer = customersList.list[0]
-        throw err
+        throw new BusinessError(
+          ValidationErrorCode.PARAMETER_FORMAT_ERROR,
+          '该手机号已存在客户记录，建议从已有客户转为会员',
+          JSON.stringify({ existingCustomerId: customersList.list[0].id }),
+        )
       }
     }
 
@@ -186,21 +208,21 @@ export class MembersService {
       numberId: await MembersRepository.nextNumber(),
       name: rest.name,
       gender: rest.gender === undefined ? undefined : Number(rest.gender),
-      birthday: asDate(rest.birthday),
-      mobile: rest.mobile,
-      wechat: rest.wechat,
-      qq: rest.qq,
+      birthday: parseDateOrThrow(rest.birthday, '生日'),
+      mobile,
+      wechat: optionalWechat(rest.wechat, '微信号'),
+      qq: optionalQq(rest.qq, 'QQ 号'),
       provinceId: rest.provinceId === undefined ? undefined : Number(rest.provinceId),
       cityId: rest.cityId === undefined ? undefined : Number(rest.cityId),
       districtId: rest.districtId === undefined ? undefined : Number(rest.districtId),
-      address: rest.address,
+      address: optionalString(rest.address, { field: '地址', max: 255 }) ?? undefined,
       source: 'direct',
-      businessCategory: rest.businessCategory,
-      intentionProject: rest.intentionProject,
+      businessCategory: optionalString(rest.businessCategory, { field: '业务分类', max: 50 }) ?? undefined,
+      intentionProject: optionalString(rest.intentionProject, { field: '意向项目', max: 255 }) ?? undefined,
       memberStage: rest.memberStage ?? 'new',
       intentionLevel: rest.intentionLevel ?? 'unset',
-      budgetRange: rest.budgetRange,
-      expectedDate: asDate(rest.expectedDate),
+      budgetRange: optionalString(rest.budgetRange, { field: '预算范围', max: 50 }) ?? undefined,
+      expectedDate: parseDateOrThrow(rest.expectedDate, '预计到院日期'),
       preferredHospitalId: rest.preferredHospitalId === undefined ? undefined : Number(rest.preferredHospitalId),
       memberStatus: 'active',
       joinedAt: new Date(),
@@ -208,20 +230,20 @@ export class MembersService {
       creatorId: userId,
       updaterId: userId,
       nextFollowUpAt: rest.nextFollowUpAt ? new Date(rest.nextFollowUpAt) : undefined,
-      remark: rest.remark,
+      remark: trimOrNull(rest.remark) ?? undefined,
     })
 
-    const member = await MembersRepository.create(data)
+    const member = await withDbErrorMapping(() => MembersRepository.create(data))
 
     // Set tags
     if (tagIds?.length) {
-      await MembersRepository.setMemberTags(member.id, tagIds)
+      await withDbErrorMapping(() => MembersRepository.setMemberTags(member.id, tagIds))
       member.tags = await MembersRepository.getMemberTagIds(member.id)
     }
 
     // Create initial follow-up
     if (firstContactRecord) {
-      await MembersRepository.createFollowUp({
+      await withDbErrorMapping(() => MembersRepository.createFollowUp({
         memberId: member.id,
         operatorUserId: userId,
         followUpMethod: 'other',
@@ -230,7 +252,7 @@ export class MembersService {
         stageAfter: data.memberStage,
         intentionLevelAfter: data.intentionLevel,
         nextFollowUpAt: data.nextFollowUpAt,
-      })
+      }))
     }
 
     return MembersRepository.findById(member.id, { includeTags: true })
@@ -240,47 +262,51 @@ export class MembersService {
 
   static async update(id: number, input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const existing = await this.getById(id, userId, scope)
-    if (!existing) throw new Error('会员不存在或无权访问')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
 
     const { tagIds, ...fields } = input
+    if (fields.name !== undefined) {
+      requireString(fields.name, { field: '会员姓名', min: 1, max: 50 })
+    }
+    const mobile = fields.mobile === undefined ? undefined : optionalPhone(fields.mobile, '手机号')
 
     // Mobile uniqueness check
-    if (fields.mobile && fields.mobile !== existing.mobile) {
-      const byMobile = await MembersRepository.findByMobile(fields.mobile)
+    if (mobile && mobile !== existing.mobile) {
+      const byMobile = await MembersRepository.findByMobile(mobile)
       if (byMobile && byMobile.id !== id) {
-        throw new Error('该手机号已被其他会员使用')
+        throw new BusinessError(ValidationErrorCode.PARAMETER_FORMAT_ERROR, '该手机号已被其他会员使用')
       }
     }
 
     const data = compact({
-      name: fields.name,
+      ...(fields.name !== undefined ? { name: fields.name } : {}),
       gender: fields.gender === undefined ? undefined : Number(fields.gender),
-      birthday: asDate(fields.birthday),
-      mobile: fields.mobile,
-      wechat: fields.wechat,
-      qq: fields.qq,
+      birthday: fields.birthday === undefined ? undefined : parseDateOrThrow(fields.birthday, '生日'),
+      mobile,
+      wechat: fields.wechat === undefined ? undefined : optionalWechat(fields.wechat, '微信号'),
+      qq: fields.qq === undefined ? undefined : optionalQq(fields.qq, 'QQ 号'),
       provinceId: fields.provinceId === undefined ? undefined : Number(fields.provinceId),
       cityId: fields.cityId === undefined ? undefined : Number(fields.cityId),
       districtId: fields.districtId === undefined ? undefined : Number(fields.districtId),
-      address: fields.address,
-      businessCategory: fields.businessCategory,
-      intentionProject: fields.intentionProject,
+      address: fields.address === undefined ? undefined : optionalString(fields.address, { field: '地址', max: 255 }) ?? undefined,
+      businessCategory: fields.businessCategory === undefined ? undefined : (optionalString(fields.businessCategory, { field: '业务分类', max: 50 }) ?? undefined),
+      intentionProject: fields.intentionProject === undefined ? undefined : (optionalString(fields.intentionProject, { field: '意向项目', max: 255 }) ?? undefined),
       memberStage: fields.memberStage,
       intentionLevel: fields.intentionLevel,
-      budgetRange: fields.budgetRange,
-      expectedDate: asDate(fields.expectedDate),
+      budgetRange: fields.budgetRange === undefined ? undefined : (optionalString(fields.budgetRange, { field: '预算范围', max: 50 }) ?? undefined),
+      expectedDate: fields.expectedDate === undefined ? undefined : parseDateOrThrow(fields.expectedDate, '预计到院日期'),
       preferredHospitalId: fields.preferredHospitalId === undefined ? undefined : Number(fields.preferredHospitalId),
       ownerUserId: fields.ownerUserId === undefined ? undefined : Number(fields.ownerUserId),
       nextFollowUpAt: fields.nextFollowUpAt ? new Date(fields.nextFollowUpAt) : undefined,
-      remark: fields.remark,
+      remark: fields.remark === undefined ? undefined : trimOrNull(fields.remark) ?? undefined,
       updaterId: userId,
     })
 
-    await MembersRepository.update(id, data)
+    await withDbErrorMapping(() => MembersRepository.update(id, data))
 
     // Update tags
     if (tagIds !== undefined) {
-      await MembersRepository.setMemberTags(id, tagIds)
+      await withDbErrorMapping(() => MembersRepository.setMemberTags(id, tagIds))
     }
 
     return MembersRepository.findById(id, { includeTags: true })
@@ -290,18 +316,18 @@ export class MembersService {
 
   static async addFollowUp(id: number, input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const existing = await this.getById(id, userId, scope)
-    if (!existing) throw new Error('会员不存在或无权访问')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
 
-    const record = await MembersRepository.createFollowUp({
+    const record = await withDbErrorMapping(() => MembersRepository.createFollowUp({
       memberId: id,
       operatorUserId: userId,
-      followUpMethod: input.followUpMethod,
-      content: input.content,
-      result: input.result,
-      stageAfter: input.memberStage,
-      intentionLevelAfter: input.intentionLevel,
+      followUpMethod: optionalString(input.followUpMethod, { field: '跟进方式', max: 20 }) ?? 'other',
+      content: requireString(input.content, { field: '跟进内容', min: 1, max: 5000 }),
+      result: optionalString(input.result, { field: '跟进结果', max: 30 }) ?? 'contacted',
+      stageAfter: optionalString(input.memberStage, { field: '阶段', max: 30 }) ?? undefined,
+      intentionLevelAfter: optionalString(input.intentionLevel, { field: '意向等级', max: 20 }) ?? undefined,
       nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : undefined,
-    })
+    }))
 
     // Update member's last follow-up time, stage, intention level, next follow-up
     const updateData: any = {
@@ -316,7 +342,7 @@ export class MembersService {
       // 未接通必须设置下次跟进时间 — 由前端校验
     }
 
-    await MembersRepository.update(id, updateData)
+    await withDbErrorMapping(() => MembersRepository.update(id, updateData))
 
     return record
   }
@@ -325,16 +351,16 @@ export class MembersService {
 
   static async invalidate(id: number, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const existing = await this.getById(id, userId, scope)
-    if (!existing) throw new Error('会员不存在或无权访问')
-    if (existing.memberStatus === 'invalid') throw new Error('该会员已作废')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
+    if (existing.memberStatus === 'invalid') throw new BusinessError(ResourceErrorCode.ALREADY_EXISTS, '该会员已作废')
 
-    await MembersRepository.update(id, {
+    await withDbErrorMapping(() => MembersRepository.update(id, {
       memberStatus: 'invalid',
       previousStage: existing.memberStage,
       invalidAt: new Date(),
       invalidBy: userId,
       updaterId: userId,
-    })
+    }))
 
     return MembersRepository.findById(id, { includeTags: true })
   }
@@ -357,17 +383,17 @@ export class MembersService {
 
   static async restore(id: number, input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const existing = await MembersRepository.findById(id)
-    if (!existing) throw new Error('会员不存在')
-    if (existing.memberStatus !== 'invalid') throw new Error('该会员不是作废状态')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在')
+    if (existing.memberStatus !== 'invalid') throw new BusinessError(ValidationErrorCode.INVALID_STATE, '该会员不是作废状态')
 
-    await MembersRepository.update(id, {
+    await withDbErrorMapping(() => MembersRepository.update(id, {
       memberStatus: 'active',
       memberStage: input.memberStage ?? existing.previousStage ?? 'new',
       invalidAt: null,
       invalidBy: null,
       previousStage: null,
       updaterId: userId,
-    })
+    }))
 
     return MembersRepository.findById(id, { includeTags: true })
   }
@@ -379,21 +405,21 @@ export class MembersService {
     for (const id of memberIds) {
       try {
         const existing = await this.getById(id, userId, scope)
-        if (!existing) throw new Error('会员不存在或无权访问')
+        if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
 
         const fromUserId = existing.ownerUserId
 
         // Update owner
-        await MembersRepository.update(id, { ownerUserId: toUserId, updaterId: userId })
+        await withDbErrorMapping(() => MembersRepository.update(id, { ownerUserId: toUserId, updaterId: userId }))
 
         // Record assignment history
-        await MembersRepository.createAssignmentRecord({
+        await withDbErrorMapping(() => MembersRepository.createAssignmentRecord({
           memberId: id,
           fromUserId: fromUserId !== toUserId ? fromUserId : null,
           toUserId,
           operatorUserId: userId,
-          reason: reason ?? null,
-        })
+          reason: optionalString(reason, { field: '分配原因', max: 255 }) ?? null,
+        }))
 
         results.push({ id, success: true })
       } catch (e: any) {
@@ -406,7 +432,7 @@ export class MembersService {
   // ── 批量打标签 ──
 
   static async batchAddTags(memberIds: number[], tagIds: number[], userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
-    await MembersRepository.batchSetMemberTags(memberIds, tagIds)
+    await withDbErrorMapping(() => MembersRepository.batchSetMemberTags(memberIds, tagIds))
     return { success: true, affected: memberIds.length }
   }
 
@@ -417,15 +443,15 @@ export class MembersService {
   }
 
   static async createTag(input: any, userId: number) {
-    return MembersRepository.createTag({
-      name: input.name,
-      color: input.color,
+    return withDbErrorMapping(() => MembersRepository.createTag({
+      name: requireString(input.name, { field: '标签名', min: 1, max: 50 }),
+      color: optionalString(input.color, { field: '颜色', max: 20 }) ?? undefined,
       creatorId: userId,
-    })
+    }))
   }
 
   static async deleteTag(tagId: number) {
-    return MembersRepository.deleteTag(tagId)
+    return withDbErrorMapping(() => MembersRepository.deleteTag(tagId))
   }
 
   // ── 可选择的客户 ──
@@ -440,7 +466,7 @@ export class MembersService {
 
   static async listFollowUps(id: number, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const existing = await this.getById(id, userId, scope)
-    if (!existing) throw new Error('会员不存在或无权访问')
+    if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
     return MembersRepository.listFollowUps(id)
   }
 }
