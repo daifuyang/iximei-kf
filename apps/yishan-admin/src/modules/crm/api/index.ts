@@ -15,7 +15,6 @@ import {
   createCrmDispatchLog,
   createCrmDispatchReply,
   createCrmHospital,
-  createCrmMember,
   createCrmMemberRemark,
   deleteCrmHospital,
   dispatchCrmCustomer,
@@ -110,7 +109,7 @@ export const getMembers = (params: object) => listCrmMembers(params as never);
 export const getMember = (id: number) => getCrmMember({ id });
 export const getMemberBrief = (id: number) =>
   request<any>(`/api/crm/v1/members/${id}/brief`);
-export const createMember = (body: object) => createCrmMember(body as never);
+// 会员创建分两条：转客户 / 直接新增；见下方 createMemberFromCustomer / createMemberDirect。
 export const updateMember = (id: number, body: object) =>
   updateCrmMember({ id }, body as never);
 export const addMemberRemark = (id: number, body: object) =>

@@ -47,7 +47,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
   const handleFinish = async (values: any) => {
     const basePayload: API.updateUserReq = {
-      username: values.username,
+      ...(values.username ? { username: values.username } : {}),
       realName: values.realName,
       nickname: values.nickname,
       email: values.email,
@@ -61,9 +61,17 @@ const UserForm: React.FC<UserFormProps> = ({
 
     if (!initialValues?.id) {
       const payload: API.createUserReq = {
-        ...basePayload,
+        username: values.username,
+        email: values.email,
+        realName: values.realName,
+        nickname: values.nickname,
         phone: values.phone,
         password: values.password,
+        ...(values.gender ? { gender: values.gender } : {}),
+        ...(values.status ? { status: values.status } : {}),
+        ...(values.birthDate ? { birthDate: values.birthDate } : {}),
+        ...(values.deptIds?.length ? { deptIds: values.deptIds } : {}),
+        ...(values.roleIds?.length ? { roleIds: values.roleIds } : {}),
       };
       const res = await createUser(payload);
       if (res.success) {

@@ -2,6 +2,26 @@
 /* eslint-disable */
 import { request } from "@umijs/max";
 
+/** 导出派单 CSV GET /api/crm/v1/admin/dispatches/export */
+export async function exportCrmDispatches(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.exportCrmDispatchesParams,
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/admin/dispatches/export", {
+    method: "GET",
+    params: {
+      // page has a default value: 1
+      page: "1",
+      // pageSize has a default value: 10
+      pageSize: "10",
+
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
 /** 客户列表 GET /api/crm/v1/customers */
 export async function listCrmCustomers(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -141,7 +161,7 @@ export async function dispatchCrmCustomer(
   });
 }
 
-/** 客户备注（占位） POST /api/crm/v1/customers/${param0}/remarks */
+/** 客户备注 POST /api/crm/v1/customers/${param0}/remarks */
 export async function createCrmCustomerRemark(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.createCrmCustomerRemarkParams,
@@ -301,7 +321,7 @@ export async function dispatchCrmCustomer2(
   });
 }
 
-/** 客户备注（占位） POST /api/crm/v1/customers/customers/${param0}/remarks */
+/** 客户备注 POST /api/crm/v1/customers/customers/${param0}/remarks */
 export async function createCrmCustomerRemark2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.createCrmCustomerRemarkParams,
@@ -328,6 +348,26 @@ export async function listCrmCustomerStatuses2(options?: {
 }) {
   return request<any>("/api/crm/v1/customers/customers/statuses", {
     method: "GET",
+    ...(options || {}),
+  });
+}
+
+/** 可转会员的客户列表 GET /api/crm/v1/customers/selectable */
+export async function listCrmCustomersSelectable(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmCustomersSelectableParams,
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/customers/selectable", {
+    method: "GET",
+    params: {
+      // page has a default value: 1
+      page: "1",
+      // pageSize has a default value: 10
+      pageSize: "10",
+
+      ...params,
+    },
     ...(options || {}),
   });
 }
@@ -562,6 +602,26 @@ export async function createCrmDispatchReply(
   });
 }
 
+/** 导出派单 CSV GET /api/crm/v1/dispatches/admin/dispatches/export */
+export async function exportCrmDispatches2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.exportCrmDispatchesParams,
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/dispatches/admin/dispatches/export", {
+    method: "GET",
+    params: {
+      // page has a default value: 1
+      page: "1",
+      // pageSize has a default value: 10
+      pageSize: "10",
+
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
 /** 派单列表 GET /api/crm/v1/dispatches/dispatches */
 export async function listCrmDispatches2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -722,11 +782,9 @@ export async function listCrmHospitals(
   });
 }
 
-/** 创建医院 POST /api/crm/v1/hospitals */
+/** 创建医院（含唯一账号） POST /api/crm/v1/hospitals */
 export async function createCrmHospital(
   body: {
-    accountUserId?: number | null;
-    hospitalName: string;
     provinceId?: number;
     cityId?: number;
     districtId?: number;
@@ -752,6 +810,9 @@ export async function createCrmHospital(
     contractPhotos?: string[];
     wechatOpenid?: string;
     status?: number;
+    accountPassword: string;
+    accountEmail?: string;
+    accountPhone?: string;
   },
   options?: { [key: string]: any }
 ) {
@@ -779,7 +840,7 @@ export async function getCrmHospital(
   });
 }
 
-/** 删除医院 DELETE /api/crm/v1/hospitals/${param0} */
+/** 删除医院（软删 + 禁用账号 + 撤销 Token） DELETE /api/crm/v1/hospitals/${param0} */
 export async function deleteCrmHospital(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.deleteCrmHospitalParams,
@@ -793,13 +854,11 @@ export async function deleteCrmHospital(
   });
 }
 
-/** 更新医院 PATCH /api/crm/v1/hospitals/${param0} */
+/** 更新医院（改名会同步账号用户名） PATCH /api/crm/v1/hospitals/${param0} */
 export async function updateCrmHospital(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmHospitalParams,
   body: {
-    accountUserId?: number | null;
-    hospitalName?: string;
     provinceId?: number;
     cityId?: number;
     districtId?: number;
@@ -840,79 +899,33 @@ export async function updateCrmHospital(
   });
 }
 
-/** 医院账号列表 GET /api/crm/v1/hospitals/${param0}/accounts */
-export async function listCrmHospitalAccounts(
+/** 医院唯一账号 GET /api/crm/v1/hospitals/${param0}/account */
+export async function getCrmHospitalAccount(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.listCrmHospitalAccountsParams,
+  params: API.getCrmHospitalAccountParams,
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/${param0}/accounts`, {
+  return request<any>(`/api/crm/v1/hospitals/${param0}/account`, {
     method: "GET",
     params: { ...queryParams },
     ...(options || {}),
   });
 }
 
-/** 新建并分配医院账号 POST /api/crm/v1/hospitals/${param0}/accounts */
-export async function createCrmHospitalAccount(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.createCrmHospitalAccountParams,
-  body: {
-    username: string;
-    phone: string;
-    realName?: string;
-    email?: string;
-    password: string;
-    role?: string;
-    remark?: string;
-  },
-  options?: { [key: string]: any }
-) {
-  const { id: param0, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/${param0}/accounts`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    params: { ...queryParams },
-    data: body,
-    ...(options || {}),
-  });
-}
-
-/** 解除医院账号 DELETE /api/crm/v1/hospitals/${param0}/accounts/${param1} */
-export async function deleteCrmHospitalAccount(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.deleteCrmHospitalAccountParams,
-  options?: { [key: string]: any }
-) {
-  const { id: param0, userId: param1, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/${param0}/accounts/${param1}`, {
-    method: "DELETE",
-    params: { ...queryParams },
-    ...(options || {}),
-  });
-}
-
-/** 更新医院账号 PATCH /api/crm/v1/hospitals/${param0}/accounts/${param1} */
+/** 更新医院账号联系方式 / 启停 PATCH /api/crm/v1/hospitals/${param0}/account */
 export async function updateCrmHospitalAccount(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmHospitalAccountParams,
   body: {
-    role?: string;
+    email?: string | null;
+    phone?: string | null;
     status?: number;
-    remark?: string;
-    username?: string;
-    realName?: string;
-    phone?: string;
-    email?: string;
-    password?: string;
   },
   options?: { [key: string]: any }
 ) {
-  const { id: param0, userId: param1, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/${param0}/accounts/${param1}`, {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/hospitals/${param0}/account`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -923,19 +936,41 @@ export async function updateCrmHospitalAccount(
   });
 }
 
-/** 分配已有用户到医院 POST /api/crm/v1/hospitals/${param0}/accounts/assign */
-export async function assignCrmHospitalAccount(
+/** 重置医院账号密码 POST /api/crm/v1/hospitals/${param0}/account/reset-password */
+export async function resetCrmHospitalAccountPassword(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.assignCrmHospitalAccountParams,
+  params: API.resetCrmHospitalAccountPasswordParams,
   body: {
-    userId: number;
-    role?: string;
-    remark?: string;
+    newPassword: string;
   },
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/${param0}/accounts/assign`, {
+  return request<any>(
+    `/api/crm/v1/hospitals/${param0}/account/reset-password`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      params: { ...queryParams },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** 医院改名（仅系统管理员；同步 username + 撤销 Token + 审计） POST /api/crm/v1/hospitals/${param0}/rename */
+export async function renameCrmHospital(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.renameCrmHospitalParams,
+  body: {
+    newHospitalName: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/hospitals/${param0}/rename`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -966,11 +1001,9 @@ export async function listCrmHospitals2(
   });
 }
 
-/** 创建医院 POST /api/crm/v1/hospitals/hospitals */
+/** 创建医院（含唯一账号） POST /api/crm/v1/hospitals/hospitals */
 export async function createCrmHospital2(
   body: {
-    accountUserId?: number | null;
-    hospitalName: string;
     provinceId?: number;
     cityId?: number;
     districtId?: number;
@@ -996,6 +1029,9 @@ export async function createCrmHospital2(
     contractPhotos?: string[];
     wechatOpenid?: string;
     status?: number;
+    accountPassword: string;
+    accountEmail?: string;
+    accountPhone?: string;
   },
   options?: { [key: string]: any }
 ) {
@@ -1023,7 +1059,7 @@ export async function getCrmHospital2(
   });
 }
 
-/** 删除医院 DELETE /api/crm/v1/hospitals/hospitals/${param0} */
+/** 删除医院（软删 + 禁用账号 + 撤销 Token） DELETE /api/crm/v1/hospitals/hospitals/${param0} */
 export async function deleteCrmHospital2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.deleteCrmHospitalParams,
@@ -1037,13 +1073,11 @@ export async function deleteCrmHospital2(
   });
 }
 
-/** 更新医院 PATCH /api/crm/v1/hospitals/hospitals/${param0} */
+/** 更新医院（改名会同步账号用户名） PATCH /api/crm/v1/hospitals/hospitals/${param0} */
 export async function updateCrmHospital2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmHospitalParams,
   body: {
-    accountUserId?: number | null;
-    hospitalName?: string;
     provinceId?: number;
     cityId?: number;
     districtId?: number;
@@ -1084,38 +1118,34 @@ export async function updateCrmHospital2(
   });
 }
 
-/** 医院账号列表 GET /api/crm/v1/hospitals/hospitals/${param0}/accounts */
-export async function listCrmHospitalAccounts2(
+/** 医院唯一账号 GET /api/crm/v1/hospitals/hospitals/${param0}/account */
+export async function getCrmHospitalAccount2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.listCrmHospitalAccountsParams,
+  params: API.getCrmHospitalAccountParams,
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/hospitals/${param0}/accounts`, {
+  return request<any>(`/api/crm/v1/hospitals/hospitals/${param0}/account`, {
     method: "GET",
     params: { ...queryParams },
     ...(options || {}),
   });
 }
 
-/** 新建并分配医院账号 POST /api/crm/v1/hospitals/hospitals/${param0}/accounts */
-export async function createCrmHospitalAccount2(
+/** 更新医院账号联系方式 / 启停 PATCH /api/crm/v1/hospitals/hospitals/${param0}/account */
+export async function updateCrmHospitalAccount2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.createCrmHospitalAccountParams,
+  params: API.updateCrmHospitalAccountParams,
   body: {
-    username: string;
-    phone: string;
-    realName?: string;
-    email?: string;
-    password: string;
-    role?: string;
-    remark?: string;
+    email?: string | null;
+    phone?: string | null;
+    status?: number;
   },
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params;
-  return request<any>(`/api/crm/v1/hospitals/hospitals/${param0}/accounts`, {
-    method: "POST",
+  return request<any>(`/api/crm/v1/hospitals/hospitals/${param0}/account`, {
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
@@ -1125,68 +1155,18 @@ export async function createCrmHospitalAccount2(
   });
 }
 
-/** 解除医院账号 DELETE /api/crm/v1/hospitals/hospitals/${param0}/accounts/${param1} */
-export async function deleteCrmHospitalAccount2(
+/** 重置医院账号密码 POST /api/crm/v1/hospitals/hospitals/${param0}/account/reset-password */
+export async function resetCrmHospitalAccountPassword2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.deleteCrmHospitalAccountParams,
-  options?: { [key: string]: any }
-) {
-  const { id: param0, userId: param1, ...queryParams } = params;
-  return request<any>(
-    `/api/crm/v1/hospitals/hospitals/${param0}/accounts/${param1}`,
-    {
-      method: "DELETE",
-      params: { ...queryParams },
-      ...(options || {}),
-    }
-  );
-}
-
-/** 更新医院账号 PATCH /api/crm/v1/hospitals/hospitals/${param0}/accounts/${param1} */
-export async function updateCrmHospitalAccount2(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.updateCrmHospitalAccountParams,
+  params: API.resetCrmHospitalAccountPasswordParams,
   body: {
-    role?: string;
-    status?: number;
-    remark?: string;
-    username?: string;
-    realName?: string;
-    phone?: string;
-    email?: string;
-    password?: string;
-  },
-  options?: { [key: string]: any }
-) {
-  const { id: param0, userId: param1, ...queryParams } = params;
-  return request<any>(
-    `/api/crm/v1/hospitals/hospitals/${param0}/accounts/${param1}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      params: { ...queryParams },
-      data: body,
-      ...(options || {}),
-    }
-  );
-}
-
-/** 分配已有用户到医院 POST /api/crm/v1/hospitals/hospitals/${param0}/accounts/assign */
-export async function assignCrmHospitalAccount2(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.assignCrmHospitalAccountParams,
-  body: {
-    userId: number;
-    role?: string;
-    remark?: string;
+    newPassword: string;
   },
   options?: { [key: string]: any }
 ) {
   const { id: param0, ...queryParams } = params;
   return request<any>(
-    `/api/crm/v1/hospitals/hospitals/${param0}/accounts/assign`,
+    `/api/crm/v1/hospitals/hospitals/${param0}/account/reset-password`,
     {
       method: "POST",
       headers: {
@@ -1197,6 +1177,27 @@ export async function assignCrmHospitalAccount2(
       ...(options || {}),
     }
   );
+}
+
+/** 医院改名（仅系统管理员；同步 username + 撤销 Token + 审计） POST /api/crm/v1/hospitals/hospitals/${param0}/rename */
+export async function renameCrmHospital2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.renameCrmHospitalParams,
+  body: {
+    newHospitalName: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/hospitals/hospitals/${param0}/rename`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
 }
 
 /** 医院搜索（前端下拉） GET /api/crm/v1/hospitals/hospitals/search/options */
@@ -1229,6 +1230,46 @@ export async function searchCrmHospitals(
   });
 }
 
+/** 会员标签列表 GET /api/crm/v1/member-tags */
+export async function listCrmMemberTags(options?: { [key: string]: any }) {
+  return request<any>("/api/crm/v1/member-tags", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
+/** 创建会员标签 POST /api/crm/v1/member-tags */
+export async function createCrmMemberTag(
+  body: {
+    name: string;
+    color?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/member-tags", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 删除会员标签 DELETE /api/crm/v1/member-tags/${param0} */
+export async function deleteCrmMemberTag(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.deleteCrmMemberTagParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/member-tags/${param0}`, {
+    method: "DELETE",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 会员顾客列表 GET /api/crm/v1/members */
 export async function listCrmMembers(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -1245,30 +1286,6 @@ export async function listCrmMembers(
 
       ...params,
     },
-    ...(options || {}),
-  });
-}
-
-/** 新建会员 POST /api/crm/v1/members */
-export async function createCrmMember(
-  body: {
-    numberId?: string;
-    name: string;
-    gender?: number;
-    birthday?: string;
-    address?: string;
-    mobile?: string;
-    project?: string;
-    ownerUserId?: number;
-  },
-  options?: { [key: string]: any }
-) {
-  return request<any>("/api/crm/v1/members", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    data: body,
     ...(options || {}),
   });
 }
@@ -1306,14 +1323,28 @@ export async function updateCrmMember(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmMemberParams,
   body: {
-    numberId?: string;
     name?: string;
+    mobile?: string;
+    wechat?: string;
+    qq?: string;
     gender?: number;
     birthday?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
     address?: string;
-    mobile?: string;
-    project?: string;
+    sourceChannel?: string;
+    businessCategory?: string;
+    intentionProject?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    budgetRange?: string;
+    expectedDate?: string;
+    preferredHospitalId?: number;
     ownerUserId?: number;
+    tagIds?: number[];
+    nextFollowUpAt?: string;
+    remark?: string;
   },
   options?: { [key: string]: any }
 ) {
@@ -1325,6 +1356,97 @@ export async function updateCrmMember(
     },
     params: { ...queryParams },
     data: body,
+    ...(options || {}),
+  });
+}
+
+/** 会员简要信息 GET /api/crm/v1/members/${param0}/brief */
+export async function getCrmMemberBrief(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmMemberBriefParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}/brief`, {
+    method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
+/** 会员创建派单 POST /api/crm/v1/members/${param0}/dispatches */
+export async function createCrmMemberDispatch(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.createCrmMemberDispatchParams,
+  body: {
+    hospitalId: number;
+    statusId?: number;
+    content?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}/dispatches`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 跟进记录列表 GET /api/crm/v1/members/${param0}/follow-ups */
+export async function listCrmMemberFollowUps(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmMemberFollowUpsParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}/follow-ups`, {
+    method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
+/** 添加跟进记录 POST /api/crm/v1/members/${param0}/follow-ups */
+export async function createCrmMemberFollowUp(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.createCrmMemberFollowUpParams,
+  body: {
+    followUpMethod?: string;
+    content: string;
+    result?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    nextFollowUpAt?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}/follow-ups`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 作废会员 POST /api/crm/v1/members/${param0}/invalidate */
+export async function invalidateCrmMember(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.invalidateCrmMemberParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}/invalidate`, {
+    method: "POST",
+    params: { ...queryParams },
     ...(options || {}),
   });
 }
@@ -1350,6 +1472,209 @@ export async function createCrmMemberRemark(
   });
 }
 
+/** 恢复会员 POST /api/crm/v1/members/${param0}/restore */
+export async function restoreCrmMember(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.restoreCrmMemberParams,
+  body: {
+    memberStage?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/${param0}/restore`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量分配客服 POST /api/crm/v1/members/batch-assign */
+export async function batchAssignCrmMembers(
+  body: {
+    memberIds: number[];
+    toUserId: number;
+    reason?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/batch-assign", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量作废会员 POST /api/crm/v1/members/batch-invalidate */
+export async function batchInvalidateCrmMembers(
+  body: {
+    memberIds: number[];
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/batch-invalidate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量打标签 POST /api/crm/v1/members/batch-tags */
+export async function batchTagCrmMembers(
+  body: {
+    memberIds: number[];
+    tagIds: number[];
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/batch-tags", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 可转会员的客户列表 GET /api/crm/v1/members/customers/selectable */
+export async function listCrmCustomersSelectable2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmCustomersSelectableParams,
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/customers/selectable", {
+    method: "GET",
+    params: {
+      // page has a default value: 1
+      page: "1",
+      // pageSize has a default value: 10
+      pageSize: "10",
+
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 直接新增会员 POST /api/crm/v1/members/direct */
+export async function createCrmMemberDirect(
+  body: {
+    name: string;
+    mobile?: string;
+    wechat?: string;
+    qq?: string;
+    gender?: number;
+    birthday?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
+    address?: string;
+    sourceChannel?: string;
+    businessCategory?: string;
+    intentionProject?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    budgetRange?: string;
+    expectedDate?: string;
+    preferredHospitalId?: number;
+    ownerUserId?: number;
+    tagIds?: number[];
+    firstContactRecord?: string;
+    nextFollowUpAt?: string;
+    remark?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/direct", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 从客户转会员 POST /api/crm/v1/members/from-customer */
+export async function createCrmMemberFromCustomer(
+  body: {
+    customerId: number;
+    businessCategory?: string;
+    intentionProject?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    budgetRange?: string;
+    expectedDate?: string;
+    preferredHospitalId?: number;
+    ownerUserId?: number;
+    tagIds?: number[];
+    firstContactRecord?: string;
+    nextFollowUpAt?: string;
+    remark?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/from-customer", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 会员标签列表 GET /api/crm/v1/members/member-tags */
+export async function listCrmMemberTags2(options?: { [key: string]: any }) {
+  return request<any>("/api/crm/v1/members/member-tags", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
+/** 创建会员标签 POST /api/crm/v1/members/member-tags */
+export async function createCrmMemberTag2(
+  body: {
+    name: string;
+    color?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/member-tags", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 删除会员标签 DELETE /api/crm/v1/members/member-tags/${param0} */
+export async function deleteCrmMemberTag2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.deleteCrmMemberTagParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/member-tags/${param0}`, {
+    method: "DELETE",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 会员顾客列表 GET /api/crm/v1/members/members */
 export async function listCrmMembers2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -1366,30 +1691,6 @@ export async function listCrmMembers2(
 
       ...params,
     },
-    ...(options || {}),
-  });
-}
-
-/** 新建会员 POST /api/crm/v1/members/members */
-export async function createCrmMember2(
-  body: {
-    numberId?: string;
-    name: string;
-    gender?: number;
-    birthday?: string;
-    address?: string;
-    mobile?: string;
-    project?: string;
-    ownerUserId?: number;
-  },
-  options?: { [key: string]: any }
-) {
-  return request<any>("/api/crm/v1/members/members", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    data: body,
     ...(options || {}),
   });
 }
@@ -1427,14 +1728,28 @@ export async function updateCrmMember2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmMemberParams,
   body: {
-    numberId?: string;
     name?: string;
+    mobile?: string;
+    wechat?: string;
+    qq?: string;
     gender?: number;
     birthday?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
     address?: string;
-    mobile?: string;
-    project?: string;
+    sourceChannel?: string;
+    businessCategory?: string;
+    intentionProject?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    budgetRange?: string;
+    expectedDate?: string;
+    preferredHospitalId?: number;
     ownerUserId?: number;
+    tagIds?: number[];
+    nextFollowUpAt?: string;
+    remark?: string;
   },
   options?: { [key: string]: any }
 ) {
@@ -1446,6 +1761,97 @@ export async function updateCrmMember2(
     },
     params: { ...queryParams },
     data: body,
+    ...(options || {}),
+  });
+}
+
+/** 会员简要信息 GET /api/crm/v1/members/members/${param0}/brief */
+export async function getCrmMemberBrief2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmMemberBriefParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}/brief`, {
+    method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
+/** 会员创建派单 POST /api/crm/v1/members/members/${param0}/dispatches */
+export async function createCrmMemberDispatch2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.createCrmMemberDispatchParams,
+  body: {
+    hospitalId: number;
+    statusId?: number;
+    content?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}/dispatches`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 跟进记录列表 GET /api/crm/v1/members/members/${param0}/follow-ups */
+export async function listCrmMemberFollowUps2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmMemberFollowUpsParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}/follow-ups`, {
+    method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
+/** 添加跟进记录 POST /api/crm/v1/members/members/${param0}/follow-ups */
+export async function createCrmMemberFollowUp2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.createCrmMemberFollowUpParams,
+  body: {
+    followUpMethod?: string;
+    content: string;
+    result?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    nextFollowUpAt?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}/follow-ups`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 作废会员 POST /api/crm/v1/members/members/${param0}/invalidate */
+export async function invalidateCrmMember2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.invalidateCrmMemberParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}/invalidate`, {
+    method: "POST",
+    params: { ...queryParams },
     ...(options || {}),
   });
 }
@@ -1467,6 +1873,165 @@ export async function createCrmMemberRemark2(
     },
     params: { ...queryParams },
     data: body,
+    ...(options || {}),
+  });
+}
+
+/** 恢复会员 POST /api/crm/v1/members/members/${param0}/restore */
+export async function restoreCrmMember2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.restoreCrmMemberParams,
+  body: {
+    memberStage?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/members/members/${param0}/restore`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量分配客服 POST /api/crm/v1/members/members/batch-assign */
+export async function batchAssignCrmMembers2(
+  body: {
+    memberIds: number[];
+    toUserId: number;
+    reason?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/members/batch-assign", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量作废会员 POST /api/crm/v1/members/members/batch-invalidate */
+export async function batchInvalidateCrmMembers2(
+  body: {
+    memberIds: number[];
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/members/batch-invalidate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 批量打标签 POST /api/crm/v1/members/members/batch-tags */
+export async function batchTagCrmMembers2(
+  body: {
+    memberIds: number[];
+    tagIds: number[];
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/members/batch-tags", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 直接新增会员 POST /api/crm/v1/members/members/direct */
+export async function createCrmMemberDirect2(
+  body: {
+    name: string;
+    mobile?: string;
+    wechat?: string;
+    qq?: string;
+    gender?: number;
+    birthday?: string;
+    provinceId?: number;
+    cityId?: number;
+    districtId?: number;
+    address?: string;
+    sourceChannel?: string;
+    businessCategory?: string;
+    intentionProject?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    budgetRange?: string;
+    expectedDate?: string;
+    preferredHospitalId?: number;
+    ownerUserId?: number;
+    tagIds?: number[];
+    firstContactRecord?: string;
+    nextFollowUpAt?: string;
+    remark?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/members/direct", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 从客户转会员 POST /api/crm/v1/members/members/from-customer */
+export async function createCrmMemberFromCustomer2(
+  body: {
+    customerId: number;
+    businessCategory?: string;
+    intentionProject?: string;
+    memberStage?: string;
+    intentionLevel?: string;
+    budgetRange?: string;
+    expectedDate?: string;
+    preferredHospitalId?: number;
+    ownerUserId?: number;
+    tagIds?: number[];
+    firstContactRecord?: string;
+    nextFollowUpAt?: string;
+    remark?: string;
+  },
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/members/members/from-customer", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 会员概览统计 GET /api/crm/v1/members/members/overview */
+export async function getCrmMemberOverview2(options?: { [key: string]: any }) {
+  return request<any>("/api/crm/v1/members/members/overview", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
+/** 会员概览统计 GET /api/crm/v1/members/overview */
+export async function getCrmMemberOverview(options?: { [key: string]: any }) {
+  return request<any>("/api/crm/v1/members/overview", {
+    method: "GET",
     ...(options || {}),
   });
 }

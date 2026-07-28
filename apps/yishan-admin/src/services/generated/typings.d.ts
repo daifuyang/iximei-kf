@@ -95,14 +95,6 @@ declare namespace API {
     pageSize?: number;
   };
 
-  type assignCrmHospitalAccountParams = {
-    id: number;
-  };
-
-  type assignCrmHospitalAccountParams = {
-    id: number;
-  };
-
   type attachmentBatchDeleteReq = {
     /** 素材ID列表 */
     ids: number[];
@@ -334,11 +326,19 @@ declare namespace API {
     id: number;
   };
 
-  type createCrmHospitalAccountParams = {
+  type createCrmMemberDispatchParams = {
     id: number;
   };
 
-  type createCrmHospitalAccountParams = {
+  type createCrmMemberDispatchParams = {
+    id: number;
+  };
+
+  type createCrmMemberFollowUpParams = {
+    id: number;
+  };
+
+  type createCrmMemberFollowUpParams = {
     id: number;
   };
 
@@ -367,7 +367,7 @@ declare namespace API {
 
   type createUserReq = {
     /** 用户名 */
-    username?: string;
+    username: string;
     /** 邮箱 */
     email?: string;
     /** 用户密码 */
@@ -500,16 +500,6 @@ declare namespace API {
     id: number;
   };
 
-  type deleteCrmHospitalAccountParams = {
-    id: number;
-    userId: number;
-  };
-
-  type deleteCrmHospitalAccountParams = {
-    id: number;
-    userId: number;
-  };
-
   type deleteCrmHospitalParams = {
     id: number;
   };
@@ -524,6 +514,18 @@ declare namespace API {
 
   type deleteCrmMemberParams = {
     id: number;
+  };
+
+  type deleteCrmMemberTagParams = {
+    id: number;
+  };
+
+  type deleteCrmMemberTagParams = {
+    id: number;
+  };
+
+  type deleteDemoTodoParams = {
+    id: string;
   };
 
   type deleteDeptParams = {
@@ -557,18 +559,6 @@ declare namespace API {
   type deleteUserParams = {
     /** 用户ID */
     id: number;
-  };
-
-  type deleteDemoTodoParams = {
-    id: string;
-  };
-
-  type getDemoTodoParams = {
-    id: string;
-  };
-
-  type updateDemoTodoParams = {
-    id: string;
   };
 
   type deptDeleteResp = {
@@ -747,6 +737,24 @@ declare namespace API {
     id: number;
   };
 
+  type exportCrmDispatchesParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+  };
+
+  type exportCrmDispatchesParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    statusId?: number;
+  };
+
   type getAttachmentDetailParams = {
     /** 素材ID */
     id: number;
@@ -823,11 +831,27 @@ declare namespace API {
     id: number;
   };
 
+  type getCrmHospitalAccountParams = {
+    id: number;
+  };
+
+  type getCrmHospitalAccountParams = {
+    id: number;
+  };
+
   type getCrmHospitalParams = {
     id: number;
   };
 
   type getCrmHospitalParams = {
+    id: number;
+  };
+
+  type getCrmMemberBriefParams = {
+    id: number;
+  };
+
+  type getCrmMemberBriefParams = {
     id: number;
   };
 
@@ -837,6 +861,10 @@ declare namespace API {
 
   type getCrmMemberParams = {
     id: number;
+  };
+
+  type getDemoTodoParams = {
+    id: string;
   };
 
   type getDeptDetailParams = {
@@ -1050,6 +1078,14 @@ declare namespace API {
     folderId?: number | null;
   };
 
+  type invalidateCrmMemberParams = {
+    id: number;
+  };
+
+  type invalidateCrmMemberParams = {
+    id: number;
+  };
+
   type listCrmCustomersParams = {
     page?: number;
     pageSize?: number;
@@ -1070,6 +1106,24 @@ declare namespace API {
     ownerUserId?: number;
   };
 
+  type listCrmCustomersSelectableParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    excludeMember?: number;
+  };
+
+  type listCrmCustomersSelectableParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    excludeMember?: number;
+  };
+
   type listCrmDispatchesParams = {
     page?: number;
     pageSize?: number;
@@ -1088,14 +1142,6 @@ declare namespace API {
     statusId?: number;
   };
 
-  type listCrmHospitalAccountsParams = {
-    id: number;
-  };
-
-  type listCrmHospitalAccountsParams = {
-    id: number;
-  };
-
   type listCrmHospitalsParams = {
     page?: number;
     pageSize?: number;
@@ -1112,12 +1158,12 @@ declare namespace API {
     endTime?: string;
   };
 
-  type listCrmMembersParams = {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    startTime?: string;
-    endTime?: string;
+  type listCrmMemberFollowUpsParams = {
+    id: number;
+  };
+
+  type listCrmMemberFollowUpsParams = {
+    id: number;
   };
 
   type listCrmMembersParams = {
@@ -1126,6 +1172,38 @@ declare namespace API {
     keyword?: string;
     startTime?: string;
     endTime?: string;
+    stage?: string;
+    businessCategory?: string;
+    intentionLevel?: string;
+    ownerUserId?: number;
+    sourceChannel?: string;
+    memberStatus?: string;
+    nextFollowUpStart?: string;
+    nextFollowUpEnd?: string;
+    createdStart?: string;
+    createdEnd?: string;
+    isOverdue?: number;
+    tagIds?: number[];
+  };
+
+  type listCrmMembersParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    stage?: string;
+    businessCategory?: string;
+    intentionLevel?: string;
+    ownerUserId?: number;
+    sourceChannel?: string;
+    memberStatus?: string;
+    nextFollowUpStart?: string;
+    nextFollowUpEnd?: string;
+    createdStart?: string;
+    createdEnd?: string;
+    isOverdue?: number;
+    tagIds?: number[];
   };
 
   type listSystemRegionsParams = {
@@ -1381,6 +1459,30 @@ declare namespace API {
     success: boolean;
     data: loginData;
     timestamp: string;
+  };
+
+  type renameCrmHospitalParams = {
+    id: number;
+  };
+
+  type renameCrmHospitalParams = {
+    id: number;
+  };
+
+  type resetCrmHospitalAccountPasswordParams = {
+    id: number;
+  };
+
+  type resetCrmHospitalAccountPasswordParams = {
+    id: number;
+  };
+
+  type restoreCrmMemberParams = {
+    id: number;
+  };
+
+  type restoreCrmMemberParams = {
+    id: number;
   };
 
   type roleDeleteResp = {
@@ -2017,12 +2119,10 @@ declare namespace API {
 
   type updateCrmHospitalAccountParams = {
     id: number;
-    userId: number;
   };
 
   type updateCrmHospitalAccountParams = {
     id: number;
-    userId: number;
   };
 
   type updateCrmHospitalParams = {
@@ -2039,6 +2139,10 @@ declare namespace API {
 
   type updateCrmMemberParams = {
     id: number;
+  };
+
+  type updateDemoTodoParams = {
+    id: string;
   };
 
   type updateDeptParams = {
