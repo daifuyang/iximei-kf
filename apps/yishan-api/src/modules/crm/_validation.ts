@@ -13,7 +13,10 @@ import { UserErrorCode } from '@/constants/business-codes/user.js'
 import { asDate } from './services/_shared.js'
 
 // 重新从 core 导出 errno 翻译，保留旧 import 路径兼容。
-export { ER_DUP_ENTRY, ER_DATA_TOO_LONG, ER_TRUNCATED_WRONG_VALUE, translateDbError, withDbErrorMapping } from '@/core/plugins/external/db-error.js'
+export {
+  ER_DUP_ENTRY, ER_DATA_TOO_LONG, ER_TRUNCATED_WRONG_VALUE,
+  translateDbError, withDbErrorMapping, isDuplicateNumberIdError,
+} from '@/core/plugins/external/db-error.js'
 
 /** 大陆手机号：以 1 开头，第二位 3-9，共 11 位 */
 export const PHONE_RE = /^1[3-9]\d{9}$/

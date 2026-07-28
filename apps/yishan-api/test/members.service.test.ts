@@ -36,7 +36,7 @@ beforeEach(() => {
 
 const MOCK_MEMBER = {
   id: 1,
-  numberId: 'VIP000000000001',
+  numberId: 'CUS20260728A3K2M9',
   customerId: 1,
   name: '张三',
   gender: 1,
@@ -131,9 +131,9 @@ describe("从客户转会员", () => {
   it("从客户转会员成功", async () => {
     vi.spyOn(CustomersRepository, "findById").mockResolvedValue(MOCK_CUSTOMER);
     vi.spyOn(MembersRepository, "findByCustomerId").mockResolvedValue(null);
-    vi.spyOn(MembersRepository, "nextNumber").mockResolvedValue("VIP000000000002");
-    vi.spyOn(MembersRepository, "create").mockResolvedValue({ ...MOCK_MEMBER, id: 2, numberId: 'VIP000000000002' });
-    vi.spyOn(MembersRepository, "findById").mockResolvedValue({ ...MOCK_MEMBER, id: 2, numberId: 'VIP000000000002' });
+    vi.spyOn(MembersRepository, "nextNumber").mockReturnValue("CUS20260728A3K2M9");
+    vi.spyOn(MembersRepository, "create").mockResolvedValue({ ...MOCK_MEMBER, id: 2 });
+    vi.spyOn(MembersRepository, "findById").mockResolvedValue({ ...MOCK_MEMBER, id: 2 });
     vi.spyOn(MembersRepository, "setMemberTags").mockResolvedValue(undefined);
 
     const result = await MembersService.createFromCustomer(
@@ -143,7 +143,7 @@ describe("从客户转会员", () => {
     );
 
     expect(result).not.toBeNull();
-    expect(result?.numberId).toBe('VIP000000000002');
+    expect(result?.numberId).toBe('CUS20260728A3K2M9');
     expect(CustomersRepository.findById).toHaveBeenCalledWith(1);
     expect(MembersRepository.findByCustomerId).toHaveBeenCalledWith(1);
     expect(MembersRepository.create).toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe("从客户转会员", () => {
   it("首次沟通记录被正确保存为跟进记录", async () => {
     vi.spyOn(CustomersRepository, "findById").mockResolvedValue(MOCK_CUSTOMER);
     vi.spyOn(MembersRepository, "findByCustomerId").mockResolvedValue(null);
-    vi.spyOn(MembersRepository, "nextNumber").mockResolvedValue("VIP000000000003");
+    vi.spyOn(MembersRepository, "nextNumber").mockReturnValue("CUS20260728A3K2M9");
     vi.spyOn(MembersRepository, "create").mockResolvedValue({ ...MOCK_MEMBER, id: 3 });
     vi.spyOn(MembersRepository, "findById").mockResolvedValue({ ...MOCK_MEMBER, id: 3 });
     vi.spyOn(MembersRepository, "setMemberTags").mockResolvedValue(undefined);
@@ -212,7 +212,7 @@ describe("直接新增会员", () => {
   it("直接新增成功", async () => {
     vi.spyOn(MembersRepository, "findByMobile").mockResolvedValue(null);
     vi.spyOn(CustomersRepository, "list").mockResolvedValue({ list: [], total: 0 });
-    vi.spyOn(MembersRepository, "nextNumber").mockResolvedValue("VIP000000000004");
+    vi.spyOn(MembersRepository, "nextNumber").mockReturnValue("CUS20260728A3K2M9");
     vi.spyOn(MembersRepository, "create").mockResolvedValue({ ...MOCK_MEMBER, id: 4, source: 'direct' });
     vi.spyOn(MembersRepository, "findById").mockResolvedValue({ ...MOCK_MEMBER, id: 4, source: 'direct' });
 

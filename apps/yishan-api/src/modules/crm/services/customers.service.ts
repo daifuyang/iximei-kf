@@ -1,7 +1,7 @@
 import { BusinessError } from '@/exceptions/business-error.js'
 import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
 import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
-import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
+import { withDbErrorMapping, isDuplicateNumberIdError } from '@/core/plugins/external/db-error.js'
 import { CustomersRepository } from '../repositories/customers.repository.js'
 import { DispatchesRepository } from '../repositories/dispatches.repository.js'
 import { compact, pageArgs } from './_shared.js'
@@ -52,7 +52,7 @@ export class CustomersService {
     await CustomersRepository.ensureDefaultStatuses()
     // 公共字段：先 trim / 校验，再交给 compact
     const name = id ? undefined : requireString(input.name, { field: '客户姓名', min: 1, max: 50 })
-    const numberId = optionalString(input.numberId, { field: '客户编号', max: 20 })
+    // 客户编号：业务约定为"创建由系统生成，保存后不可修改"。前端即便误传也忽略。
     const telphone = optionalString(input.telphone, { field: '固定电话', max: 20 })
     const mobile = optionalPhone(input.mobile, '手机号')
     const qq = optionalQq(input.qq, 'QQ 号')
@@ -63,9 +63,8 @@ export class CustomersService {
     const birthday = parseDateOrThrow(input.birthday, '生日')
 
     const data = compact({
-      // PATCH 时 numberId/name 也允许"提供才更新"；为避免把空值写回去，name 仅 create 必填。
+      // 客户编号：业务约定为"创建由系统生成，保存后不可修改"。无论 create/PATCH 都由后端独立处理，不接受入参。
       ...(id ? {} : { name }),
-      ...(numberId !== null ? { numberId } : {}),
       gender: input.gender === undefined ? undefined : Number(input.gender),
       birthday,
       telphone,
@@ -96,14 +95,32 @@ export class CustomersService {
       return withDbErrorMapping(() => CustomersRepository.update(id, data))
     }
 
-    return withDbErrorMapping(async () => CustomersRepository.create({
-      ...data,
-      numberId: numberId || (await CustomersRepository.nextNumber()),
-      statusId: input.statusId ?? 1,
-      ownerUserId: input.ownerUserId ? Number(input.ownerUserId) : userId,
-      creatorId: userId,
-      updaterId: userId,
-    }))
+    // 创建路径：nextNumber 生成的 6 位 base36 随机尾段有极小生日冲突概率（单日 1000 条
+    // ~0.023%），靠 UNIQUE 索引抛 1062 后重试 5 次。仍然冲突才把错误抛给前端。
+    // 注意：要在 withDbErrorMapping 外面捕获原始 errno 1062——包了之后就被翻译成 BusinessError 了。
+    const MAX_NUMBER_RETRIES = 5
+    let lastDupError: unknown
+    for (let attempt = 0; attempt < MAX_NUMBER_RETRIES; attempt++) {
+      try {
+        return await CustomersRepository.create({
+          ...data,
+          // 客户编号：业务约定为"创建由系统生成"，禁止用户输入——一律走后端 nextNumber()。
+          numberId: CustomersRepository.nextNumber(),
+          statusId: input.statusId ?? 1,
+          ownerUserId: input.ownerUserId ? Number(input.ownerUserId) : userId,
+          creatorId: userId,
+          updaterId: userId,
+        })
+      } catch (err) {
+        if (isDuplicateNumberIdError(err)) {
+          lastDupError = err
+          continue
+        }
+        // 其它错误走标准 errno 翻译
+        return await withDbErrorMapping(() => { throw err })
+      }
+    }
+    throw lastDupError ?? new Error('客户编号生成失败，请重试')
   }
 
   static async dispatch(id: number, input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {

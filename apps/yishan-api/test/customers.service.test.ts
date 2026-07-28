@@ -13,7 +13,7 @@ import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 vi.mock('../src/modules/crm/repositories/customers.repository.js', () => ({
   CustomersRepository: {
     ensureDefaultStatuses: vi.fn().mockResolvedValue(undefined),
-    nextNumber: vi.fn().mockResolvedValue('VIP000000999999'),
+    nextNumber: vi.fn().mockReturnValue('CUS20260728A3K2M9'),
     create: vi.fn().mockResolvedValue({ id: 1, name: 'mock' }),
     update: vi.fn().mockResolvedValue({ id: 1 }),
     findById: vi.fn(),
@@ -33,7 +33,7 @@ import { CustomersRepository } from '../src/modules/crm/repositories/customers.r
 beforeEach(() => {
   vi.clearAllMocks()
   ;(CustomersRepository.ensureDefaultStatuses as any).mockResolvedValue(undefined)
-  ;(CustomersRepository.nextNumber as any).mockResolvedValue('VIP000000999999')
+  ;(CustomersRepository.nextNumber as any).mockReturnValue('CUS20260728A3K2M9')
   ;(CustomersRepository.create as any).mockResolvedValue({ id: 1, name: 'mock' })
   ;(CustomersRepository.update as any).mockResolvedValue({ id: 1, name: 'mock' })
 })
@@ -71,7 +71,7 @@ describe('create — 必填与长度校验', () => {
     expect(CustomersRepository.create).toHaveBeenCalledTimes(1)
     const arg = (CustomersRepository.create as any).mock.calls[0][0]
     expect(arg.name).toBe('张三')
-    expect(arg.numberId).toBe('VIP000000999999')
+    expect(arg.numberId).toBe('CUS20260728A3K2M9')
     expect(arg.statusId).toBe(1)
     expect(arg.ownerUserId).toBe(1)
   })
@@ -155,21 +155,21 @@ describe('create — 日期 / numberId', () => {
     expect(arg.birthday).toBe('1990-01-01')
   })
 
-  it('numberId=VIP000000999999 与已有 row 冲突 → 仓库抛 errno=1062 → 业务码翻译', async () => {
-    const dup = new Error("ER_DUP_ENTRY: Duplicate entry 'VIP000000999999' for key 'crm_customer.uniq_crm_customer_number_id'") as any
+  it('numberId=CUS20260728A3K2M9 与已有 row 冲突 → 重试 5 次仍冲突 → 抛最后一次错误', async () => {
+    const dup = new Error("ER_DUP_ENTRY: Duplicate entry 'CUS20260728A3K2M9' for key 'crm_customer.uniq_crm_customer_number_id'") as any
     dup.errno = 1062
-    dup.sqlMessage = "Duplicate entry 'VIP000000999999' for key 'crm_customer.uniq_crm_customer_number_id'"
-    ;(CustomersRepository.create as any).mockRejectedValueOnce(dup)
+    dup.sqlMessage = "Duplicate entry 'CUS20260728A3K2M9' for key 'crm_customer.uniq_crm_customer_number_id'"
+    ;(CustomersRepository.create as any).mockRejectedValue(dup)
     await expect(
       CustomersService.save(
-        { name: '张三', numberId: 'VIP000000999999' } as any,
+        { name: '张三' } as any,
         1,
         'ALL' as any,
       ),
     ).rejects.toMatchObject({
-      code: ValidationErrorCode.PARAMETER_FORMAT_ERROR,
-      message: '客户编号已存在',
+      message: expect.stringMatching(/Duplicate entry/),
     })
+    expect(CustomersRepository.create).toHaveBeenCalledTimes(5) // 5 次重试
   })
 
   it('ER_DATA_TOO_LONG(1406) → PARAMETER_LENGTH_ERROR', async () => {

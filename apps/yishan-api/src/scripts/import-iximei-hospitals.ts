@@ -5,6 +5,7 @@ import { drizzleDb, pool as drizzlePool } from '@/db'
 import { sysRegion, sysRole, sysUser, sysUserRole } from '@/db/schema'
 import { crmHospital, crmCustomer, crmDispatch, crmDispatchReply } from '@/modules/crm/db/schema'
 import { dateUtils } from '../utils/date.js'
+import { ymdOf, formatBusinessNumber } from '../modules/crm/repositories/_number-id.js'
 
 /**
  * 业务数据一次性导入: 区域 → 医院 → 客户 → 派单.
@@ -402,15 +403,22 @@ async function main() {
     console.log(`[import-business] hospitals: ${hospitalCnt} accounts: ${hospitalAcctCnt}`)
 
     // ---- 3) customers (status_id = old status id, CRM 名称一一对应) ----------
+    // 业务约定（2026-07）：新数据走 CUS + YYYYMMDD + 6 位 base36 随机（无分隔符）格式。
+    // - 按 c.create_time 取 YMD 段，6 位 base36 随机尾段保证 daily unique（UNIQUE 索引 + 极小生日冲突靠重试）
+    // - 不暴露日新增量（无 NNNN 段）
+    // - 历史 12059 行 VIP 数据不动
+    // 按创建时间排序只是为了 deterministic 输出（行号错位排查用），与编号生成无关
+    const sortedCustoms = [...customs].sort((a, b) => Number(a.create_time) - Number(b.create_time))
     const oldCust2new = new Map<number, number>()
     await drizzleDb.transaction(async tx => {
       // STRICT-SPEC §8.3：客户同步失败整体回滚，禁止 skipped。
-      for (const c of customs) {
+      for (const c of sortedCustoms) {
         const ownerId = oldUid2new.get(c.customer_userid) ?? SYS_ADMIN_ID
         const bday = fromUnix(c.birthday); const ct = fromUnix(c.create_time) ?? dateUtils.now()
         const ut = fromUnix(c.update_time) ?? ct
+        const numberId = formatBusinessNumber(ymdOf(ct))
         const [r] = await tx.insert(crmCustomer).values({
-          numberId: c.number_id, name: c.name, gender: c.gender, birthday: bday,
+          numberId, name: c.name, gender: c.gender, birthday: bday,
           telphone: c.telphone || null, mobile: c.mobile || null,
           qq: c.qq ? String(c.qq) : null, wechat: ns(c.wechat),
           provinceId: nz(c.province), cityId: nz(c.city), districtId: nz(c.district),

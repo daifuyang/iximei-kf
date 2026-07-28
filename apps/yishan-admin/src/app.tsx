@@ -8,8 +8,6 @@ import {
   AvatarDropdown,
   AvatarName,
   Footer,
-  Question,
-  SelectLang,
 } from "@/components";
 import { getCurrentUser } from "@/services/generated/auth";
 import { App as AntdApp } from "antd";
@@ -214,10 +212,12 @@ export const layout: RunTimeLayoutConfig = ({
         </>
       );
     },
-    actionsRender: () => [
-      <Question key="doc" />,
-      <SelectLang key="SelectLang" />,
-    ],
+    actionsRender: () => [],
+    // TODO: 恢复右上角的帮助按钮和多语言选择器时,放开下面这段:
+    // actionsRender: () => [
+    //   <Question key="doc" />,
+    //   <SelectLang key="SelectLang" />,
+    // ],
     avatarProps: {
       src: initialState?.currentUser?.avatar || avatarFallback,
       title: <AvatarName />,

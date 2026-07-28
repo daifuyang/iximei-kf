@@ -2,7 +2,7 @@ import { BusinessError } from '@/exceptions/business-error.js'
 import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
 import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
-import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
+import { withDbErrorMapping, isDuplicateNumberIdError } from '@/core/plugins/external/db-error.js'
 import { MembersRepository } from '../repositories/members.repository.js'
 import { CustomersRepository } from '../repositories/customers.repository.js'
 import { compact, pageArgs } from './_shared.js'
@@ -91,6 +91,29 @@ export class MembersService {
     return this.getById(id, userId, scope, false)
   }
 
+  // ── 内部：create 路径重试，6 位 base36 随机尾段有极小生日冲突概率（单日 1000 条
+  //   ~0.023%），靠 UNIQUE 索引抛 1062 后重试 5 次。仍冲突才把错误抛给前端。
+  // 注意：要在 withDbErrorMapping 外面捕获原始 errno 1062——包了之后就被翻译成 BusinessError 了。
+  private static async _createWithNumberIdRetry(data: any) {
+    const MAX_NUMBER_RETRIES = 5
+    let lastDupError: unknown
+    for (let attempt = 0; attempt < MAX_NUMBER_RETRIES; attempt++) {
+      try {
+        return await MembersRepository.create({
+          ...data,
+          numberId: MembersRepository.nextNumber(),
+        })
+      } catch (err) {
+        if (isDuplicateNumberIdError(err)) {
+          lastDupError = err
+          continue
+        }
+        return await withDbErrorMapping(() => { throw err })
+      }
+    }
+    throw lastDupError ?? new Error('会员编号生成失败，请重试')
+  }
+
   // ── 从客户转会员 ──
 
   static async createFromCustomer(input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
@@ -116,10 +139,9 @@ export class MembersService {
       throw new BusinessError(AuthErrorCode.FORBIDDEN, '无权操作该客户')
     }
 
-    // 数据准备
+    // 数据准备（numberId 在重试循环里每次重生成，先不放进 data）
     const data = compact({
       customerId,
-      numberId: await MembersRepository.nextNumber(),
       name: customer.name,
       gender: customer.gender,
       birthday: customer.birthday,
@@ -147,7 +169,7 @@ export class MembersService {
       remark: trimOrNull(memberFields.remark) ?? undefined,
     })
 
-    const member = await withDbErrorMapping(() => MembersRepository.create(data))
+    const member = await MembersService._createWithNumberIdRetry(data)
 
     // Set tags
     if (tagIds?.length) {
@@ -205,7 +227,6 @@ export class MembersService {
     }
 
     const data = compact({
-      numberId: await MembersRepository.nextNumber(),
       name: rest.name,
       gender: rest.gender === undefined ? undefined : Number(rest.gender),
       birthday: parseDateOrThrow(rest.birthday, '生日'),
@@ -233,7 +254,7 @@ export class MembersService {
       remark: trimOrNull(rest.remark) ?? undefined,
     })
 
-    const member = await withDbErrorMapping(() => MembersRepository.create(data))
+    const member = await MembersService._createWithNumberIdRetry(data)
 
     // Set tags
     if (tagIds?.length) {

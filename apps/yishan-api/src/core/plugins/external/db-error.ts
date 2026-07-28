@@ -29,6 +29,17 @@ export const ER_DATA_TOO_LONG = 1406
 export const ER_TRUNCATED_WRONG_VALUE = 1366
 
 /**
+ * 判断一个 error 是否是 number_id 唯一键冲突（crm_customer 或 crm_member_customer）。
+ * 业务编号生成时，6 位 base36 随机有极小生日冲突概率，service 层用此判断做重试。
+ */
+export function isDuplicateNumberIdError(err: unknown): boolean {
+  const e: any = (err as any)?.cause ?? err
+  if (e?.errno !== ER_DUP_ENTRY) return false
+  const sql = String(e?.sqlMessage ?? '')
+  return /number_id|uniq_crm_(customer|member)_number_id/.test(sql)
+}
+
+/**
  * 把 mysql2 / Drizzle 抛出的 error 翻译成业务码。
  * 业务码会经过 error-handler.ts 的 BusinessError 分支直接返回给前端。
  *
@@ -47,6 +58,12 @@ export function translateDbError(err: unknown): never {
       throw new BusinessError(
         ValidationErrorCode.PARAMETER_FORMAT_ERROR,
         '客户编号已存在',
+      )
+    }
+    if (sql.includes('uniq_crm_member_number_id')) {
+      throw new BusinessError(
+        ValidationErrorCode.PARAMETER_FORMAT_ERROR,
+        '会员编号已存在',
       )
     }
     throw new BusinessError(

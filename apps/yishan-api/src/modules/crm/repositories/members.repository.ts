@@ -6,6 +6,7 @@ import {
   crmMemberTag, crmMemberTagRelation, crmFollowUpRecord,
   crmMemberAssignmentHistory, crmCustomer,
 } from '../db/schema.js'
+import { todayYmd, formatBusinessNumber } from './_number-id.js'
 
 const active = (t: any) => isNull(t.deletedAt)
 const page = (q: any, p: any) => p.pageSize === 0 ? q : q.limit(p.pageSize).offset((p.page - 1) * p.pageSize)
@@ -231,12 +232,12 @@ export class MembersRepository {
 
   // ── 会员编号生成 ──
 
-  static async nextNumber() {
-    const [r] = await drizzleDb.select({ id: crmMemberCustomer.id })
-      .from(crmMemberCustomer)
-      .orderBy(desc(crmMemberCustomer.id))
-      .limit(1)
-    return `VIP${String((r?.id ?? 0) + 1).padStart(12, '0')}`
+  // 会员编号生成（CUS + YYYYMMDD + 6 位 base36 随机，与客户共用命名空间）：
+  // - 业务约定：历史 2 行 VIP 测试数据不动。
+  // - 17 字符，daily unique 靠 UNIQUE 索引 + service 层 1062 重试兜底。
+  // 纯函数同步返回——没有 SQL 不需要 async。
+  static nextNumber(): string {
+    return formatBusinessNumber(todayYmd())
   }
 
   // ── 通过手机号查会员 ──

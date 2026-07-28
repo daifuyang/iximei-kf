@@ -207,7 +207,7 @@ const CustomerPage: React.FC = () => {
 
   const columns: ProColumns<any>[] = [
     { title: 'ID', dataIndex: 'id', search: false, width: 72 },
-    { title: '会员编号', dataIndex: 'numberId' },
+    { title: '客户编号', dataIndex: 'numberId' },
     { title: '客户姓名', dataIndex: 'name' },
     { title: '手机', dataIndex: 'mobile', search: false },
     { title: '整形项目', dataIndex: 'plastic', search: false },
@@ -298,11 +298,17 @@ const CustomerPage: React.FC = () => {
             基本信息
           </Divider>
           <Row gutter={24}>
-            <Col xs={24} md={8}>
-              <Form.Item name="numberId" label="会员编号">
-                <Input placeholder="请输入会员编号" />
-              </Form.Item>
-            </Col>
+            {editing && (
+              <Col xs={24} md={8}>
+                <Form.Item
+                  name="numberId"
+                  label="客户编号"
+                  tooltip="客户编号保存后不可修改"
+                >
+                  <Input disabled />
+                </Form.Item>
+              </Col>
+            )}
             <Col xs={24} md={8}>
               <Form.Item name="ownerUserId" label="归属客服">
                 <Select
