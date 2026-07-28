@@ -14,10 +14,10 @@ export const CrmHospitalSearchQuerySchema = Type.Object(
 )
 
 /**
- * 医院档案基础字段（不含账号字段、不含 hospitalName），create / update 共用。
- * update 仅取其中的子集。
+ * 医院档案基础字段（不含账号字段、不含 hospitalName）。
+ * CrmHospitalReqSchema（create）在其之外单独补充 hospitalName，避免改名字段被
+ * CrmHospitalUpdateReqSchema（由本 schema 推导）意外暴露。
  *
- * 严格按 STRICT-SPEC §6.2：hospitalName 完全不出现在 DTO 与 Service 白名单中。
  * 改名走独立 POST /hospitals/:id/rename 接口，由 crm:hospitals:rename 权限保护。
  */
 const CrmHospitalFieldsSchema = Type.Object(
@@ -54,10 +54,15 @@ const CrmHospitalFieldsSchema = Type.Object(
 /**
  * 创建医院：医院档案 + 唯一账号字段。
  * 服务端忽略任何由客户端传来的 username / accountUserId；用户名固定取 hospitalName。
+ *
+ * hospitalName 在 CrmHospitalFieldsSchema 之外单独声明，是为了避免 UPDATE schema
+ * （CrmHospitalUpdateReqSchema 由 CrmHospitalFieldsSchema 推导）意外暴露改名字段。
+ * 改名走独立 POST /hospitals/:id/rename 接口。
  */
 export const CrmHospitalReqSchema = Type.Object(
   {
     ...CrmHospitalFieldsSchema.properties,
+    hospitalName: Type.String({ minLength: 1, maxLength: 50 }),
     accountPassword: Type.String({ minLength: 8, maxLength: 128 }),
     accountEmail: Type.Optional(Type.String({ format: 'email', maxLength: 100 })),
     accountPhone: Type.Optional(Type.String({ maxLength: 20 })),
