@@ -1,6 +1,6 @@
 // Generated from drizzle/*.sql. Do not edit manually.
 import { relations } from 'drizzle-orm'
-import { sysApiToken, sysApp, sysAppMenu, sysAppResource, sysAttachment, sysAttachmentFolder, sysDept, sysDictData, sysDictType, sysFormData, sysFormField, sysLoginLog, sysMenu, sysMenuPermission, sysModule, sysModuleMigration, sysOption, sysPlugin, sysPluginConfigSnapshot, sysPluginInstall, sysPluginSyncLog, sysPluginVersion, sysPost, sysRole, sysRoleMenu, sysRolePermission, sysUser, sysUserDept, sysUserRole, sysUserToken } from './tables'
+import { sysApiToken, sysApp, sysAppMenu, sysAppResource, sysAttachment, sysAttachmentFolder, sysDept, sysDictData, sysDictType, sysFormData, sysFormField, sysLoginLog, sysMenu, sysMenuPermission, sysModule, sysModuleMigration, sysOption, sysPlugin, sysPluginConfigSnapshot, sysPluginInstall, sysPluginSyncLog, sysPluginVersion, sysPost, sysRole, sysRoleDept, sysRoleMenu, sysRolePermission, sysUser, sysUserDept, sysUserRole, sysUserToken } from './tables'
 
 export const sysAppRelations = relations(sysApp, ({ one, many }) => ({
   creator: one(sysUser, { fields: [sysApp.creatorId], references: [sysUser.id], relationName: 'sysApp_creatorId' }),
@@ -101,7 +101,13 @@ export const sysRoleRelations = relations(sysRole, ({ one, many }) => ({
   updater: one(sysUser, { fields: [sysRole.updaterId], references: [sysUser.id], relationName: 'sysRole_updaterId' }),
   sysUserRole_role_id: many(sysUserRole, { relationName: 'sysUserRole_roleId' }),
   sysRoleMenu_role_id: many(sysRoleMenu, { relationName: 'sysRoleMenu_roleId' }),
+  sysRoleDept_role_id: many(sysRoleDept, { relationName: 'sysRoleDept_roleId' }),
   sysRolePermission_role_id: many(sysRolePermission, { relationName: 'sysRolePermission_roleId' })
+}))
+
+export const sysRoleDeptRelations = relations(sysRoleDept, ({ one }) => ({
+  roleId: one(sysRole, { fields: [sysRoleDept.roleId], references: [sysRole.id], relationName: 'sysRoleDept_roleId' }),
+  deptId: one(sysDept, { fields: [sysRoleDept.deptId], references: [sysDept.id], relationName: 'sysRoleDept_deptId' }),
 }))
 
 export const sysUserRoleRelations = relations(sysUserRole, ({ one, many }) => ({
@@ -120,6 +126,7 @@ export const sysDeptRelations = relations(sysDept, ({ one, many }) => ({
   creator: one(sysUser, { fields: [sysDept.creatorId], references: [sysUser.id], relationName: 'sysDept_creatorId' }),
   updater: one(sysUser, { fields: [sysDept.updaterId], references: [sysUser.id], relationName: 'sysDept_updaterId' }),
   sysUserDept_dept_id: many(sysUserDept, { relationName: 'sysUserDept_deptId' }),
+  sysRoleDept_dept_id: many(sysRoleDept, { relationName: 'sysRoleDept_deptId' }),
   children: many(sysDept, { relationName: 'sysDept_parentId' })
 }))
 
@@ -213,4 +220,3 @@ export const sysModuleRelations = relations(sysModule, ({ many }) => ({
 export const sysModuleMigrationRelations = relations(sysModuleMigration, ({ one }) => ({
   moduleId: one(sysModule, { fields: [sysModuleMigration.moduleId], references: [sysModule.id], relationName: 'sysModuleMigration_moduleId' })
 }))
-

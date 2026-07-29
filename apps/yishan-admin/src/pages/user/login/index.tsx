@@ -1,10 +1,9 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
-import { useIntl, useModel, FormattedMessage } from "@umijs/max";
+import { useIntl, FormattedMessage } from "@umijs/max";
 import { Alert, App, Button, Checkbox, Form, Input } from "antd";
 import { createStyles } from "antd-style";
 import React, { useState } from "react";
-import { flushSync } from "react-dom";
-import { login as userLogin, getCurrentUser } from "@/services/generated/auth";
+import { login as userLogin } from "@/services/generated/auth";
 import { saveTokens } from "@/utils/token";
 import loginBgImage from "@public/images/login-bg.png";
 import loginBrandImage from "@public/images/login-brand.png";
@@ -105,6 +104,15 @@ const useStyles = createStyles(({ css }) => {
         font-weight: 400;
       }
     `,
+    loginField: css`
+      margin-bottom: 20px;
+
+      .ant-form-item-explain-error {
+        margin-top: 6px;
+        font-size: 13px;
+        line-height: 20px;
+      }
+    `,
     loginItemIcon: {
       fontSize: "24px",
       color: "rgba(28, 53, 145, 0.6)",
@@ -172,49 +180,9 @@ const LoginMessage: React.FC<{
 const Login: React.FC = () => {
   const [loginError, setLoginError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const { setInitialState } = useModel("@@initialState");
   const { styles } = useStyles();
   const { message } = App.useApp();
   const intl = useIntl();
-
-  const fetchUserInfo = async () => {
-    try {
-      // 检查是否已经通过登录接口获取了用户信息
-      const cachedUserInfo = localStorage.getItem("currentUser");
-      if (cachedUserInfo) {
-        try {
-          const userData = JSON.parse(cachedUserInfo);
-          flushSync(() => {
-            setInitialState((s) => ({
-              ...s,
-              currentUser: userData,
-            }));
-          });
-          // 清理缓存的用户信息
-          localStorage.removeItem("currentUser");
-          return userData;
-        } catch (error) {
-          console.warn("解析缓存用户信息失败:", error);
-          localStorage.removeItem("currentUser");
-        }
-      }
-
-      // 标准流程：通过用户信息接口获取
-      const response = await getCurrentUser();
-      if (response.success && response.data) {
-        flushSync(() => {
-          setInitialState((s) => ({
-            ...s,
-            currentUser: response.data,
-          }));
-        });
-        return response.data;
-      }
-      return null;
-    } catch (_error) {
-      return null;
-    }
-  };
 
   const resolveRedirectAfterLogin = () => {
     const redirect = new URL(window.location.href).searchParams.get("redirect");
@@ -267,7 +235,7 @@ const Login: React.FC = () => {
           });
         }
 
-        await fetchUserInfo();
+        // 整页跳转后由 getInitialState 统一获取当前用户，避免重复请求 /auth/me。
         hardRedirectAfterLogin(resolveRedirectAfterLogin());
         return;
       }
@@ -315,6 +283,8 @@ const Login: React.FC = () => {
             {loginError && <LoginMessage content={loginError} />}
             <Form.Item
               name="username"
+              className={styles.loginField}
+              validateFirst
               rules={[
                 {
                   required: true,
@@ -325,9 +295,8 @@ const Login: React.FC = () => {
                 },
                 {
                   validator: (_, value) => {
-                    if (!value) {
-                      return Promise.reject(new Error("请输入用户名"));
-                    }
+                    // 空值由 required 规则负责，避免与长度校验同时显示两条错误提示。
+                    if (!value) return Promise.resolve();
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (value.length < 3 && !emailRegex.test(value)) {
                       return Promise.reject(new Error("用户名至少需要3个字符"));
@@ -349,6 +318,8 @@ const Login: React.FC = () => {
             </Form.Item>
             <Form.Item
               name="password"
+              className={styles.loginField}
+              validateFirst
               rules={[
                 {
                   required: true,

@@ -59,7 +59,9 @@ export async function bindRoleMenusByDefault(db: SeedDb) {
   });
 
   const menus = await listAllMenuPaths(db);
-  const accountMenuIds = menus.filter((m) => m.path.startsWith('/account')).map((m) => m.id);
+  const accountMenuIds = menus
+    .filter((m) => m.path === '/account' || m.path.startsWith('/account/center'))
+    .map((m) => m.id);
   const allMenuIds = menus.map((m) => m.id);
 
   // 普通管理员: fork 业务下"不配置 CRM 权限" → 菜单只保 account
@@ -75,7 +77,6 @@ export async function bindRoleMenusByDefault(db: SeedDb) {
     .filter((m) =>
       m.path.startsWith('/crm/customers') ||
       m.path.startsWith('/crm/dispatches') ||
-      m.path.startsWith('/crm/members') ||
       m.path === '/crm' ||
       m.path.startsWith('/account'),
     )

@@ -1590,12 +1590,14 @@ declare namespace API {
     description?: string;
     /** 状态（0-禁用，1-启用） */
     status?: "0" | "1";
-    /** 数据权限范围（1-全部数据，2-本部门数据，3-本部门及子部门数据，4-仅本人数据，5-自定义数据） */
+    /** 数据权限范围（1-全部数据，2-自定义数据，3-本部门数据，4-本部门及子部门数据，5-仅本人数据） */
     dataScope?: "1" | "2" | "3" | "4" | "5";
     /** 菜单ID列表 */
     menuIds?: number[];
     /** 后端功能/API 权限码列表 */
     permissionCodes?: string[];
+    /** 自定义数据范围的部门ID列表，仅 dataScope=2 生效 */
+    deptIds?: number[];
   };
 
   type searchCrmHospitalsParams = {
@@ -1953,7 +1955,7 @@ declare namespace API {
     description?: string;
     /** 状态（0-禁用，1-启用） */
     status: "0" | "1";
-    /** 数据权限范围（1-全部数据，2-本部门数据，3-本部门及子部门数据，4-仅本人数据，5-自定义数据） */
+    /** 数据权限范围（1-全部数据，2-自定义数据，3-本部门数据，4-本部门及子部门数据，5-仅本人数据） */
     dataScope: "1" | "2" | "3" | "4" | "5";
     /** 是否系统默认角色 */
     isSystemDefault?: boolean;
@@ -1969,6 +1971,8 @@ declare namespace API {
     updaterName?: string;
     /** 更新时间 */
     updatedAt: string;
+    /** 自定义数据范围的部门ID列表 */
+    deptIds?: number[];
     /** 菜单ID列表 */
     menuIds?: number[];
     /** 后端功能/API 权限码列表 */

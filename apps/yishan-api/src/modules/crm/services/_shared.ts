@@ -11,7 +11,7 @@ export const sanitizeDispatchReplies=(dispatch:any)=>({...dispatch,replies:dispa
 export function normalizeContractPhotos(v:unknown){if(v===undefined)return undefined;if(v===null||v==='')return null;if(typeof v==='string'){try{return JSON.parse(v)}catch{return [{url:v,name:''}]}}return v}
 
 /**
- * 全局查看权：sys_user.role.code ∈ { super_admin, admin } 视为看全部。
+ * 全局查看权：系统内置的超级管理员和普通管理员角色视为看全部。
  * 其他角色只看到自己 ownerUserId 的数据行（典型：客服只看自己添加的会员顾客）。
  *
  * 接收 fastify 实例而不是 req——crm service 不依赖 fastify 类型，

@@ -22,7 +22,7 @@ const SysRoleSchema = Type.Object(
     dataScope: Type.String({
       enum: ["1", "2", "3", "4", "5"],
       description:
-        "数据权限范围（1-全部数据，2-本部门数据，3-本部门及子部门数据，4-仅本人数据，5-自定义数据）",
+        "数据权限范围（1-全部数据，2-自定义数据，3-本部门数据，4-本部门及子部门数据，5-仅本人数据）",
       example: "1",
     }),
     isSystemDefault: Type.Optional(
@@ -36,6 +36,7 @@ const SysRoleSchema = Type.Object(
     updatedAt: Type.String({ format: "date-time", description: "更新时间" }),
     menuIds: Type.Optional(Type.Array(Type.Number(), { description: "菜单ID列表" })),
     permissionCodes: Type.Optional(Type.Array(Type.String(), { description: "后端功能/API 权限码列表" })),
+    deptIds: Type.Optional(Type.Array(Type.Number(), { description: "自定义数据范围的部门ID列表，仅 dataScope=2 生效" })),
   },
   { $id: "sysRole" }
 );
@@ -63,11 +64,12 @@ const SaveRoleReqSchema = Type.Object(
       Type.String({
         enum: ["1", "2", "3", "4", "5"],
         description:
-          "数据权限范围（1-全部数据，2-本部门数据，3-本部门及子部门数据，4-仅本人数据，5-自定义数据）",
+          "数据权限范围（1-全部数据，2-自定义数据，3-本部门数据，4-本部门及子部门数据，5-仅本人数据）",
       })
     ),
     menuIds: Type.Optional(Type.Array(Type.Number(), { description: "菜单ID列表" })),
     permissionCodes: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 128 }), { description: "后端功能/API 权限码列表" })),
+    deptIds: Type.Optional(Type.Array(Type.Number({ minimum: 1 }), { description: "自定义数据范围的部门ID列表，仅 dataScope=2 生效" })),
   },
   { $id: "saveRoleReq" }
 );

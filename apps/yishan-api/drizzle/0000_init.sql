@@ -129,6 +129,7 @@ CREATE TABLE `sys_dept` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`name` varchar(100) NOT NULL,
 	`parent_id` int,
+	`ancestors` varchar(500) NOT NULL DEFAULT '',
 	`status` tinyint NOT NULL DEFAULT 1,
 	`sort_order` int NOT NULL DEFAULT 0,
 	`description` varchar(255),
@@ -425,6 +426,17 @@ CREATE TABLE `sys_role_menu` (
 	CONSTRAINT `uniq_role_menu` UNIQUE(`role_id`,`menu_id`)
 );
 --> statement-breakpoint
+CREATE TABLE `sys_role_dept` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`role_id` int NOT NULL,
+	`dept_id` int NOT NULL,
+	`created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+	`updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+	`deleted_at` datetime,
+	CONSTRAINT `sys_role_dept_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uniq_role_dept` UNIQUE(`role_id`,`dept_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `sys_role_permission` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`role_id` int NOT NULL,
@@ -627,6 +639,8 @@ CREATE INDEX `idx_role_deleted_at` ON `sys_role` (`deleted_at`);--> statement-br
 CREATE INDEX `sys_role_creator_id_idx` ON `sys_role` (`creator_id`);--> statement-breakpoint
 CREATE INDEX `sys_role_updater_id_idx` ON `sys_role` (`updater_id`);--> statement-breakpoint
 CREATE INDEX `idx_role_menu_role_id` ON `sys_role_menu` (`role_id`);--> statement-breakpoint
+CREATE INDEX `idx_role_dept_role_id` ON `sys_role_dept` (`role_id`);--> statement-breakpoint
+CREATE INDEX `idx_role_dept_dept_id` ON `sys_role_dept` (`dept_id`);--> statement-breakpoint
 CREATE INDEX `idx_role_menu_menu_id` ON `sys_role_menu` (`menu_id`);--> statement-breakpoint
 CREATE INDEX `idx_role_permission_role_id` ON `sys_role_permission` (`role_id`);--> statement-breakpoint
 CREATE INDEX `idx_role_permission_code` ON `sys_role_permission` (`permission_code`);--> statement-breakpoint

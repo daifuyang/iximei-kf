@@ -1,4 +1,4 @@
-import { batchGetSystemOptionByQuery, getQiniuUploadToken } from "@/services/generated/system";
+import { getStorageBootstrapOptions, getQiniuUploadToken } from "@/services/generated/system";
 import { createCloudAttachment, uploadAttachments } from "@/services/generated/attachments";
 import type { Attachment, AttachmentKind, UploadAttachmentsResp } from "@/types/sdk";
 
@@ -21,9 +21,7 @@ export const fetchCloudStorageConfig = async (options?: { force?: boolean }): Pr
   }
 
   try {
-    const res = await batchGetSystemOptionByQuery({
-      "key[]": ["systemStorage", "qiniuConfig", "aliyunOssConfig"],
-    });
+    const res = await getStorageBootstrapOptions();
     const results = res.data?.results || [];
     const map = results.reduce<Record<string, string | null>>((acc, item) => {
       if (item?.key) acc[String(item.key)] = item.value ?? null;
@@ -178,4 +176,3 @@ export const normalizeAttachmentStoredValue = (value: string, cfg?: CloudStorage
   const rest = urlNoProto.slice(domainNoProto.length);
   return rest.replace(/^\/+/, "");
 };
-

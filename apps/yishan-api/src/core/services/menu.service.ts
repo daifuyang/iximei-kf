@@ -301,7 +301,7 @@ export class MenuService {
   }
 
   /**
-   * 判定一组角色中是否包含 super_admin（基于 role.code，禁止使用数据库角色 ID）。
+   * 判定一组角色中是否包含超级管理员角色（基于固定角色 ID）。
    */
   private static async hasSuperAdminRole(roleIds: number[]): Promise<boolean> {
     if (roleIds.length === 0) return false;

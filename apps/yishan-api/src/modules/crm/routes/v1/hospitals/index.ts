@@ -89,10 +89,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
   route.get(
     '/hospitals/search/options',
     {
-      access: { permission: PERMS.HOSPITAL_LIST },
+      access: { permission: PERMS.HOSPITAL_OPTIONS },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '医院搜索（前端下拉）',
+        summary: '派单医院搜索（前端下拉）',
         operationId: 'searchCrmHospitals',
         querystring: CrmHospitalSearchQuerySchema,
       },

@@ -16,6 +16,7 @@ import {
 import { useModel } from '@umijs/max';
 import type { DataNode } from 'antd/es/tree';
 import { getMenuTree } from '@/services/generated/sysMenus';
+import { getDeptTree } from '@/services/generated/sysDepts';
 import {
   createRole,
   getRoleDetail,
@@ -31,14 +32,18 @@ export interface RoleFormProps {
 
 const DATA_SCOPE_OPTIONS = [
   { label: '全部数据', value: '1' },
-  { label: '本部门数据', value: '2' },
-  { label: '本部门及子部门数据', value: '3' },
-  { label: '仅本人数据', value: '4' },
-  { label: '自定义数据', value: '5' },
+  { label: '自定义数据', value: '2' },
+  { label: '本部门数据', value: '3' },
+  { label: '本部门及子部门数据', value: '4' },
+  { label: '仅本人数据', value: '5' },
 ];
 
 function flattenMenuTree(nodes: API.menuTreeNode[]): API.menuTreeNode[] {
   return nodes.flatMap((node) => [node, ...flattenMenuTree(node.children || [])]);
+}
+
+function flattenDeptTree(nodes: API.deptTreeNode[]): API.deptTreeNode[] {
+  return nodes.flatMap((node) => [node, ...flattenDeptTree(node.children || [])]);
 }
 
 interface MenuAuthorizationTitleProps {
@@ -59,6 +64,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
   const [activeTab, setActiveTab] = useState('basic');
   const [menuTreeLoading, setMenuTreeLoading] = useState(false);
   const [menuTree, setMenuTree] = useState<API.menuTreeNode[]>([]);
+  const [deptOptions, setDeptOptions] = useState<Array<{ label: string; value: number }>>([]);
   const [checkedMenuKeys, setCheckedMenuKeys] = useState<React.Key[]>([]);
   const [expandedMenuKeys, setExpandedMenuKeys] = useState<React.Key[]>([]);
   const [expandAll, setExpandAll] = useState(true);
@@ -207,6 +213,13 @@ const RoleForm: React.FC<RoleFormProps> = ({
       setMenuTreeLoading(false);
     }
   };
+  const fetchDeptOptions = async () => {
+    const response = await getDeptTree();
+    setDeptOptions(flattenDeptTree(response.data || []).map((dept) => ({
+      label: dept.name,
+      value: dept.id,
+    })));
+  };
   const fetchRoleDetail = async (id: number) => {
     const response = await getRoleDetail({ id });
     if (!response.success || !response.data) return;
@@ -225,6 +238,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
     }
     await Promise.all([
       fetchMenuTree(),
+      fetchDeptOptions(),
       initialValues.id
         ? fetchRoleDetail(Number(initialValues.id))
         : Promise.resolve(),
@@ -256,6 +270,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
             (id) => menuNodeById.get(id)?.type !== 2,
           ),
           permissionCodes: checkedPermissionCodes,
+          deptIds: values.dataScope === '2' ? values.deptIds : [],
         };
         const response = initialValues.id
           ? await updateRole(
@@ -295,6 +310,13 @@ const RoleForm: React.FC<RoleFormProps> = ({
                   label="数据权限"
                   options={DATA_SCOPE_OPTIONS}
                   rules={[{ required: true, message: '请选择数据权限' }]}
+                />
+                <ProFormSelect
+                  name="deptIds"
+                  label="自定义数据部门"
+                  mode="multiple"
+                  options={deptOptions}
+                  tooltip="仅数据权限为“自定义数据”时生效；勾选部门内人员负责的数据可见。"
                 />
                 <ProFormTextArea
                   name="description"

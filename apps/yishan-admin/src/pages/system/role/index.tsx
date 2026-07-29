@@ -22,10 +22,10 @@ const IsSystem = {
 
 const dataScopeOptions = [
   { label: '全部数据', value: '1' },
-  { label: '本部门数据', value: '2' },
-  { label: '本部门及子部门数据', value: '3' },
-  { label: '仅本人数据', value: '4' },
-  { label: '自定义数据', value: '5' },
+  { label: '自定义数据', value: '2' },
+  { label: '本部门数据', value: '3' },
+  { label: '本部门及子部门数据', value: '4' },
+  { label: '仅本人数据', value: '5' },
 ] as const;
 
 const SystemRoleTag: React.FC<{ isSystem?: number }> = ({ isSystem }) => {

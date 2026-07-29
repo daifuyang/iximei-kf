@@ -55,6 +55,7 @@ export class RoleService {
       dataScope: req.dataScope ? parseInt(req.dataScope, 10) : 1,
       menuIds: req.menuIds,
       permissionCodes: req.permissionCodes,
+      deptIds: req.deptIds,
       creatorId: operatorId,
       updaterId: operatorId,
     };
@@ -87,6 +88,7 @@ export class RoleService {
     if (req.dataScope !== undefined) input.dataScope = parseInt(req.dataScope, 10);
     if (req.menuIds !== undefined) input.menuIds = req.menuIds;
     if (req.permissionCodes !== undefined) input.permissionCodes = req.permissionCodes;
+    if (req.deptIds !== undefined) input.deptIds = req.deptIds;
 
     const role = await dbManager.transaction((tx) => RoleRepository.update(id, input, tx));
     // menuIds 变更直接影响该角色的权限集合；status 变更影响 disabled 过滤。

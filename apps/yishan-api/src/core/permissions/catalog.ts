@@ -55,7 +55,7 @@ export const listPermissions = (): ReadonlyArray<PermissionRef> =>
  *
  * 子集语义：
  *   - 仅认证身份即可（仍要求 request.currentUser，由 route handler 自校验）：
- *     'auth:profile'、'auth:logout' —— 已登录用户应能获取自己的会话 / 撤销自己的会话，
+ *     'auth:profile'、'auth:logout'、后台菜单树、启用字典映射 —— 已登录用户应能获取自己的会话 / 撤销自己的会话，
  *     不该被某个菜单的 perm 字段绑定所限制。
  *   - 完全 public（不挂 authenticate，也不挂 requirePermission）：
  *     'auth:login'、'auth:refresh'、'system:cron'、'system:health'、'system:options:public'
@@ -70,6 +70,9 @@ export const BYPASS_CODES: ReadonlySet<string> = Object.freeze(
     'auth:refresh',
     'auth:profile',
     'auth:logout',
+    'system:menu:authorized',
+    'system:dict:map',
+    'system:option:bootstrap',
     'system:cron',
     'system:health',
     'system:options:public',

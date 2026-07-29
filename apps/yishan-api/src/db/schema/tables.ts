@@ -366,6 +366,8 @@ export const sysDept = mysqlTable(
   id: int('id').primaryKey().autoincrement().notNull(),
   name: varchar('name', { length: 100 }).notNull(),
   parentId: int('parent_id'),
+  /** RuoYi-compatible materialized path, e.g. `0,1,12`. */
+  ancestors: varchar('ancestors', { length: 500 }).notNull().default(''),
   status: tinyint('status').notNull().default(1),
   sortOrder: int('sort_order').notNull().default(0),
   description: varchar('description', { length: 255 }),
@@ -482,6 +484,24 @@ export const sysRoleMenu = mysqlTable(
     idxRoleMenuMenuId: index('idx_role_menu_menu_id').on(t.menuId),
     uniqRoleMenu: uniqueIndex('uniq_role_menu').on(t.roleId, t.menuId),
   })
+)
+
+/** 角色自定义数据范围：角色可访问的部门集合。 */
+export const sysRoleDept = mysqlTable(
+  'sys_role_dept',
+  {
+    id: int('id').primaryKey().autoincrement().notNull(),
+    roleId: int('role_id').notNull(),
+    deptId: int('dept_id').notNull(),
+    createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+    updatedAt: datetime('updated_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+    deletedAt: datetime('deleted_at', { mode: 'date' }),
+  },
+  (t) => ({
+    idxRoleDeptRoleId: index('idx_role_dept_role_id').on(t.roleId),
+    idxRoleDeptDeptId: index('idx_role_dept_dept_id').on(t.deptId),
+    uniqRoleDept: uniqueIndex('uniq_role_dept').on(t.roleId, t.deptId),
+  }),
 )
 
 export const sysRolePermission = mysqlTable(

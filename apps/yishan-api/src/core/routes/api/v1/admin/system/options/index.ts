@@ -9,13 +9,43 @@ import {
 import { registerPermissions, type PermissionRef } from '../../../../../../permissions/catalog.js';
 
 const PERMS: { readonly [k: string]: PermissionRef } = Object.freeze({
-  LIST:   { code: 'system:option:list',   label: '系统选项-列表', group: 'system' },
-  UPDATE: { code: 'system:option:update', label: '系统选项-更新', group: 'system' },
+  LIST:      { code: 'system:option:list',      label: '系统选项-列表', group: 'system' },
+  BOOTSTRAP: { code: 'system:option:bootstrap', label: '存储配置启动读取', group: 'system' },
+  UPDATE:    { code: 'system:option:update',    label: '系统选项-更新', group: 'system' },
 });
 registerPermissions(...Object.values(PERMS));
 
+/** 前端上传组件启动所需的非敏感配置；禁止由客户端自行扩展 key。 */
+const STORAGE_BOOTSTRAP_KEYS = ['systemStorage', 'qiniuConfig', 'aliyunOssConfig'] as const;
+
 const adminSystemOptions: FastifyPluginAsync = async (fastify) => {
   const route = createRouteRegistrar(fastify);
+  // 登录后基础配置：仅返回上传功能需要的白名单项，qiniu secretKey 由 service 脱敏。
+  // 不复用 /query，避免普通角色借由任意 key 读取系统配置。
+  route.get(
+    "/bootstrap",
+    {
+      access: { permission: PERMS.BOOTSTRAP },
+      schema: {
+        summary: "获取存储启动配置",
+        description: "返回已脱敏的上传存储配置，仅供登录后客户端初始化使用",
+        operationId: "getStorageBootstrapOptions",
+        tags: ["system"],
+        security: [{ bearerAuth: [] }],
+        response: { 200: { $ref: "batchGetSystemOptionResp#" } },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const map = await SystemOptionService.getOptionsPublic([...STORAGE_BOOTSTRAP_KEYS]);
+      const results = STORAGE_BOOTSTRAP_KEYS.map((key) => ({ key, value: map[key] ?? null }));
+      const message = getSystemMessage(
+        SystemMessageKeys.SYSTEM_OPTION_GET_SUCCESS,
+        request.headers["accept-language"] as string,
+      );
+      return ResponseUtil.success(reply, { results }, message);
+    },
+  );
+
   // 获取系统参数
   route.get(
     "/:key",

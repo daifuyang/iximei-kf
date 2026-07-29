@@ -16,8 +16,8 @@ import {
   parseDateOrThrow,
 } from '../_validation.js'
 
-/** owner 字段过滤：SELF 限定,其它档位(ALL)保留全量。CRM 各 entity 用 ownerUserId 做隔离。 */
-function ownerScopeFor(scope: DataScopeCode, userId: number): number | undefined {
+/** 客服“本人数据”以录入人 creatorId 判断，不受后续归属转交影响。 */
+function creatorScopeFor(scope: DataScopeCode, userId: number): number | undefined {
   if (scope === DATA_SCOPE.SELF) return userId
   return undefined
 }
@@ -30,14 +30,14 @@ export class CustomersService {
 
   static async list(q: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const p = pageArgs(q)
-    const ownerUserId = ownerScopeFor(scope, userId)
-    return { ...(await CustomersRepository.list({ ...q, ...p, ownerUserId })), ...p }
+    const creatorUserId = creatorScopeFor(scope, userId)
+    return { ...(await CustomersRepository.list({ ...q, ...p, creatorUserId })), ...p }
   }
 
   static async getById(id: number, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL, includeDispatches = true) {
     const r: any = await CustomersRepository.findById(id, includeDispatches)
     if (!r) return null
-    if (ownerScopeFor(scope, userId) === userId && r.ownerUserId !== userId) return null
+    if (creatorScopeFor(scope, userId) === userId && r.creatorId !== userId) return null
     return r
   }
 

@@ -10,26 +10,17 @@ const page = (q: any, p: any) =>
 export class DispatchesRepository {
   /**
    * q 支持的字段:
-   *   statusId, hospitalIds, customerOwnerUserIds, startTime, endTime, keyword,
+   *   statusId, hospitalIds, creatorUserIds, startTime, endTime, keyword,
    *   page, pageSize（分页）,
    *
-   * - customerOwnerUserIds: 在 WHERE 上注入 `customer_id IN (...customerId where owner = ?)`，
-   *   用于客服 SELF 隔离（只看到自己添加的客户的派单）。
+   * - creatorUserIds: 客服只能查看自己创建的派单。
    */
   static async list(q: any) {
     const c: any[] = [active(crmDispatch)]
 
     if (q.statusId) c.push(eq(crmDispatch.statusId, q.statusId))
     if (q.hospitalIds?.length) c.push(inArray(crmDispatch.hospitalId, q.hospitalIds))
-    if (q.customerOwnerUserIds?.length) {
-      // 先取这些 owner 创建的 customerId,再把 dispatch 限定到这些 customer
-      const customerIds = await drizzleDb
-        .select({ id: crmCustomer.id })
-        .from(crmCustomer)
-        .where(and(active(crmCustomer), inArray(crmCustomer.ownerUserId, q.customerOwnerUserIds)))
-      const ids = customerIds.map((x) => x.id)
-      c.push(ids.length ? inArray(crmDispatch.customerId, ids) : eq(crmDispatch.id, -1))
-    }
+    if (q.creatorUserIds?.length) c.push(inArray(crmDispatch.creatorId, q.creatorUserIds))
     if (q.startTime) c.push(gte(crmDispatch.createdAt, new Date(q.startTime)))
     if (q.endTime) c.push(lte(crmDispatch.createdAt, new Date(q.endTime)))
     if (q.keyword) {

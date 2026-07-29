@@ -89,9 +89,12 @@ const HospitalPage: React.FC = () => {
   const { message: antMessage, modal } = App.useApp();
   // STRICT-SPEC §4.1 / §7.3 / §7.4：基于权限码判断，不依赖 roleCodes 字符串。
   const { initialState } = useModel('@@initialState');
-  const canRenameHospital =
-    initialState?.currentUser?.permissions?.includes('crm:hospitals:rename') ??
-    false;
+  const perms = initialState?.currentUser?.permissions ?? [];
+  // super_admin 用 sentinel '__super_admin__' 短路；其他角色按权限码判定。
+  const hasPerm = (code: string) => perms.includes('__super_admin__') || perms.includes(code);
+  const canRenameHospital = hasPerm('crm:hospitals:rename');
+  const canCreateHospital = hasPerm('crm:hospitals:create');
+  const canDeleteHospital = hasPerm('crm:hospitals:delete');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>();
   const [form] = Form.useForm();
@@ -330,17 +333,19 @@ const HospitalPage: React.FC = () => {
           <a key="edit" onClick={() => showForm(record)}>
             编辑
           </a>
-          <Popconfirm
-            key="delete"
-            title="确定删除该医院吗？将同时禁用账号并撤销 Token。"
-            onConfirm={async () => {
-              const res = await deleteHospital(record.id);
-              if (res.success) antMessage.success(res.message);
-              actionRef.current?.reload();
-            }}
-          >
-            <a style={{ color: '#ff4d4f' }}>删除</a>
-          </Popconfirm>
+          {canDeleteHospital && (
+            <Popconfirm
+              key="delete"
+              title="确定删除该医院吗？将同时禁用账号并撤销 Token。"
+              onConfirm={async () => {
+                const res = await deleteHospital(record.id);
+                if (res.success) antMessage.success(res.message);
+                actionRef.current?.reload();
+              }}
+            >
+              <a style={{ color: '#ff4d4f' }}>删除</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -367,16 +372,20 @@ const HospitalPage: React.FC = () => {
           };
         }}
         columns={columns}
-        toolBarRender={() => [
-          <Button
-            key="new"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => showForm()}
-          >
-            新建
-          </Button>,
-        ]}
+        toolBarRender={() =>
+          canCreateHospital
+            ? [
+                <Button
+                  key="new"
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => showForm()}
+                >
+                  新建
+                </Button>,
+              ]
+            : []
+        }
       />
 
       {/* 医院档案：新建 / 编辑 */}

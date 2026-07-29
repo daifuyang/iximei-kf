@@ -126,7 +126,7 @@ async function main() {
         return_point,create_time,update_time,openid,status FROM hj_hospital ORDER BY id`),
       q<OldUserRef>(src, 'SELECT id oldId,user_login userLogin,user_pass userPass,hospital_id hospitalId FROM hj_user'),
       q<OldCustom>(src, `SELECT id,number_id,name,birthday,customer_userid,plastic,gender,
-        province,city,district,address,telphone,mobile,qq,wechat,create_time,update_time,status
+        province,city,district,address,telphone,mobile,qq,wechat,remark,create_time,update_time,status
         FROM hj_custom ORDER BY id`),
       q<OldDispatch>(src, `SELECT id,custom_id,hospital_id,receive_qq,receive_wechat,
         create_time,finsh_time,status,image FROM hj_dispatch ORDER BY id`),

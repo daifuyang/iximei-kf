@@ -20,13 +20,13 @@ import { ROLE_IDS } from '@/constants/permission-codes.js'
 async function dispatchFilters(
   roleIds: ReadonlyArray<number>,
   userId: number,
-): Promise<{ hospitalIds?: number[]; customerOwnerUserIds?: number[] }> {
+): Promise<{ hospitalIds?: number[]; creatorUserIds?: number[] }> {
   if (roleIds.includes(ROLE_IDS.SUPER_ADMIN)) return {}
   if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
     const ids = await HospitalsRepository.accessibleHospitalIds(userId)
     return { hospitalIds: ids.map((x: any) => x.hospitalId) }
   }
-  return { customerOwnerUserIds: [userId] }
+  return { creatorUserIds: [userId] }
 }
 
 export class DispatchesService {
@@ -59,10 +59,7 @@ export class DispatchesService {
       const ids = (await HospitalsRepository.accessibleHospitalIds(userId)).map((x: any) => x.hospitalId)
       if (!ids.includes(d.hospitalId)) return null
     } else {
-      // 客服/默认 SELF:检查派单对应的客户 owner 是不是自己
-      const customer: any = await CustomersRepository.findById(d.customerId, false)
-      const ownerOfCustomer = customer?.ownerUserId
-      if (ownerOfCustomer !== userId && scope === DATA_SCOPE.SELF) return null
+      if (d.creatorId !== userId && scope === DATA_SCOPE.SELF) return null
     }
     return sanitizeDispatchReplies(d)
   }

@@ -98,6 +98,14 @@ export async function batchGetSystemOptionByQuery(
   );
 }
 
+/** 获取上传存储启动配置 登录后获取已脱敏的存储配置 GET /api/v1/admin/system/options/bootstrap */
+export async function getStorageBootstrapOptions(options?: { [key: string]: any }) {
+  return request<API.batchGetSystemOptionResp>("/api/v1/admin/system/options/bootstrap", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
 /** 获取七牛云上传临时凭证 根据七牛云官方文档生成上传凭证（uptoken） GET /api/v1/admin/system/qiniu/token */
 export async function getQiniuUploadToken(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)

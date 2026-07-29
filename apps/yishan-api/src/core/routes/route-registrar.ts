@@ -29,6 +29,11 @@ const AUTH_ONLY_CODES: ReadonlySet<string> = Object.freeze(
   new Set([
     'auth:profile',
     'auth:logout',
+    // 后台启动基建：必须确认调用方已登录，但返回内容已按当前会话过滤，
+    // 不应要求每个业务角色额外配置一条基础权限。
+    'system:menu:authorized',
+    'system:dict:map',
+    'system:option:bootstrap',
   ]),
 );
 

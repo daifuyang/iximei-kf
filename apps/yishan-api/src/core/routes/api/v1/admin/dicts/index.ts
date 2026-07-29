@@ -18,6 +18,7 @@ import { registerPermissions, type PermissionRef } from '../../../../../permissi
 
 const PERMS: { readonly [k: string]: PermissionRef } = Object.freeze({
   LIST:   { code: 'system:dict:list',   label: '字典管理-列表', group: 'system' },
+  MAP:    { code: 'system:dict:map',    label: '启用字典映射-读取', group: 'system' },
   CREATE: { code: 'system:dict:create', label: '字典管理-创建', group: 'system' },
   UPDATE: { code: 'system:dict:update', label: '字典管理-更新', group: 'system' },
   DELETE: { code: 'system:dict:delete', label: '字典管理-删除', group: 'system' },
@@ -250,7 +251,7 @@ const adminDicts: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   route.get(
     "/data/map",
     {
-      access: { permission: PERMS.LIST },
+      access: { permission: PERMS.MAP },
       schema: {
         summary: "获取全部字典数据映射",
         description: "获取所有启用的字典数据，按字典类型分组，返回key:{label:'',value:''}的形式",

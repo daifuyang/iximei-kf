@@ -67,35 +67,37 @@ export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: numb
   // 超级管理员: 全量 crm + system
   const superAdminCodes = allCodes
 
-  // 普通管理员（fork 业务不配 CRM 权限）: 仅留登录入口，rbac preHandler 拒绝一切 crm 接口
+  // 普通管理员（fork 业务不配 CRM 权限）: 仅留登录入口，rbac preHandler 拒绝一切 crm 接口。
+  // 菜单树和启用字典映射属于“已登录即可读取”的启动基建，已由 route registrar 统一处理，
+  // 不应作为每个角色都要配置的业务权限。
   const adminCodes = allCodes.filter((code) => code === 'auth:login')
 
-  // 医院账号：仅「医院列表只读」+ 派单'看+回' + 区域下拉 + 自己管 API Token。
+  // 医院账号：仅「医院列表只读」+ 派单'看+回' + 区域下拉。
   // 注意：必须使用**显式白名单**而非 `crm:hospitals:` 前缀匹配（plan §5.3.3），
   // 否则新增的 crm:hospitals:rename / :create / :update / :delete 会随前缀自动授权到医院账号。
   // region 一族 4 个 perm code 中,医院账号业务只需 tree(级联树)+ path(回填路径);
   // list/read 是 admin 端只读管理页用的,不给医院账号。
   const hospitalAccountCodes = allCodes.filter((code) =>
     code === 'crm:hospitals:list' ||
-    code.startsWith('crm:dispatches:list') ||
-    code.startsWith('crm:dispatches:update') ||
-    code.startsWith('crm:dispatches:reply') ||
+    code === 'crm:hospitals:update' ||
+    code === 'crm:dispatches:list' ||
+    code === 'crm:dispatches:reply' ||
     code === 'region:tree' ||
-    code === 'region:path' ||
-    code === 'system:token:list',
+    code === 'region:path',
   )
 
   // 客服（商务）：客户 CRUD+派单 + 派单管理 + 会员 CRUD + 区域/用户下拉 + 自己管 API Token。
   // 注意:不持有 crm:hospitals:* —— 医院档案是商务端的资料.
   // region 一族同上,只授 tree + path;list/read 不给(避免泄露 admin 端管理界面入口)。
   const customerServiceCodes = allCodes.filter((code) =>
-    code.startsWith('crm:customers:') ||
-    code.startsWith('crm:dispatches:') ||
-    code.startsWith('crm:members:') ||
+    [
+      'crm:customers:list', 'crm:customers:create', 'crm:customers:update', 'crm:customers:dispatch',
+      'crm:hospitals:options',
+      'crm:dispatches:list', 'crm:dispatches:reply',
+    ].includes(code) ||
     code === 'system:user:list' ||
     code === 'region:tree' ||
-    code === 'region:path' ||
-    code === 'system:token:list',
+    code === 'region:path',
   )
 
   await Promise.all([

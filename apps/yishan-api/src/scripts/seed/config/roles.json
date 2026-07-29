@@ -1,6 +1,6 @@
 {
-  "superAdmin":      { "name": "超级管理员", "description": "拥有系统最高权限(看全部)", "dataScope": 1 },
-  "admin":           { "name": "普通管理员", "description": "默认无 CRM 权限(按 fork 业务:只配登录基础能力)", "dataScope": 4 },
-  "hospitalAccount": { "name": "医院管理员", "description": "医院端账号,接派单看+回复;不持有客户/会员权限", "dataScope": 5 },
-  "customerService": { "name": "客服管理员", "description": "商务/客服,客户+派单+会员 CRUD;仅看自己添加的", "dataScope": 4 }
+  "superAdmin":      { "name": "超级管理员", "description": "负责系统级配置、组织管理与权限治理，拥有全量管理权限。", "dataScope": 1 },
+  "admin":           { "name": "普通管理员", "description": "负责日常后台运营与账号管理，按授权访问业务模块。", "dataScope": 5 },
+  "hospitalAccount": { "name": "医院管理员", "description": "负责本机构派单处理、进度反馈及相关资料维护。", "dataScope": 2 },
+  "customerService": { "name": "客服管理员", "description": "负责客户咨询、会员服务、派单协同与跟进记录维护。", "dataScope": 5 }
 }

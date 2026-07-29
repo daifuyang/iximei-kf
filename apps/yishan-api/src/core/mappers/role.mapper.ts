@@ -24,6 +24,7 @@ type RoleListRow = {
 type RoleDetailRow = RoleListRow & {
   menuIds: number[];
   permissionCodes: string[];
+  deptIds: number[];
 };
 
 export class RoleMapper {
@@ -62,6 +63,7 @@ export class RoleMapper {
       updatedAt: dateUtils.formatISO(role.updatedAt)!,
       menuIds: role.menuIds,
       permissionCodes: role.permissionCodes,
+      deptIds: role.deptIds,
     };
   }
 }

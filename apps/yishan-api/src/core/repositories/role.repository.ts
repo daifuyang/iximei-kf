@@ -17,7 +17,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { drizzleDb, type AppQueryDb } from "@/db";
-import { sysRole, sysRoleMenu, sysRolePermission, sysUser } from "@/db/schema";
+import { sysRole, sysRoleDept, sysRoleMenu, sysRolePermission, sysUser } from "@/db/schema";
 import { dateUtils } from "../../utils/date.js";
 import { clampOffset } from "./_pagination.js";
 
@@ -36,6 +36,7 @@ export interface CreateRoleInput extends RolePersistedFields {
   updaterId: number;
   menuIds?: number[];
   permissionCodes?: string[];
+  deptIds?: number[];
 }
 
 /** `undefined` 表示不更新。 */
@@ -43,6 +44,7 @@ export interface UpdateRoleInput extends Partial<RolePersistedFields> {
   updaterId: number;
   menuIds?: number[];
   permissionCodes?: string[];
+  deptIds?: number[];
 }
 
 // ============================================================================
@@ -60,6 +62,7 @@ interface RoleListRow extends PublicRoleRow {
 interface RoleDetailRow extends RoleListRow {
   menuIds: number[];
   permissionCodes: string[];
+  deptIds: number[];
 }
 
 // ============================================================================
@@ -114,7 +117,7 @@ async function fetchRoleDetail(id: number, db: AppQueryDb = drizzleDb): Promise<
 
   if (!row) return null;
 
-  const [roleMenus, rolePermissions] = await Promise.all([
+  const [roleMenus, rolePermissions, roleDepts] = await Promise.all([
     db
       .select({ menuId: sysRoleMenu.menuId })
       .from(sysRoleMenu)
@@ -123,12 +126,17 @@ async function fetchRoleDetail(id: number, db: AppQueryDb = drizzleDb): Promise<
       .select({ permissionCode: sysRolePermission.permissionCode })
       .from(sysRolePermission)
       .where(and(eq(sysRolePermission.roleId, id), isNull(sysRolePermission.deletedAt))),
+    db
+      .select({ deptId: sysRoleDept.deptId })
+      .from(sysRoleDept)
+      .where(and(eq(sysRoleDept.roleId, id), isNull(sysRoleDept.deletedAt))),
   ]);
 
   return {
     ...row,
     menuIds: roleMenus.map((rm) => rm.menuId),
     permissionCodes: rolePermissions.map((rp) => rp.permissionCode),
+    deptIds: roleDepts.map((rd) => rd.deptId),
   };
 }
 
@@ -189,9 +197,10 @@ export class RoleRepository {
 
   /** 创建角色 */
   static async create(input: CreateRoleInput, db: AppQueryDb = drizzleDb): Promise<RoleDetailRow> {
-    const { creatorId, updaterId, menuIds, permissionCodes, ...fields } = input;
+    const { creatorId, updaterId, menuIds, permissionCodes, deptIds, ...fields } = input;
     const uniqueMenuIds = menuIds ? [...new Set(menuIds)] : [];
     const uniquePermissionCodes = permissionCodes ? [...new Set(permissionCodes)] : [];
+    const uniqueDeptIds = fields.dataScope === 2 && deptIds ? [...new Set(deptIds)] : [];
     const now = dateUtils.now();
 
     const [inserted] = await db
@@ -214,6 +223,9 @@ export class RoleRepository {
         uniquePermissionCodes.map((permissionCode) => ({ roleId: inserted.id, permissionCode, creatorId })),
       );
     }
+    if (uniqueDeptIds.length > 0) {
+      await db.insert(sysRoleDept).values(uniqueDeptIds.map((deptId) => ({ roleId: inserted.id, deptId })));
+    }
 
     const role = await fetchRoleDetail(inserted.id, db);
     if (!role) throw new Error("Failed to read back created role");
@@ -222,7 +234,7 @@ export class RoleRepository {
 
   /** 更新角色 */
   static async update(id: number, input: UpdateRoleInput, db: AppQueryDb = drizzleDb): Promise<RoleDetailRow> {
-    const { updaterId, menuIds, permissionCodes, ...fields } = input;
+    const { updaterId, menuIds, permissionCodes, deptIds, ...fields } = input;
 
     await db
       .update(sysRole)
@@ -264,6 +276,15 @@ export class RoleRepository {
         await db.delete(sysRolePermission).where(
           and(eq(sysRolePermission.roleId, id), inArray(sysRolePermission.permissionCode, toDelete)),
         );
+      }
+    }
+
+    if (deptIds !== undefined || fields.dataScope !== undefined) {
+      const effectiveScope = fields.dataScope ?? (await fetchRoleDetail(id, db))?.dataScope;
+      const uniqueDeptIds = effectiveScope === 2 ? [...new Set(deptIds ?? [])] : [];
+      await db.delete(sysRoleDept).where(eq(sysRoleDept.roleId, id));
+      if (uniqueDeptIds.length > 0) {
+        await db.insert(sysRoleDept).values(uniqueDeptIds.map((deptId) => ({ roleId: id, deptId })));
       }
     }
 

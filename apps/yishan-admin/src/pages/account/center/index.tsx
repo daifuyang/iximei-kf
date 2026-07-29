@@ -733,8 +733,10 @@ const Center: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>('profile');
+  // 与 /me/api-tokens 后端接口使用同一权限码，不能只按菜单路径判断。
+  const permissions = initialState?.currentUser?.permissions ?? [];
   const canManageApiTokens =
-    initialState?.authorizedMenuPaths?.includes('/account/api-tokens') ?? false;
+    permissions.includes('__super_admin__') || permissions.includes('system:api-token:manage');
 
   useEffect(() => {
     let alive = true;
