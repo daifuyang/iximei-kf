@@ -1,6 +1,6 @@
 {
   "name": "系统公告",
-  "path": "/system/announcements",
+  "path": "/announcements",
   "type": 1,
   "sortOrder": -2,
   "icon": "notification",
