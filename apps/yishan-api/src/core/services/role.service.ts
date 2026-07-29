@@ -9,7 +9,7 @@ import { BusinessError } from "../../exceptions/business-error.js";
 import { RoleErrorCode } from "../../constants/business-codes/role.js";
 import { PermissionService } from "./permission.service.js";
 import { PERMISSION_CODES as ACTIVE_CODES } from '../permissions/catalog.js';
-import { ROLE_CODES, SUPER_ADMIN_BYPASS } from "../../constants/permission-codes.js";
+import { ROLE_IDS, SUPER_ADMIN_BYPASS } from "../../constants/permission-codes.js";
 import { dbManager } from "@/db/manager";
 
 export class RoleService {
@@ -139,8 +139,8 @@ export class RoleService {
     }
 
     const roleIds = await PermissionService.loadRoleIdsForUser(operatorId);
-    const { perms, roleCodes } = await PermissionService.loadForRoleIds(roleIds);
-    if (roleCodes.has(ROLE_CODES.SUPER_ADMIN) || perms.has(SUPER_ADMIN_BYPASS)) return;
+    const { perms, roleIds: activeRoleIds } = await PermissionService.loadForRoleIds(roleIds);
+    if (activeRoleIds.has(ROLE_IDS.SUPER_ADMIN) || perms.has(SUPER_ADMIN_BYPASS)) return;
 
     const unauthorizedCode = normalizedCodes.find((code) => !perms.has(code));
     if (unauthorizedCode) {

@@ -10,7 +10,6 @@ import {
 } from "../../../../../schemas/auth.js";
 import { AuthService } from "../../../../../services/auth.service.js";
 import { MenuService } from "../../../../../services/menu.service.js";
-import { PermissionService } from "../../../../../services/permission.service.js";
 import { registerPermissions, type PermissionRef } from '../../../../../permissions/catalog.js';
 
 const PERMS: { readonly [k: string]: PermissionRef } = Object.freeze({
@@ -141,8 +140,7 @@ const auth: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       const currentUser = request.currentUser;
       const roleIds = currentUser?.roleIds ?? [];
       const accessPath = await MenuService.getAuthorizedMenuPaths(roleIds);
-      const { roleCodes } = await PermissionService.loadForRoleIds(roleIds);
-      const result = { ...currentUser, accessPath, roleCodes: [...roleCodes] };
+      const result = { ...currentUser, accessPath };
       return ResponseUtil.success(reply, result, "获取成功");
     }
   );

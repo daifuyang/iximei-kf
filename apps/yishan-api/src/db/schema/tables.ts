@@ -305,7 +305,6 @@ export const sysRole = mysqlTable(
   {
   id: int('id').primaryKey().autoincrement().notNull(),
   name: varchar('name', { length: 50 }).notNull(),
-  code: varchar('code', { length: 50 }),
   description: varchar('description', { length: 255 }),
   status: tinyint('status').notNull().default(1),
   dataScope: tinyint('data_scope').notNull().default(1),
@@ -319,7 +318,6 @@ export const sysRole = mysqlTable(
   },
   (t) => ({
     sysRoleNameKey: uniqueIndex('sys_role_name_key').on(t.name),
-    uniqRoleCode: uniqueIndex('uniq_role_code').on(t.code),
     idxRoleStatus: index('idx_role_status').on(t.status),
     idxRoleCreatedAt: index('idx_role_created_at').on(t.createdAt),
     idxRoleDeletedAt: index('idx_role_deleted_at').on(t.deletedAt),
@@ -809,4 +807,3 @@ export const sysModuleMigration = mysqlTable(
     idxSysModuleMigrationModuleId: index('idx_sys_module_migration_module_id').on(t.moduleId),
   })
 )
-

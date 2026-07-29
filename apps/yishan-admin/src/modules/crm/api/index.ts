@@ -50,7 +50,7 @@ export const getCustomerServiceUsers = (params: { keyword?: string; pageSize?: n
   getUserList({
     pageSize: params.pageSize ?? 100,
     status: '1',
-    roleCode: 'customer_service',
+    roleId: 4,
     ...(params.keyword ? { keyword: params.keyword } : {}),
   } as never);
 

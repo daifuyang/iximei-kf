@@ -6,6 +6,7 @@ import { PERMS } from '../../../permissions.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import { DashboardService } from '../../../services/dashboard.service.js'
 import { DashboardStatsSchema } from '../../../schemas/dashboard.schema.js'
+import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
@@ -68,14 +69,14 @@ const dashboard: FastifyPluginAsync = async (app) => {
       }
 
       // 客服角色不接收 hospitalId 参数
-      const roleCodes: string[] = req.currentUser?.roleCodes ?? []
-      const finalQuery = roleCodes.includes('customer_service')
+      const roleIds: number[] = req.currentUser?.roleIds ?? []
+      const finalQuery = roleIds.includes(ROLE_IDS.CUSTOMER_SERVICE)
         ? { startDate, endDate }
         : { startDate, endDate, hospitalId }
 
       const data = await DashboardService.getStats(
         req.currentUser.id,
-        roleCodes,
+        roleIds,
         req.currentUser.dataScope ?? 'ALL',
         finalQuery,
       )

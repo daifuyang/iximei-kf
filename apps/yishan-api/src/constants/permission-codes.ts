@@ -28,21 +28,20 @@ export type PermissionCode = string;
 export const SUPER_ADMIN_BYPASS = "__super_admin__";
 
 // ============================================================================
-// 内置角色编码常量
+// 内置角色 ID 常量
 // ============================================================================
 
 /**
- * 内置角色编码常量。注意：超级管理员通过 role.code === SUPER_ADMIN_ROLE_CODE
- * 进行身份判定，禁止使用数据库角色 ID；插件与菜单也只允许引用 code 而非 ID。
+ * 内置角色 ID。core 初始迁移与系统角色 seed 固定以下 ID；后端身份判断只能使用该常量，
+ * `sys_role.name` 仅用于展示与 seed 数据定位。
  */
-export const ROLE_CODES = {
-  SUPER_ADMIN: "super_admin",
-  ADMIN: "admin",
-  NORMAL_USER: "normal_user",
+export const ROLE_IDS = {
+  SUPER_ADMIN: 1,
+  ADMIN: 2,
   /** 医院管理：医院相关账号，拥有医院派单查看的权限 */
-  HOSPITAL_ACCOUNT: "hospital_account",
+  HOSPITAL_ACCOUNT: 3,
   /** 客服管理：客户和派单权限 */
-  CUSTOMER_SERVICE: "customer_service",
+  CUSTOMER_SERVICE: 4,
 } as const;
 
-export type RoleCode = typeof ROLE_CODES[keyof typeof ROLE_CODES];
+export type RoleId = typeof ROLE_IDS[keyof typeof ROLE_IDS];

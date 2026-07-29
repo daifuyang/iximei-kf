@@ -1,5 +1,6 @@
 import sanitizeHtml from 'sanitize-html'
-export const SUPER_ADMIN_ID=1
+import { ROLE_IDS } from '@/constants/permission-codes.js'
+export const SUPER_ADMIN_ID = ROLE_IDS.SUPER_ADMIN
 export const isSuperAdmin=(id:number)=>id===SUPER_ADMIN_ID
 export const pageArgs=(q:any)=>({page:Math.max(1,Number(q.page??1)),pageSize:Math.max(0,Number(q.pageSize??10))})
 export const asDate=(v:unknown)=>{if(!v)return undefined;const d=new Date(String(v));return Number.isNaN(d.getTime())?undefined:d}
@@ -16,28 +17,21 @@ export function normalizeContractPhotos(v:unknown){if(v===undefined)return undef
  * 接收 fastify 实例而不是 req——crm service 不依赖 fastify 类型，
  * 现成的 userRolesById 通过全局缓存映射传入。
  */
-export type GlobalViewRoles =
-  | 'super_admin'
-  | 'admin'
-  | 'normal_user'
-  | 'hospital_account'
-  | 'customer_service'
-
-const FULL_VIEW_ROLE_CODES: ReadonlySet<GlobalViewRoles> = new Set<GlobalViewRoles>([
-  'super_admin',
-  'admin',
+const FULL_VIEW_ROLE_IDS: ReadonlySet<number> = new Set([
+  ROLE_IDS.SUPER_ADMIN,
+  ROLE_IDS.ADMIN,
 ])
 
 export const canViewAllData = (
   userId: number,
-  roleCodes: ReadonlyArray<GlobalViewRoles>,
+  roleIds: ReadonlyArray<number>,
 ): boolean => {
   if (userId === SUPER_ADMIN_ID) return true
-  return roleCodes.some((code) => FULL_VIEW_ROLE_CODES.has(code))
+  return roleIds.some((roleId) => FULL_VIEW_ROLE_IDS.has(roleId))
 }
 
 /** 提取 ownerUserId 的过滤条件：可见全部 → undefined；否则 → 当前用户 id */
 export const ownerScopeOrCurrent = (
   userId: number,
-  roleCodes: ReadonlyArray<GlobalViewRoles>,
-): number | undefined => (canViewAllData(userId, roleCodes) ? undefined : userId)
+  roleIds: ReadonlyArray<number>,
+): number | undefined => (canViewAllData(userId, roleIds) ? undefined : userId)

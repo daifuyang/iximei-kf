@@ -458,8 +458,8 @@ declare namespace API {
     updatedAt: string;
     /** 已授权菜单路径列表 */
     accessPath?: string[];
-    /** 已绑定角色编码列表（如 super_admin） */
-    roleCodes?: string[];
+    /** 已绑定角色 ID 列表 */
+    roleIds?: number[];
     /** 密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1 */
     passwordFormat?: number;
     /** 是否推荐改密, true=前端应展示 banner */

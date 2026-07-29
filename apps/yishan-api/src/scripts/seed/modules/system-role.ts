@@ -2,10 +2,10 @@ import { eq } from 'drizzle-orm';
 import { sysRole, sysUserRole } from '@/db/schema';
 import { rolesSeed } from '../config.js';
 import type { SeedDb } from '../context.js';
+import { ROLE_IDS } from '@/constants/permission-codes.js';
 
 type RoleSeedShape = {
   name: string
-  code: string
   description: string
   /** 数据权限范围（1-5）。详见 DataScopeCode。 */
   dataScope: number
@@ -13,14 +13,15 @@ type RoleSeedShape = {
 
 async function ensureRole(
   db: SeedDb,
+  roleId: number,
   roleSeed: RoleSeedShape,
   adminUserId: number,
 ) {
   await db
     .insert(sysRole)
     .values({
+      id: roleId,
       name: roleSeed.name,
-      code: roleSeed.code,
       description: roleSeed.description,
       status: 1,
       isSystemDefault: true,
@@ -29,7 +30,7 @@ async function ensureRole(
       updaterId: adminUserId,
     })
     .onDuplicateKeyUpdate({
-      set: { name: roleSeed.name, code: roleSeed.code, dataScope: roleSeed.dataScope },
+      set: { name: roleSeed.name, dataScope: roleSeed.dataScope },
     });
 
   const role = await db.query.sysRole.findFirst({ where: eq(sysRole.name, roleSeed.name) });
@@ -40,10 +41,10 @@ async function ensureRole(
 }
 
 export async function ensureSystemRoles(db: SeedDb, adminUserId: number) {
-  const superAdminRole = await ensureRole(db, rolesSeed.superAdmin, adminUserId);
-  const adminRole = await ensureRole(db, rolesSeed.admin, adminUserId);
-  const hospitalAccountRole = await ensureRole(db, rolesSeed.hospitalAccount, adminUserId);
-  const customerServiceRole = await ensureRole(db, rolesSeed.customerService, adminUserId);
+  const superAdminRole = await ensureRole(db, ROLE_IDS.SUPER_ADMIN, rolesSeed.superAdmin, adminUserId);
+  const adminRole = await ensureRole(db, ROLE_IDS.ADMIN, rolesSeed.admin, adminUserId);
+  const hospitalAccountRole = await ensureRole(db, ROLE_IDS.HOSPITAL_ACCOUNT, rolesSeed.hospitalAccount, adminUserId);
+  const customerServiceRole = await ensureRole(db, ROLE_IDS.CUSTOMER_SERVICE, rolesSeed.customerService, adminUserId);
 
   console.log('系统默认角色已准备:', {
     superAdmin: `${superAdminRole.name} (dataScope=${superAdminRole.dataScope})`,

@@ -256,7 +256,7 @@ export const layout: RunTimeLayoutConfig = ({
       return canLink ? <Link to={normalizedPath}>{label}</Link> : <span>{label}</span>;
     },
     links: (() => {
-      const isSuperAdmin = initialState?.currentUser?.roleCodes?.includes('super_admin')
+      const isSuperAdmin = initialState?.currentUser?.roleIds?.includes(1)
       const out: JSX.Element[] = []
       // 共享的图标-文字布局：flex + 居中 + 间距 + 颜色，跟 ProLayout 默认 link 风格对齐。
       const linkStyle: React.CSSProperties = {

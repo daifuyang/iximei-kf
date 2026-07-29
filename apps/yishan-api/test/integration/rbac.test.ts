@@ -2,8 +2,8 @@
  * 集成测试样例：RBAC (Section 5)。
  *
  * 用真实 MySQL 验证：
- *   - 拥有 super_admin 角色的用户可以访问受保护资源；
- *   - 仅绑定到自定义角色的用户访问 super_admin-only 路径会被 403；
+ *   - 拥有 超级管理员 角色的用户可以访问受保护资源；
+ *   - 仅绑定到自定义角色的用户访问 超级管理员-only 路径会被 403；
  *   - 修改菜单 perm 后下一次 requirePermission 调用立刻生效（缓存失效）。
  *
  * 未设置 YISHAN_RUN_INTEGRATION=1 时跳过，避免 CI 没有 MySQL 时崩溃。
@@ -33,7 +33,7 @@ describe("integration: RBAC permission lookup", () => {
   it.runIf(!ctx.skip)("loadForRoleIds returns empty for unknown role", async () => {
     const result = await PermissionService.loadForRoleIds([99999]);
     expect(result.perms.size).toBe(0);
-    expect(result.roleCodes.size).toBe(0);
+    expect(result.roleIds.size).toBe(0);
   });
 
   it.runIf(!ctx.skip)("invalidate clears cache", async () => {

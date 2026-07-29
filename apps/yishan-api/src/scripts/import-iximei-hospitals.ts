@@ -3,6 +3,7 @@ import { createPool } from 'mysql2/promise'
 import { and, eq, isNull } from 'drizzle-orm'
 import { drizzleDb, pool as drizzlePool } from '@/db'
 import { sysRegion, sysRole, sysUser, sysUserRole } from '@/db/schema'
+import { ROLE_IDS } from '@/constants/permission-codes'
 import { crmHospital, crmCustomer, crmDispatch, crmDispatchReply } from '@/modules/crm/db/schema'
 import { dateUtils } from '../utils/date.js'
 import { ymdOf, formatBusinessNumber } from '../modules/crm/repositories/_number-id.js'
@@ -277,9 +278,9 @@ async function main() {
     const [hospitalAccountRole] = await drizzleDb
       .select({ id: sysRole.id })
       .from(sysRole)
-      .where(and(eq(sysRole.code, 'hospital_account'), isNull(sysRole.deletedAt)))
+      .where(and(eq(sysRole.id, ROLE_IDS.HOSPITAL_ACCOUNT), isNull(sysRole.deletedAt)))
       .limit(1)
-    if (!hospitalAccountRole) throw new Error('hospital_account 系统角色未配置，请先运行 db:seed')
+    if (!hospitalAccountRole) throw new Error('医院管理员系统角色未配置，请先运行 db:seed')
 
     await drizzleDb.transaction(async tx => {
       const now = dateUtils.now()
@@ -386,7 +387,7 @@ async function main() {
       const [hospitalAccountRole] = await drizzleDb
         .select({ id: sysRole.id })
         .from(sysRole)
-        .where(and(eq(sysRole.code, 'hospital_account'), isNull(sysRole.deletedAt)))
+        .where(and(eq(sysRole.id, ROLE_IDS.HOSPITAL_ACCOUNT), isNull(sysRole.deletedAt)))
         .limit(1)
       if (hospitalAccountRole) {
         const roleBindings = await drizzleDb

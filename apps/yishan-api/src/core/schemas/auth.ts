@@ -112,8 +112,16 @@ const CurrentUserSchema = Type.Object(
     createdAt: Type.String({ format: "date-time", description: "创建时间" }),
     updatedAt: Type.String({ format: "date-time", description: "更新时间" }),
     accessPath: Type.Optional(Type.Array(Type.String(), { description: "已授权菜单路径列表" })),
-    /** 已绑定角色编码列表（如 super_admin / admin）。前端用于硬编码 dev-only 菜单的可见性判断。 */
-    roleCodes: Type.Optional(Type.Array(Type.String(), { description: "已绑定角色编码列表（如 super_admin）" })),
+    /** 已绑定角色名称列表（如 super_admin / admin）。前端用于硬编码 dev-only 菜单的可见性判断。 */
+    /**
+     * 当前用户有效权限码集合（含 `__super_admin__` sentinel）。
+     *
+     * 路由处理器 `core/routes/api/v1/auth/index.ts:155` 会把这个字段塞进 result，
+     * TypeBox schema 必须显式声明，fast-json-stringify 才会保留这个字段；
+     * 否则前端 `currentUser.permissions.includes(...)` 永远 false，所有页面级
+     * 权限判断（rename / create / delete / batch-assign 等按钮）全部失效。
+     */
+    permissions: Type.Optional(Type.Array(Type.String(), { description: "已绑定权限码集合（含 __super_admin__ sentinel）" })),
     passwordFormat: Type.Optional(Type.Number({ description: "密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1" })),
     passwordChangeRecommended: Type.Optional(Type.Boolean({ description: "是否推荐改密, true=前端应展示 banner" })),
   },

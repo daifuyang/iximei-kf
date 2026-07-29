@@ -3,9 +3,9 @@ import { drizzleDb, type AppQueryDb } from '@/db'
 import { crmHospital } from '../db/schema.js'
 import { sysRole, sysUser, sysUserRole } from '@/db/schema'
 import { BusinessError } from '@/exceptions/business-error.js'
+import { ROLE_IDS } from '@/constants/permission-codes.js'
 import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 
-const HOSPITAL_ACCOUNT_ROLE_CODE = 'hospital_account'
 const active = (t: any) => isNull(t.deletedAt)
 const page = (q: any, p: any) =>
   p.pageSize === 0 ? q : q.limit(p.pageSize).offset((p.page - 1) * p.pageSize)
@@ -273,7 +273,7 @@ export class HospitalsRepository {
     const [role] = await db
       .select({ id: sysRole.id })
       .from(sysRole)
-      .where(and(eq(sysRole.code, HOSPITAL_ACCOUNT_ROLE_CODE), active(sysRole)))
+      .where(and(eq(sysRole.id, ROLE_IDS.HOSPITAL_ACCOUNT), active(sysRole)))
       .limit(1)
     if (!role) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号全局角色未配置')
     await db
@@ -282,5 +282,3 @@ export class HospitalsRepository {
       .onDuplicateKeyUpdate({ set: { deletedAt: null } })
   }
 }
-
-export { HOSPITAL_ACCOUNT_ROLE_CODE }

@@ -54,7 +54,7 @@ export const makeRequirePermissionHandler = (
       throw new BusinessError(AuthErrorCode.FORBIDDEN, `当前用户没有权限访问要求 ${permCode} 的接口`);
     }
 
-    // 一次性拿到 perms / roleCodes / dataScopes / effectiveDataScope
+    // 一次性拿到 perms / roleIds / dataScopes / effectiveDataScope
     const result = await PermissionService.loadForRoleIds(roleIds);
     const { perms: rolePerms, effectiveDataScope } = result;
 
@@ -74,7 +74,7 @@ export const makeRequirePermissionHandler = (
     // 把数据权限一并写到 request，供下游 service / repository 据此过滤 WHERE。
     (request as any).currentUser.dataScope = effectiveDataScope;
     // 把角色 code 列表也写到 request，供下游按角色分支（如医院搜索按 hospital_account 收敛）。
-    (request as any).currentUser.roleCodes = [...result.roleCodes];
+    (request as any).currentUser.roleIds = [...result.roleIds];
   };
 
 export default fp(

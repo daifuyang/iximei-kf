@@ -18,21 +18,21 @@
  * - 4 SELF：仅 owner=自己
  * - 5 CUSTOM：模块自定义 (本 fork 暂未接 crm_hospital_account)
  *
- * 数据范围的运行时过滤在 service 层 inline 判断 `req.currentUser.roleCodes` 与
+ * 数据范围的运行时过滤在 service 层 inline 判断 `req.currentUser.roleIds` 与
  * `dataScope`，不属于本 seed 文件的关注范围。
  */
 
 import { and, eq, isNull } from 'drizzle-orm';
 import { sysRole, sysRolePermission } from '@/db/schema';
-import { ROLE_CODES } from '@/constants/permission-codes.js';
+import { ROLE_IDS } from '@/constants/permission-codes.js';
 import { listPermissions } from '@/core/permissions/catalog.js';
 import type { SeedDb } from '../context.js';
 
-async function findRoleByCode(db: SeedDb, code: string) {
+async function findRoleById(db: SeedDb, id: number) {
   const role = await db.query.sysRole.findFirst({
-    where: and(eq(sysRole.code, code), isNull(sysRole.deletedAt)),
+    where: and(eq(sysRole.id, id), isNull(sysRole.deletedAt)),
   });
-  if (!role) throw new Error(`系统角色缺失 code=${code}`);
+  if (!role) throw new Error(`系统角色缺失 id=${id}`);
   return role;
 }
 
@@ -57,10 +57,10 @@ async function replaceRolePermissions(
 
 export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: number) {
   const [superAdmin, admin, hospitalAccount, customerService] = await Promise.all([
-    findRoleByCode(db, ROLE_CODES.SUPER_ADMIN),
-    findRoleByCode(db, ROLE_CODES.ADMIN),
-    findRoleByCode(db, ROLE_CODES.HOSPITAL_ACCOUNT),
-    findRoleByCode(db, ROLE_CODES.CUSTOMER_SERVICE),
+    findRoleById(db, ROLE_IDS.SUPER_ADMIN),
+    findRoleById(db, ROLE_IDS.ADMIN),
+    findRoleById(db, ROLE_IDS.HOSPITAL_ACCOUNT),
+    findRoleById(db, ROLE_IDS.CUSTOMER_SERVICE),
   ]);
   const allCodes = listPermissions().map((item) => item.code);
 

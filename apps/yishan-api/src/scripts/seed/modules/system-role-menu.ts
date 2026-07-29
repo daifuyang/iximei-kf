@@ -12,15 +12,15 @@
 
 import { and, eq, isNull } from 'drizzle-orm';
 import { sysMenu, sysRole, sysRoleMenu } from '@/db/schema';
-import { ROLE_CODES } from '@/constants/permission-codes.js';
+import { ROLE_IDS } from '@/constants/permission-codes.js';
 import type { SeedDb } from '../context.js';
 
-async function findRoleByCode(db: SeedDb, code: string) {
+async function findRoleById(db: SeedDb, id: number) {
   const row = await db.query.sysRole.findFirst({
-    where: and(eq(sysRole.code, code), isNull(sysRole.deletedAt)),
+    where: and(eq(sysRole.id, id), isNull(sysRole.deletedAt)),
   });
   if (!row) {
-    throw new Error(`系统角色缺失 code=${code}，请先运行 ensureSystemRoles`);
+    throw new Error(`系统角色缺失 id=${id}，请先运行 ensureSystemRoles`);
   }
   return row;
 }
@@ -49,13 +49,13 @@ async function bindRoleMenus(db: SeedDb, roleId: number, menuIds: number[]) {
 }
 
 export async function bindRoleMenusByDefault(db: SeedDb) {
-  const superAdmin = await findRoleByCode(db, ROLE_CODES.SUPER_ADMIN);
-  const admin = await findRoleByCode(db, ROLE_CODES.ADMIN);
+  const superAdmin = await findRoleById(db, ROLE_IDS.SUPER_ADMIN);
+  const admin = await findRoleById(db, ROLE_IDS.ADMIN);
   const hospitalAccount = await db.query.sysRole.findFirst({
-    where: and(eq(sysRole.code, ROLE_CODES.HOSPITAL_ACCOUNT), isNull(sysRole.deletedAt)),
+    where: and(eq(sysRole.id, ROLE_IDS.HOSPITAL_ACCOUNT), isNull(sysRole.deletedAt)),
   });
   const customerService = await db.query.sysRole.findFirst({
-    where: and(eq(sysRole.code, ROLE_CODES.CUSTOMER_SERVICE), isNull(sysRole.deletedAt)),
+    where: and(eq(sysRole.id, ROLE_IDS.CUSTOMER_SERVICE), isNull(sysRole.deletedAt)),
   });
 
   const menus = await listAllMenuPaths(db);

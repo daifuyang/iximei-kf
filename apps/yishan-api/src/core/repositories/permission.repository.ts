@@ -25,24 +25,24 @@ export const DATA_SCOPE = {
 
 export type DataScopeCode = (typeof DATA_SCOPE)[keyof typeof DATA_SCOPE]
 
-/** 超级管理员身份码（与 rbac.ts 中 SUPER_ADMIN_BYPASS 同源）。 */
-const SUPER_ADMIN_CODE = "super_admin"
+/** 超级管理员身份 ID（与 rbac.ts 中 SUPER_ADMIN_BYPASS 同源）。 */
+const SUPER_ADMIN_ID = 1
 
 /**
- * 提升后的 effectiveDataScope：只要用户的任何角色 code === 'super_admin'，视作看全部。
+ * 提升后的 effectiveDataScope：只要用户的任何角色 code === '超级管理员'，视作看全部。
  *
  * 这是与 `__super_admin__` bypass 同源的安全侧门：
  *   - 把"超管"作为身份标记,而不是 dataScope 枚举中的一个具体值
  *   - 任意角色种子(包括 fork 自己的客服 / 医院账号)即使误配 dataScope=1,
- *     只要 code !== 'super_admin' 就仍然走 SELF 隔离
+ *     只要 code !== '超级管理员' 就仍然走 SELF 隔离
  */
-function liftForSuperAdmin(roleCodes: ReadonlySet<string>): DataScopeCode {
-  return roleCodes.has(SUPER_ADMIN_CODE) ? DATA_SCOPE.ALL : DATA_SCOPE.SELF
+function liftForSuperAdmin(roleIds: ReadonlySet<number>): DataScopeCode {
+  return roleIds.has(SUPER_ADMIN_ID) ? DATA_SCOPE.ALL : DATA_SCOPE.SELF
 }
 
 export interface PermissionQueryResult {
   perms: Set<string>;
-  roleCodes: Set<string>;
+  roleIds: Set<number>;
   /** 各角色 dataScope（无权限的角色不包含） */
   dataScopes: Set<DataScopeCode>;
   /** 多角色聚合后的最终数据权限（最严格） */
@@ -76,7 +76,7 @@ export class PermissionRepository {
     if (validRoleIds.length === 0) {
       return {
         perms: new Set<string>(),
-        roleCodes: new Set<string>(),
+        roleIds: new Set<number>(),
         dataScopes: new Set<DataScopeCode>(),
         effectiveDataScope: DATA_SCOPE.CUSTOM,
       };
@@ -84,7 +84,7 @@ export class PermissionRepository {
     const sortedIds = [...new Set(validRoleIds)];
     const [roleRows, permissionLinks] = await Promise.all([
       db
-        .select({ id: sysRole.id, code: sysRole.code, dataScope: sysRole.dataScope })
+        .select({ id: sysRole.id, dataScope: sysRole.dataScope })
         .from(sysRole)
         .where(
           and(
@@ -107,10 +107,10 @@ export class PermissionRepository {
         .where(and(inArray(sysRolePermission.roleId, sortedIds), isNull(sysRolePermission.deletedAt))),
     ]);
     const perms = new Set<string>();
-    const roleCodes = new Set<string>();
+    const activeRoleIds = new Set<number>();
     const dataScopes = new Set<DataScopeCode>();
     for (const row of roleRows) {
-      if (row.code) roleCodes.add(row.code);
+      if (row.id) activeRoleIds.add(row.id);
       if (row.id && (row as any).dataScope != null) {
         dataScopes.add((row as any).dataScope as DataScopeCode);
       }
@@ -119,8 +119,8 @@ export class PermissionRepository {
       if (link.perm) perms.add(link.perm);
     }
     // 关键:super_admin 身份覆盖 dataScope,即便多角色里有其它 SELF 也强制 ALL。
-    const effectiveDataScope = liftForSuperAdmin(roleCodes)
-    return { perms, roleCodes, dataScopes, effectiveDataScope }
+    const effectiveDataScope = liftForSuperAdmin(activeRoleIds)
+    return { perms, roleIds: activeRoleIds, dataScopes, effectiveDataScope }
   }
 
   /** 当前用户的活跃 role IDs。 */

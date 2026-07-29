@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { drizzleDb, pool as drizzlePool } from '@/db'
 import { sysRole, sysUser, sysUserRole } from '@/db/schema'
+import { ROLE_IDS } from '@/constants/permission-codes'
 import { dateUtils } from '../utils/date.js'
 
 /**
@@ -26,7 +27,8 @@ import { dateUtils } from '../utils/date.js'
  * 角色合并:
  *   老角色直接映射到已存在的系统角色,不创建新的角色行。
  *   hj_role 中的 4 个角色(id 1-4)通过 iximei-role-mapping.json 对应
- *   到 super_admin / admin / hospital_account / customer_service。
+ *   到内置系统角色 ID 1-4。
+ *   同时保留老库角色的名称和备注（写入 sys_role.name / description）。
  *   超出 mapping 的角色(理论上无)统一归属 admin。
  *
  * 手机号 / 邮箱:
@@ -62,9 +64,7 @@ type LegacyRoleUserRow = { user_id: number; role_id: number }
 
 type RoleMapping = {
   oldRoleId: number
-  newCode: string
-  newName: string
-  remark?: string
+  newRoleId: number
 }
 
 const SYS_ADMIN_ID = 1
@@ -83,7 +83,7 @@ const MAPPING_PATH = join(
   APP_ROOT, 'src', 'scripts', 'seed', 'config', 'iximei-role-mapping.json',
 )
 
-const FALLBACK_ROLE_CODE = 'admin'
+const FALLBACK_ROLE_ID = ROLE_IDS.ADMIN
 
 /** 检查手机号是否为有效格式（纯数字,11 位,1 开头）。 */
 function isValidPhone(value: string | null | undefined): boolean {
@@ -179,8 +179,8 @@ async function preflightOrThrow(): Promise<void> {
 
 /**
  * 解析旧角色 ID → 系统角色 ID 的映射表。
- * - 在 mapping.json 中的角色,用其 newCode 查找系统已有角色。
- * - 不在 mapping 中的角色,统一指向 FALLBACK_ROLE_CODE。
+ * - 在 mapping.json 中的角色,使用其固定的 newRoleId。
+ * - 不在 mapping 中的角色,统一指向 FALLBACK_ROLE_ID。
  */
 async function buildRoleIdMap(
   tx: any,
@@ -190,23 +190,19 @@ async function buildRoleIdMap(
   const roleMap = new Map<number, number>()
   const unmappedIds: number[] = []
 
-  // 提前捞一次所有系统角色,避免循环内逐条查
-  const allSysRoles: Array<{ id: number; code: string | null }> = await tx
-    .select({ id: sysRole.id, code: sysRole.code })
+  // 校验目标角色 ID 已由系统角色 seed 创建。
+  const allSysRoles: Array<{ id: number }> = await tx
+    .select({ id: sysRole.id })
     .from(sysRole)
 
-  const codeToId = new Map<string, number>()
-  for (const r of allSysRoles) {
-    if (r.code) codeToId.set(r.code, r.id)
-  }
+  const existingRoleIds = new Set(allSysRoles.map((r) => r.id))
 
   for (const r of legacyRoles) {
     const map = mapByOldRoleId.get(r.id)
-    const targetCode = map ? map.newCode : FALLBACK_ROLE_CODE
-    const sysRoleId = codeToId.get(targetCode)
-    if (!sysRoleId) {
+    const sysRoleId = map ? map.newRoleId : FALLBACK_ROLE_ID
+    if (!existingRoleIds.has(sysRoleId)) {
       console.warn(
-        `[import-iximei] 系统角色 '${targetCode}' 不存在(旧 role_id=${r.id}),跳过`,
+        `[import-iximei] 系统角色 id=${sysRoleId} 不存在(旧 role_id=${r.id}),跳过`,
       )
       unmappedIds.push(r.id)
       continue
@@ -216,6 +212,37 @@ async function buildRoleIdMap(
   }
 
   return { roleMap, unmappedIds }
+}
+
+/**
+ * 角色身份由固定 ID 决定；角色名称和备注以老库 hj_role 的原始值为准。
+ * sys_role 没有 remark 字段，因此将老库 remark 原样写入 description。
+ */
+async function syncLegacyRoleMetadata(
+  tx: any,
+  legacyRoles: LegacyRoleRow[],
+  mapByOldRoleId: Map<number, RoleMapping>,
+): Promise<number> {
+  let synced = 0
+  const now = dateUtils.now()
+
+  for (const role of legacyRoles) {
+    const mapping = mapByOldRoleId.get(role.id)
+    if (!mapping) continue
+
+    await tx
+      .update(sysRole)
+      .set({
+        name: role.name,
+        description: role.remark,
+        updaterId: SYS_ADMIN_ID,
+        updatedAt: now,
+      })
+      .where(eq(sysRole.id, mapping.newRoleId))
+    synced++
+  }
+
+  return synced
 }
 
 async function main(): Promise<void> {
@@ -265,11 +292,13 @@ async function main(): Promise<void> {
 
     // 整个导入包在一个事务里,失败回滚。
     await drizzleDb.transaction(async (tx) => {
-      // --- 1) 角色映射（不创建新角色行,全部复用已有系统角色）---------------
+      // --- 1) 角色迁移与映射（复用固定系统角色 ID，保留老名称和备注）--------
       const { roleMap, unmappedIds } = await buildRoleIdMap(tx, legacyRoles, mapByOldRoleId)
+      const roleMetadataSynced = await syncLegacyRoleMetadata(tx, legacyRoles, mapByOldRoleId)
+      console.log(`[import-iximei] 已保留 ${roleMetadataSynced} 个老角色的名称和备注`)
       if (unmappedIds.length) {
         console.log(
-          `[import-iximei] 以下 old role_id 不在 mapping 中,已归属 ${FALLBACK_ROLE_CODE}: [${unmappedIds.join(', ')}]`,
+          `[import-iximei] 以下 old role_id 不在 mapping 中,已归属 role_id=${FALLBACK_ROLE_ID}: [${unmappedIds.join(', ')}]`,
         )
       }
 

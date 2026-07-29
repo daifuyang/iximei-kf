@@ -27,8 +27,7 @@ export class UserService {
       pageSize: safePageSize,
       startTime: query.startTime ? new Date(query.startTime) : undefined,
       endTime: query.endTime ? new Date(query.endTime) : undefined,
-      // 把 roleCode 透传给 repository（schema 已声明）
-      roleCode: query.roleCode || undefined,
+      roleId: query.roleId || undefined,
     };
 
     const items = await UserRepository.list(repositoryQuery);

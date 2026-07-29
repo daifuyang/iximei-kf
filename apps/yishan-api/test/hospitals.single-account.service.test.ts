@@ -59,7 +59,7 @@ describe('createWithAccount — 一院一账号原子性', () => {
       {
         hospitalName: '协和医院',
         accountPassword: 'Passw0rd!',
-        accountEmail: 'admin@xiehe.com',
+        accountEmail: '普通管理员@xiehe.com',
         accountPhone: '13800000000',
         // 这些字段必须被服务端忽略：
         username: 'malicious',
@@ -72,7 +72,7 @@ describe('createWithAccount — 一院一账号原子性', () => {
     const [, accountInput] = (HospitalsRepository.createWithAccount as any).mock.calls[0];
     expect(accountInput.username).toBe('协和医院');
     expect(accountInput.passwordHash).toBe('hashed:Passw0rd!');
-    expect(accountInput.email).toBe('admin@xiehe.com');
+    expect(accountInput.email).toBe('普通管理员@xiehe.com');
     expect(accountInput.phone).toBe('13800000000');
   });
 
@@ -284,25 +284,25 @@ describe('delete — 软删 + 禁用 + 撤 Token', () => {
 });
 
 describe('requireAccessibleHospitalIds — 0 结果 → 403', () => {
-  it('hospital_account 角色 0 结果时抛 BusinessError(403)', async () => {
+  it('医院管理员 角色 0 结果时抛 BusinessError(403)', async () => {
     (HospitalsRepository.accessibleHospitalIds as any).mockResolvedValue([]);
     await expect(
-      HospitalsService.requireAccessibleHospitalIds(2, ['hospital_account']),
+      HospitalsService.requireAccessibleHospitalIds(2, [3]),
     ).rejects.toBeInstanceOf(BusinessError);
     await expect(
-      HospitalsService.requireAccessibleHospitalIds(2, ['hospital_account']),
+      HospitalsService.requireAccessibleHospitalIds(2, [3]),
     ).rejects.toMatchObject({ code: AuthErrorCode.FORBIDDEN });
   });
 
-  it('非 hospital_account 角色直接返回空数组（不抛错）', async () => {
-    const ids = await HospitalsService.requireAccessibleHospitalIds(2, ['customer_service']);
+  it('非 医院管理员 角色直接返回空数组（不抛错）', async () => {
+    const ids = await HospitalsService.requireAccessibleHospitalIds(2, [4]);
     expect(ids).toEqual([]);
     expect(HospitalsRepository.accessibleHospitalIds).not.toHaveBeenCalled();
   });
 
-  it('hospital_account 角色 1+ 结果正常返回', async () => {
+  it('医院管理员 角色 1+ 结果正常返回', async () => {
     (HospitalsRepository.accessibleHospitalIds as any).mockResolvedValue([{ hospitalId: 1 }]);
-    const ids = await HospitalsService.requireAccessibleHospitalIds(2, ['hospital_account']);
+    const ids = await HospitalsService.requireAccessibleHospitalIds(2, [3]);
     expect(ids).toEqual([1]);
   });
 });

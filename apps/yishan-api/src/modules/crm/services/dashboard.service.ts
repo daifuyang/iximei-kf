@@ -5,9 +5,7 @@ import { crmCustomer, crmCustomerStatus, crmDispatch, crmDispatchStatus, crmHosp
 import { eq, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
 import type { DataScopeCode } from '@/core/repositories/permission.repository.js'
-
-const SUPER_ADMIN_CODE = 'super_admin'
-const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
+import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 /** 看板查询参数（来自 query string） */
 export interface DashboardQuery {
@@ -42,7 +40,7 @@ async function dispatchedCustomerIds(hospitalIds: number[]): Promise<number[]> {
  * - 其他（客服等）: 只看自己名下的客户及其派单
  */
 async function dashboardFilters(
-  roleCodes: ReadonlyArray<string>,
+  roleIds: ReadonlyArray<number>,
   userId: number,
   hospitalId?: number,
 ): Promise<{
@@ -51,7 +49,7 @@ async function dashboardFilters(
   hospitalFilter?: (table: any) => any[]
 }> {
   // super_admin: 看全部，可选按 hospitalId 过滤
-  if (roleCodes.includes(SUPER_ADMIN_CODE)) {
+  if (roleIds.includes(ROLE_IDS.SUPER_ADMIN)) {
     if (hospitalId) {
       const hf = (t: any) => [eq(t.id, hospitalId)]
       const df = (t: any) => [eq(t.hospitalId, hospitalId)]
@@ -65,7 +63,7 @@ async function dashboardFilters(
   }
 
   // hospital_account: 只看自己关联的医院
-  if (roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) {
+  if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
     const ids = await HospitalsRepository.accessibleHospitalIds(userId)
     const accessibleIds: number[] = ids.map((x: any) => x.hospitalId)
 
@@ -143,13 +141,13 @@ function buildDateRange(startDate?: string, endDate?: string): DateRange | undef
 export class DashboardService {
   static async getStats(
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     _scope: DataScopeCode,
     query?: DashboardQuery,
   ) {
     const hospitalId = query?.hospitalId ? Number(query.hospitalId) : undefined
     const dateRange = buildDateRange(query?.startDate, query?.endDate)
-    const filters = await dashboardFilters(roleCodes, userId, hospitalId)
+    const filters = await dashboardFilters(roleIds, userId, hospitalId)
 
     const [
       hospitalTotal,

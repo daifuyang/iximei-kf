@@ -1,5 +1,6 @@
 import { BusinessError } from '@/exceptions/business-error.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
+import { ROLE_IDS } from '@/constants/permission-codes.js'
 import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
 import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
@@ -15,7 +16,6 @@ import {
 import { validatePasswordByPolicy } from '@/core/utils/password-policy.js'
 import type { FastifyRequest } from 'fastify'
 
-const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
 
 /**
  * 医院 Service — 一院一账号版本。
@@ -250,8 +250,8 @@ export class HospitalsService {
    * 为 hospital_account 角色提供可见医院 ID 列表；其余角色不限制。
    * 0 结果 → 抛 BusinessError(403) + 审计，由调用方捕获（routes 层）。
    */
-  static async requireAccessibleHospitalIds(userId: number, roleCodes: string[]): Promise<number[]> {
-    if (!roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) return []
+  static async requireAccessibleHospitalIds(userId: number, roleIds: number[]): Promise<number[]> {
+    if (!roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) return []
     const rows = await HospitalsRepository.accessibleHospitalIds(userId)
     const ids = rows.map((r) => Number((r as any).hospitalId))
     if (ids.length === 0) {

@@ -11,6 +11,7 @@ import { ResponseUtil } from '@/utils/response.js'
 import { BusinessError } from '@/exceptions/business-error.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
 import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
+import { ROLE_IDS } from '@/constants/permission-codes.js'
 import { PERMS } from '../../../permissions.js'
 import { HospitalsService } from '../../../services/hospitals.service.js'
 import { HospitalsRepository } from '../../../repositories/hospitals.repository.js'
@@ -36,9 +37,9 @@ const hospitals: FastifyPluginAsync = async (app) => {
   /** hospital_account 角色收敛可见医院；其余角色无限制。
    * 0 结果由 HospitalsService.requireAccessibleHospitalIds 抛 403，不回退为全量。 */
   async function resolveHospitalIds(req: any): Promise<number[] | undefined> {
-    const roleCodes: string[] = req.currentUser?.roleCodes ?? []
-    if (!roleCodes.includes('hospital_account')) return undefined
-    const ids = await HospitalsService.requireAccessibleHospitalIds(req.currentUser.id, roleCodes)
+    const roleIds: number[] = req.currentUser?.roleIds ?? []
+    if (!roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) return undefined
+    const ids = await HospitalsService.requireAccessibleHospitalIds(req.currentUser.id, roleIds)
     return ids
   }
 
@@ -51,8 +52,8 @@ const hospitals: FastifyPluginAsync = async (app) => {
    * 非 hospital_account 角色直接放行。
    */
   async function assertHospitalAccountOwnership(req: any, _reply: any) {
-    const roleCodes: string[] = req.currentUser?.roleCodes ?? []
-    if (!roleCodes.includes('hospital_account')) return
+    const roleIds: number[] = req.currentUser?.roleIds ?? []
+    if (!roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) return
     const targetId = Number(req.params?.id)
     if (!Number.isFinite(targetId)) return
     const accessible = await HospitalsRepository.accessibleHospitalIds(req.currentUser.id)

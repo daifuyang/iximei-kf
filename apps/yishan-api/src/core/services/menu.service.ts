@@ -8,7 +8,7 @@ import { SaveMenuReq, MenuListQuery, SysMenuResp, UpdateMenuReq, MenuTreeNode } 
 import { BusinessError } from "../../exceptions/business-error.js";
 import { MenuErrorCode } from "../../constants/business-codes/menu.js";
 import { PermissionService } from "./permission.service.js";
-import { ROLE_CODES } from "../../constants/permission-codes.js";
+import { ROLE_IDS } from "../../constants/permission-codes.js";
 import { PERMISSION_CODES } from '../permissions/catalog.js';
 
 export class MenuService {
@@ -305,8 +305,8 @@ export class MenuService {
    */
   private static async hasSuperAdminRole(roleIds: number[]): Promise<boolean> {
     if (roleIds.length === 0) return false;
-    const { roleCodes } = await PermissionService.loadForRoleIds(roleIds);
-    return roleCodes.has(ROLE_CODES.SUPER_ADMIN);
+    const { roleIds: activeRoleIds } = await PermissionService.loadForRoleIds(roleIds);
+    return activeRoleIds.has(ROLE_IDS.SUPER_ADMIN);
   }
 
   /**

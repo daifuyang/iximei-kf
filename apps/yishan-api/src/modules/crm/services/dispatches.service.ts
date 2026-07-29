@@ -8,9 +8,7 @@ import { CustomersRepository } from '../repositories/customers.repository.js'
 import { compact, asDate, sanitizeReplyContent, hasReplyContent, sanitizeDispatchReplies, pageArgs } from './_shared.js'
 import { DATA_SCOPE, type DataScopeCode } from '@/core/repositories/permission.repository.js'
 import { optionalString } from '../_validation.js'
-
-const SUPER_ADMIN_CODE = 'super_admin'
-const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
+import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 /**
  * 三种角色的派单数据范围:
@@ -20,11 +18,11 @@ const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
  * - admin / 其它: 走 dataScope 字段（默认 SELF）
  */
 async function dispatchFilters(
-  roleCodes: ReadonlyArray<string>,
+  roleIds: ReadonlyArray<number>,
   userId: number,
 ): Promise<{ hospitalIds?: number[]; customerOwnerUserIds?: number[] }> {
-  if (roleCodes.includes(SUPER_ADMIN_CODE)) return {}
-  if (roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) {
+  if (roleIds.includes(ROLE_IDS.SUPER_ADMIN)) return {}
+  if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
     const ids = await HospitalsRepository.accessibleHospitalIds(userId)
     return { hospitalIds: ids.map((x: any) => x.hospitalId) }
   }
@@ -40,24 +38,24 @@ export class DispatchesService {
   static async list(
     q: any,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
     const p = pageArgs(q)
-    const extra = await dispatchFilters(roleCodes, userId)
+    const extra = await dispatchFilters(roleIds, userId)
     return { ...(await DispatchesRepository.list({ ...q, ...p, ...extra })), ...p }
   }
 
   static async getById(
     id: number,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
     const d: any = await DispatchesRepository.findById(id)
     if (!d) return null
-    if (roleCodes.includes(SUPER_ADMIN_CODE)) return sanitizeDispatchReplies(d)
-    if (roleCodes.includes(HOSPITAL_ACCOUNT_CODE)) {
+    if (roleIds.includes(ROLE_IDS.SUPER_ADMIN)) return sanitizeDispatchReplies(d)
+    if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
       const ids = (await HospitalsRepository.accessibleHospitalIds(userId)).map((x: any) => x.hospitalId)
       if (!ids.includes(d.hospitalId)) return null
     } else {
@@ -73,10 +71,10 @@ export class DispatchesService {
     id: number,
     input: any,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
-    if (!(await this.getById(id, userId, roleCodes, scope))) {
+    if (!(await this.getById(id, userId, roleIds, scope))) {
       throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
     return withDbErrorMapping(() => DispatchesRepository.update(
@@ -97,10 +95,10 @@ export class DispatchesService {
     id: number,
     input: any,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
-    if (!(await this.getById(id, userId, roleCodes, scope))) {
+    if (!(await this.getById(id, userId, roleIds, scope))) {
       throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
     const content = input.content === undefined ? undefined : sanitizeReplyContent(input.content)
@@ -125,10 +123,10 @@ export class DispatchesService {
     id: number,
     content: string,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
-    if (!(await this.getById(id, userId, roleCodes, scope))) {
+    if (!(await this.getById(id, userId, roleIds, scope))) {
       throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
     if (typeof content !== 'string' || content.trim().length === 0) {
@@ -140,10 +138,10 @@ export class DispatchesService {
   static async delete(
     id: number,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
-    if (!(await this.getById(id, userId, roleCodes, scope))) {
+    if (!(await this.getById(id, userId, roleIds, scope))) {
       throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
     }
     return withDbErrorMapping(() => DispatchesRepository.update(id, { deletedAt: new Date(), updaterId: userId }))
@@ -152,10 +150,10 @@ export class DispatchesService {
   static async exportAll(
     q: any,
     userId: number,
-    roleCodes: ReadonlyArray<string>,
+    roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
   ) {
-    const extra = await dispatchFilters(roleCodes, userId)
+    const extra = await dispatchFilters(roleIds, userId)
     return DispatchesRepository.exportAll({ ...q, ...extra })
   }
 }

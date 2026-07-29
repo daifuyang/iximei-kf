@@ -34,11 +34,11 @@ export interface CurrentUser {
   updatedAt: string
   /** 已授权菜单路径列表 */
   accessPath?: string[]
-  /** 已绑定角色编码（如 super_admin / admin），用于硬编码 dev-only 菜单的可见性判断 */
-  roleCodes?: string[]
+  /** 已绑定角色 ID 列表；后端角色身份判定使用该字段。 */
+  roleIds?: number[]
   /**
    * 已授予的权限码集合（如 crm:hospitals:rename / crm:hospitals:list）。
-   * STRICT-SPEC §4.1 / §7.4：前端按钮可见性必须基于权限码，不依赖 roleCodes 字符串匹配。
+   * 前端按钮可见性必须基于权限码，不依赖角色名称字符串匹配。
    */
   permissions?: string[]
   /**

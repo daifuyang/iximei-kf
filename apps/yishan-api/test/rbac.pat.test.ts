@@ -9,8 +9,8 @@ import { describe, expect, it } from "vitest";
 import { PermissionService } from "../src/core/services/permission.service.js";
 
 describe("PAT RBAC inheritance (no scope intersection)", () => {
-  it("PermissionService.has respects super_admin bypass", () => {
-    // __super_admin__ injection by PermissionService.loadForRoleIds is the
+  it("PermissionService.has respects 超级管理员 bypass", () => {
+    // __超级管理员__ injection by PermissionService.loadForRoleIds is the
     // core RBAC bypass. Verify it still works.
     const perms = new Set(["__super_admin__"]);
     expect(PermissionService.has(perms, "any:code")).toBe(true);
@@ -22,17 +22,17 @@ describe("PAT RBAC inheritance (no scope intersection)", () => {
     expect(PermissionService.has(perms, "system:role:list")).toBe(false);
   });
 
-  it("super_admin bypass sentinel is exported from permission-codes.ts", async () => {
+  it("超级管理员 bypass sentinel is exported from permission-codes.ts", async () => {
     const { SUPER_ADMIN_BYPASS } = await import(
       "../src/constants/permission-codes.js"
     );
     expect(SUPER_ADMIN_BYPASS).toBe("__super_admin__");
   });
 
-  it("ROLE_CODES includes SUPER_ADMIN", async () => {
-    const { ROLE_CODES } = await import(
+  it("ROLE_IDS includes SUPER_ADMIN", async () => {
+    const { ROLE_IDS } = await import(
       "../src/constants/permission-codes.js"
     );
-    expect(ROLE_CODES.SUPER_ADMIN).toBe("super_admin");
+    expect(ROLE_IDS.SUPER_ADMIN).toBe(1);
   });
 });

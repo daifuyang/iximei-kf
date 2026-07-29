@@ -12,11 +12,11 @@
  */
 
 import { PermissionRepository, DATA_SCOPE, type DataScopeCode, type PermissionQueryResult } from "../repositories/permission.repository.js";
-import { ROLE_CODES } from "../../constants/permission-codes.js";
+import { ROLE_IDS } from "../../constants/permission-codes.js";
 
 interface PermissionCacheEntry {
   perms: Set<string>;
-  roleCodes: Set<string>;
+  roleIds: Set<number>;
   dataScopes: Set<DataScopeCode>;
   effectiveDataScope: DataScopeCode;
   loadedAt: number;
@@ -31,7 +31,7 @@ export class PermissionService {
   private static cache = new Map<string, PermissionCacheEntry>();
 
   /**
-   * Load effective permission codes + role codes + dataScope for a set of role IDs.
+   * Load effective permission codes + role names + dataScope for a set of role IDs.
    */
   static async loadForRoleIds(
     roleIds: number[] | number | undefined | null,
@@ -47,7 +47,7 @@ export class PermissionService {
     if (validRoleIds.length === 0) {
       return {
         perms: new Set<string>(),
-        roleCodes: new Set<string>(),
+        roleIds: new Set<number>(),
         dataScopes: new Set<DataScopeCode>(),
         effectiveDataScope: DATA_SCOPE.CUSTOM,
       };
@@ -60,18 +60,18 @@ export class PermissionService {
     if (cached && now - cached.loadedAt < ttlMs) {
       return {
         perms: cached.perms,
-        roleCodes: cached.roleCodes,
+        roleIds: cached.roleIds,
         dataScopes: cached.dataScopes,
         effectiveDataScope: cached.effectiveDataScope,
       };
     }
     const result = await PermissionRepository.loadPermissionsByRoleIds(sortedIds);
-    if (result.roleCodes.has(ROLE_CODES.SUPER_ADMIN)) {
+    if (result.roleIds.has(ROLE_IDS.SUPER_ADMIN)) {
       result.perms.add("__super_admin__");
     }
     PermissionService.cache.set(cacheKey, {
       perms: result.perms,
-      roleCodes: result.roleCodes,
+      roleIds: result.roleIds,
       dataScopes: result.dataScopes,
       effectiveDataScope: result.effectiveDataScope,
       loadedAt: now,
@@ -103,4 +103,3 @@ export class PermissionService {
     }
   }
 }
-

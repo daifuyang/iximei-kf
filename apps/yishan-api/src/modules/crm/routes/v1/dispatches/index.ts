@@ -29,7 +29,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
   const uid = (req: any) => req.currentUser.id
   const id = (req: any) => Number(req.params.id)
-  const roleCodes = (req: any): string[] => req.currentUser?.roleCodes ?? []
+  const roleIds = (req: any): number[] => req.currentUser?.roleIds ?? []
   const scope = (req: any): DataScopeCode => req.currentUser?.dataScope ?? 1
 
   route.get(
@@ -60,7 +60,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await DispatchesService.list(req.query, uid(req), roleCodes(req), scope(req))
+      const result = await DispatchesService.list(req.query, uid(req), roleIds(req), scope(req))
       return ResponseUtil.paginated(reply, result.list, result.page, result.pageSize, result.total)
     },
   )
@@ -77,7 +77,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const d = await DispatchesService.getById(id(req), uid(req), roleCodes(req), scope(req))
+      const d = await DispatchesService.getById(id(req), uid(req), roleIds(req), scope(req))
       if (!d) return ResponseUtil.error(reply, 40401, '派单不存在或无权访问')
       return ResponseUtil.success(reply, d)
     },
@@ -96,7 +96,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await DispatchesService.update(id(req), req.body, uid(req), roleCodes(req), scope(req))
+      const result = await DispatchesService.update(id(req), req.body, uid(req), roleIds(req), scope(req))
       return ResponseUtil.success(reply, result)
     },
   )
@@ -114,7 +114,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await DispatchesService.addReply(id(req), req.body, uid(req), roleCodes(req), scope(req))
+      const result = await DispatchesService.addReply(id(req), req.body, uid(req), roleIds(req), scope(req))
       return ResponseUtil.success(reply, result)
     },
   )
@@ -132,7 +132,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await DispatchesService.addLog(id(req), req.body.content, uid(req), roleCodes(req), scope(req))
+      const result = await DispatchesService.addLog(id(req), req.body.content, uid(req), roleIds(req), scope(req))
       return ResponseUtil.success(reply, result)
     },
   )
@@ -149,7 +149,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await DispatchesService.delete(id(req), uid(req), roleCodes(req), scope(req))
+      const result = await DispatchesService.delete(id(req), uid(req), roleIds(req), scope(req))
       return ResponseUtil.success(reply, result)
     },
   )
@@ -166,7 +166,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const data = await DispatchesService.exportAll(req.query, uid(req), roleCodes(req), scope(req))
+      const data = await DispatchesService.exportAll(req.query, uid(req), roleIds(req), scope(req))
       const csvHeader = 'ID,客户姓名,客户手机,医院名称,状态,接收QQ,接收微信,创建时间,完成时间\n'
       const csvRows = data.map((d: any) =>
         [
