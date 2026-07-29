@@ -7,6 +7,7 @@ import { BusinessError } from "../../exceptions/business-error.js";
 import { CACHE_CONFIG } from "../../config/index.js";
 import { comparePassword, hashPassword } from "../../utils/password.js";
 import { PermissionService } from "./permission.service.js";
+import { validatePasswordByPolicy } from "../utils/password-policy.js";
 
 export class UserService {
   private static readonly USER_DETAIL_CACHE_KEY_PREFIX = 'user:detail:';
@@ -107,17 +108,9 @@ export class UserService {
   }
 
   private static validatePassword(password: string): void {
-    if (password.length < 6 || password.length > 50) {
-      throw new BusinessError(UserErrorCode.PASSWORD_WEAK, "密码长度必须在6-50个字符之间");
-    }
-    const hasLetter = /[a-zA-Z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    if (!hasLetter || !hasNumber) {
-      throw new BusinessError(UserErrorCode.PASSWORD_WEAK, "密码必须包含至少一个字母和一个数字");
-    }
-    const allowedChars = /^[a-zA-Z\d@$!%*?&]+$/;
-    if (!allowedChars.test(password)) {
-      throw new BusinessError(UserErrorCode.PASSWORD_WEAK, "密码只能包含字母、数字和特殊字符(@$!%*?&)");
+    const errMsg = validatePasswordByPolicy(password);
+    if (errMsg) {
+      throw new BusinessError(UserErrorCode.PASSWORD_WEAK, errMsg);
     }
   }
 

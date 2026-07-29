@@ -1,4 +1,5 @@
 import { Type } from '@sinclair/typebox'
+import { passwordTypeBoxProps } from '../../../core/utils/password-policy.js'
 
 /**
  * 医院搜索下拉查询 schema。
@@ -63,7 +64,7 @@ export const CrmHospitalReqSchema = Type.Object(
   {
     ...CrmHospitalFieldsSchema.properties,
     hospitalName: Type.String({ minLength: 1, maxLength: 50 }),
-    accountPassword: Type.String({ minLength: 8, maxLength: 128 }),
+    accountPassword: Type.String({ description: '医院账号密码', ...passwordTypeBoxProps }),
     accountEmail: Type.Optional(Type.String({ format: 'email', maxLength: 100 })),
     accountPhone: Type.Optional(Type.String({ maxLength: 20 })),
   },
@@ -123,7 +124,7 @@ export const CrmHospitalAccountUpdateReqSchema = Type.Object(
  */
 export const CrmHospitalAccountResetPasswordReqSchema = Type.Object(
   {
-    newPassword: Type.String({ minLength: 8, maxLength: 128 }),
+    newPassword: Type.String({ description: '医院账号新密码', ...passwordTypeBoxProps }),
   },
   { $id: 'crmHospitalAccountResetPasswordReq' },
 )

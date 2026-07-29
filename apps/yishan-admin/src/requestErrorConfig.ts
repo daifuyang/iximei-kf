@@ -205,29 +205,45 @@ export const errorConfig: RequestConfig = {
       } else if (error.response) {
         // Axios 的错误
         const status = error.response.status;
-        let errorMessage = `请求错误 ${status}`;
 
-        switch (status) {
-          case 400:
-            errorMessage = "请求参数错误";
-            break;
-          case 404:
-            errorMessage = "请求的资源不存在";
-            break;
-          case 500:
-            errorMessage = "服务器内部错误";
-            break;
-          case 502:
-            errorMessage = "网关错误";
-            break;
-          case 503:
-            errorMessage = "服务暂时不可用";
-            break;
-          default:
-            errorMessage = `请求错误 ${status}`;
+        // 优先透传后端信封里的 message ——
+        // 后端 schema 校验失败 (HTTP 400) 时 errorThrower 不会被触发 (走 axios reject 分支),
+        // 此时 error.response.data = {success:false, code, message} 的真实业务提示
+        // 比写死的"请求参数错误"更有价值。
+        const body: any = error.response.data;
+        const backendMessage =
+          body && typeof body === 'object' && body.success === false && body.message
+            ? String(body.message)
+            : null;
+
+        let errorMessage = backendMessage ?? `请求错误 ${status}`;
+
+        if (!backendMessage) {
+          switch (status) {
+            case 400:
+              errorMessage = "请求参数错误";
+              break;
+            case 404:
+              errorMessage = "请求的资源不存在";
+              break;
+            case 500:
+              errorMessage = "服务器内部错误";
+              break;
+            case 502:
+              errorMessage = "网关错误";
+              break;
+            case 503:
+              errorMessage = "服务暂时不可用";
+              break;
+            default:
+              errorMessage = `请求错误 ${status}`;
+          }
         }
 
-        message.error(errorMessage);
+        // 业务参数错误 (code 21001 / 22001 等) 用 warning 区分体感 ——
+        // 不是服务端崩溃, 不必红色弹出; 但仍然需要用户看到。
+        const method = backendMessage && body?.code === 21001 ? 'warning' : 'error';
+        message[method](errorMessage);
       } else if (error.request) {
         // 网络错误
         message.error("网络错误，请检查网络连接");

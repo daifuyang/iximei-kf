@@ -164,10 +164,21 @@ const UserForm: React.FC<UserFormProps> = ({
         name="password"
         label="用户密码"
         placeholder={!initialValues?.id ? "请输入密码" : "不输入则保持原密码"}
-        rules={[
-          { required: !initialValues?.id, message: "请输入密码" },
-          { min: 6, message: "至少6位" },
-        ]}
+        rules={
+          initialValues?.id
+            ? [{ min: 6, max: 50, message: "密码长度需为 6-50 位" }]
+            : [
+                { required: true, message: "请输入密码" },
+                { min: 6, max: 50, message: "密码长度需为 6-50 位" },
+                {
+                  // 与后端 core/schemas/user.ts 的 CreateUserReqSchema.password.pattern 对齐:
+                  //   ^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$
+                  // 长度已在上一条覆盖, 这里只检查"字母+数字+字符集"。
+                  pattern: /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]+$/,
+                  message: "密码必须包含字母和数字,只能使用字母、数字和 @$!%*?&",
+                },
+              ]
+        }
         colProps={{ span: 12 }}
         fieldProps={{
           autoComplete: 'new-password'

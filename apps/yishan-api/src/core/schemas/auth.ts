@@ -5,6 +5,7 @@
 import { Static, Type } from "@sinclair/typebox";
 import { successResponse } from "./common.js";
 import { FastifyInstance } from "fastify";
+import { passwordLoginTypeBoxProps } from "../utils/password-policy.js";
 
 // 登录请求 Schema
 const LoginReqSchema = Type.Object(
@@ -14,10 +15,10 @@ const LoginReqSchema = Type.Object(
       minLength: 1,
       maxLength: 100
     }),
+    // 登录只校验长度, 不强制复杂度(避免老 iximei 用户的弱密码被锁死)
     password: Type.String({
       description: "密码",
-      minLength: 6,
-      maxLength: 50
+      ...passwordLoginTypeBoxProps,
     }),
     rememberMe: Type.Optional(
       Type.Boolean({
@@ -83,7 +84,7 @@ const CurrentUserSchema = Type.Object(
     username: Type.String({ description: "用户名" }),
     email: Type.Optional(Type.String({ format: "email", description: "邮箱" })),
     phone: Type.Optional(Type.String({ description: "手机号" })),
-    realName: Type.String({ description: "真实姓名" }),
+    realName: Type.Optional(Type.String({ description: "真实姓名（医院账号从老 iximei 导入时可能为空）" })),
     avatar: Type.Optional(Type.String({ description: "头像URL" })),
     gender: Type.String({
       enum: ["0", "1", "2"],

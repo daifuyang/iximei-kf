@@ -12,6 +12,7 @@ import {
   optionalString,
   optionalPhone,
 } from '../_validation.js'
+import { validatePasswordByPolicy } from '@/core/utils/password-policy.js'
 import type { FastifyRequest } from 'fastify'
 
 const HOSPITAL_ACCOUNT_CODE = 'hospital_account'
@@ -231,8 +232,10 @@ export class HospitalsService {
   static async resetAccountPassword(hospitalId: number, newPassword: string) {
     const acc = await HospitalsRepository.getAccountByHospitalId(hospitalId)
     if (!acc) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '医院账号不存在')
-    if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
-      throw new BusinessError(ValidationErrorCode.PARAMETER_LENGTH_ERROR, '新密码长度 8-128')
+    // service 层兜底校验, 与 schema 层规则保持一致(同一份 PASSWORD_POLICY)
+    const policyErr = validatePasswordByPolicy(newPassword)
+    if (policyErr) {
+      throw new BusinessError(ValidationErrorCode.PARAMETER_LENGTH_ERROR, policyErr)
     }
     await withDbErrorMapping(async () =>
       HospitalsRepository.resetAccountPassword(acc.userId, await hashPassword(newPassword)),

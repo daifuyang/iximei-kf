@@ -5,6 +5,7 @@
 import { Static, Type } from "@sinclair/typebox";
 import { PaginationQuerySchema, successResponse } from "./common.js";
 import { FastifyInstance } from "fastify";
+import { passwordTypeBoxProps } from "../utils/password-policy.js";
 
 // 用户基础信息 Schema
 const SysUserSchema = Type.Object(
@@ -81,9 +82,7 @@ const CreateUserReqSchema = Type.Object(
     email: Type.Optional(Type.String({ format: "email", description: "邮箱" })),
     password: Type.String({
       description: "用户密码",
-      minLength: 6,
-      maxLength: 50,
-      pattern: "^(?=.*[a-zA-Z])(?=.*\\d)[a-zA-Z\\d@$!%*?&]{6,}$"
+      ...passwordTypeBoxProps,
     }),
     phone: Type.String({
       description: "手机号",
