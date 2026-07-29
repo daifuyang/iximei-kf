@@ -11,6 +11,7 @@ import {
 import { AuthService } from "../../../../services/auth.service.js";
 import { MenuService } from "../../../../services/menu.service.js";
 import { PermissionService } from "../../../../services/permission.service.js";
+import { UserMapper } from "../../../../mappers/user.mapper.js";
 import {
   setAuthCookies,
   clearAuthCookies,
@@ -142,8 +143,15 @@ const auth: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       const { roleCodes, perms } = await PermissionService.loadForRoleIds(roleIds);
       // STRICT-SPEC §4.1 / §7.4：前端权限判断按权限码（crm:hospitals:rename 等），
       // 不依赖 roleCodes 字符串匹配。返回的 permissions 是该用户有效权限码集合。
+      //
+      // 必须走 UserMapper.toDetailResp：DB 里 gender/status 是 number、realName 可能为 null，
+      // 直接 spread 当前用户行会让 fast-json-stringify 因为类型/必填校验抛 500。
+      // mapper 统一做 null → undefined、number → string、gender/status 反查 *Name。
+      // request.currentUser 在 jwt-auth 里由 UserService.getUserById 填充,字段与 UserDetailRow
+      // 一致,只是 SysUserResp 类型把 deptIds/roleIds 标成可选,所以这里显式断言。
+      const base = UserMapper.toDetailResp(currentUser as unknown as Parameters<typeof UserMapper.toDetailResp>[0]);
       const result = {
-        ...currentUser,
+        ...base,
         accessPath,
         roleCodes: [...roleCodes],
         permissions: [...perms],

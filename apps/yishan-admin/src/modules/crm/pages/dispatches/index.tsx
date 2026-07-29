@@ -4,6 +4,7 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
+import { useModel } from '@umijs/max';
 import {
   App,
   Avatar,
@@ -84,6 +85,9 @@ const findRegionName = (regions: any[], code?: number): string | undefined => {
 const DispatchPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const { message } = App.useApp();
+  // 导出 CSV 仅 super_admin 可见（导出整张派单表，敏感操作）
+  const { initialState } = useModel('@@initialState')
+  const isSuperAdmin = Boolean(initialState?.currentUser?.roleCodes?.includes('super_admin'))
   const [detail, setDetail] = useState<any>();
   const [open, setOpen] = useState(false);
   const [statusOptions, setStatusOptions] = useState<
@@ -231,15 +235,19 @@ const DispatchPage: React.FC = () => {
           };
         }}
         columns={columns}
-        toolBarRender={() => [
-          <Button
-            key="export"
-            href="/api/modules/crm/v1/admin/dispatches/export"
-            target="_blank"
-          >
-            导出 CSV
-          </Button>,
-        ]}
+        toolBarRender={() =>
+          isSuperAdmin
+            ? [
+                <Button
+                  key="export"
+                  href="/api/modules/crm/v1/admin/dispatches/export"
+                  target="_blank"
+                >
+                  导出 CSV
+                </Button>,
+              ]
+            : []
+        }
       />
       <Modal
         title="处理派单"

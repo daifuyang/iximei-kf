@@ -89,7 +89,7 @@ const system: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   route.get(
     "/token-stats",
     {
-      access: { permission: PERMS.CRON_USER_REFRESH },
+      access: { permission: PERMS.TOKEN_LIST },
       preHandler: [
         fastify.authenticate,
         fastify.requirePermission(PERMS.TOKEN_LIST),

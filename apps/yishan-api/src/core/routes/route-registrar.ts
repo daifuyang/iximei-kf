@@ -7,10 +7,32 @@
  *   3. 把 `x-*-auth-flavor` 之类的 rbac 元信息由 requirePermission 自身负责 onRoute hook 注入；
  *
  * 不参与具体的权限校验——那是 rbac.ts 的工作。
+ *
+ * 三类预置形态：
+ *   A. 完全 public（BYPASS_CODES ∩ 全公开子集）：login / refresh / cron / health 等，
+ *      不挂 authenticate，也不挂 requirePermission —— 因为调用方根本没有 token。
+ *   B. 仅要求已认证、跳过权限码校验（BYPASS_CODES ∩ AUTH_ONLY_CODES）：
+ *      当前会话相关 — auth:profile / auth:logout —— 已认证用户应该能获取/撤销自己的会话，
+ *      不该被某个角色菜单的 perm 字段绑定所限制。挂 authenticate，不挂 requirePermission。
+ *   C. 完整 RBAC（其余 code）：挂 authenticate + requirePermission。
  */
 
 import type { FastifyInstance, RouteShorthandOptions } from 'fastify';
 import { isBypassCode, type PermissionRef } from '../permissions/catalog.js';
+
+/**
+ * BYPASS_CODES 的子集：仅需已认证、跳过权限码校验。
+ * 该集合与 catalog.ts 的 BYPASS_CODES 配合：路由若 access.permission.code 命中本集合，
+ * 则 route-registrar 会挂 authenticate 但跳过 requirePermission。
+ */
+const AUTH_ONLY_CODES: ReadonlySet<string> = Object.freeze(
+  new Set([
+    'auth:profile',
+    'auth:logout',
+  ]),
+);
+
+const isAuthOnlyBypassCode = (code: string): boolean => AUTH_ONLY_CODES.has(code);
 
 export type RouteAccess = {
   readonly permission: PermissionRef;
@@ -71,18 +93,22 @@ export function createRouteRegistrar(fastify: FastifyInstance): RouteRegistrar {
   ) => {
     const { access, preHandler, schema, ...rest } = options;
     const guards: unknown[] = [];
-    // BYPASS_CODES（login / refresh / cron / health）= 完全 public：
+    const isFullPublic = isBypassCode(access.permission.code) && !isAuthOnlyBypassCode(access.permission.code);
+    // 完全 public（BYPASS_CODES 中除去 AUTH_ONLY_CODES 的部分：login / refresh / cron / health）：
     // 不挂 authenticate，不挂 requirePermission；可选的 preHandler 仍追加。
     // 这与生产语义一致（"健康检查不需要 token"），也让 mock 友好。
-    if (!isBypassCode(access.permission.code)) {
+    if (!isFullPublic) {
       if (access.softAuth && typeof (fastify as any).softAuthenticate === 'function') {
         // softAuth: true —— 鸡生蛋接口（logout 等）：用 softAuthenticate 替代 authenticate
         guards.push((fastify as any).softAuthenticate);
       } else if (typeof (fastify as any).authenticate === 'function') {
         guards.push((fastify as any).authenticate);
       }
-      if (typeof (fastify as any).requirePermission === 'function') {
-        guards.push((fastify as any).requirePermission(access.permission));
+      // AUTH_ONLY_CODES（auth:profile / auth:logout）已认证即可，不再追加 requirePermission。
+      if (!isBypassCode(access.permission.code)) {
+        if (typeof (fastify as any).requirePermission === 'function') {
+          guards.push((fastify as any).requirePermission(access.permission));
+        }
       }
     }
 

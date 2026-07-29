@@ -52,15 +52,24 @@ export const listPermissions = (): ReadonlyArray<PermissionRef> =>
 /**
  * 已知不需要 RBAC 角色持有的"公共"code：login / refresh / 定时任务回调 / 健康检查等。
  * 这些 code 仍然 catalog 注册（用于 OpenAPI、admin UI 展示），但运行时 rbac 跳过权限校验。
- * 仅认证身份，不强制要求 perm。
  *
- * 注意：'auth:logout' 不在本集合中。logout 必须携带有效 token 才能撤销当前用户
- * 会话，鉴权由 route-registrar 自动注入的 authenticate + requirePermission 链完成。
+ * 子集语义：
+ *   - 仅认证身份即可（仍要求 request.currentUser，由 route handler 自校验）：
+ *     'auth:profile'、'auth:logout' —— 已登录用户应能获取自己的会话 / 撤销自己的会话，
+ *     不该被某个菜单的 perm 字段绑定所限制。
+ *   - 完全 public（不挂 authenticate，也不挂 requirePermission）：
+ *     'auth:login'、'auth:refresh'、'system:cron'、'system:health'、'system:options:public'
+ *     —— 用于登录换取令牌、刷新过期的 access token、健康检查等场景。
+ *
+ * 注意：上面区分由 route-registrar 的 AUTH_ONLY_CODES 集合配合 BYPASS_CODES 实现，
+ * 详见 core/routes/route-registrar.ts。
  */
 export const BYPASS_CODES: ReadonlySet<string> = Object.freeze(
   new Set([
     'auth:login',
     'auth:refresh',
+    'auth:profile',
+    'auth:logout',
     'system:cron',
     'system:health',
     'system:options:public',
