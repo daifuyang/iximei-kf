@@ -34,6 +34,14 @@ import {
   uploadAttachmentFile,
 } from '@/utils/attachmentUpload';
 import {
+  passwordRules,
+  passwordConfirmRules,
+  passwordStrength,
+  PASSWORD_STRENGTH_LABEL,
+  PASSWORD_MIN,
+  PASSWORD_MAX,
+} from '@/utils/password';
+import {
   createHospital,
   deleteHospital,
   getHospitalAccount,
@@ -95,6 +103,11 @@ const HospitalPage: React.FC = () => {
   const canRenameHospital = hasPerm('crm:hospitals:rename');
   const canCreateHospital = hasPerm('crm:hospitals:create');
   const canDeleteHospital = hasPerm('crm:hospitals:delete');
+  // 账号管理（启停/重置密码/更新邮箱手机号）需 crm:hospitals:manage-account。
+  // 后端 reset-password / account PATCH 路由都用这个权限做 gate。
+  // 故意不复用 :update —— 医院账号持有 :update 是为了能改自己医院资料，
+  // 但不能顺带拿到"管账号"能力。前端可见性与后端权限严格对齐。
+  const canManageHospitalAccount = hasPerm('crm:hospitals:manage-account');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>();
   const [form] = Form.useForm();
@@ -327,9 +340,11 @@ const HospitalPage: React.FC = () => {
       width: 200,
       render: (_, record) => (
         <Space size={16}>
-          <a key="account" onClick={() => openAccountDrawer(record)}>
-            账号管理
-          </a>
+          {canManageHospitalAccount && (
+            <a key="account" onClick={() => openAccountDrawer(record)}>
+              账号管理
+            </a>
+          )}
           <a key="edit" onClick={() => showForm(record)}>
             编辑
           </a>
@@ -463,10 +478,17 @@ const HospitalPage: React.FC = () => {
                   <Form.Item
                     name="accountPassword"
                     label="初始密码"
-                    rules={[
-                      { required: true, message: '请输入初始密码' },
-                      { min: 8, max: 128, message: '密码长度 8–128 字' },
-                    ]}
+                    // 规则与后端 core/utils/password-policy.ts 严格对齐
+                    // (PASSWORD_MIN/PASSWORD_MAX + 复杂度 pattern)。
+                    // 大厂风格：长度错误时只提示长度，复杂度错误时再提示复杂度，
+                    // 用户能立刻看出"为什么被拒"，不再含糊。
+                    rules={passwordRules({ required: true })}
+                    extra={
+                      <PasswordRuleHint
+                        name="accountPassword"
+                        form={form}
+                      />
+                    }
                   >
                     <Input.Password
                       placeholder="请输入初始密码"
@@ -479,20 +501,7 @@ const HospitalPage: React.FC = () => {
                     name="confirmPassword"
                     label="确认密码"
                     dependencies={['accountPassword']}
-                    rules={[
-                      { required: true, message: '请再次输入初始密码' },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          if (
-                            !value ||
-                            getFieldValue('accountPassword') === value
-                          ) {
-                            return Promise.resolve();
-                          }
-                          return Promise.reject(new Error('两次密码不一致'));
-                        },
-                      }),
-                    ]}
+                    rules={passwordConfirmRules('accountPassword')}
                   >
                     <Input.Password
                       placeholder="请再次输入初始密码"
@@ -781,10 +790,13 @@ const HospitalPage: React.FC = () => {
           <Form.Item
             name="newPassword"
             label="新密码"
-            rules={[
-              { required: true, message: '请输入新密码' },
-              { min: 8, max: 128, message: '密码长度 8–128 字' },
-            ]}
+            rules={passwordRules({ required: true })}
+            extra={
+              <PasswordRuleHint
+                name="newPassword"
+                form={resetPwdForm}
+              />
+            }
           >
             <Input.Password placeholder="新密码" autoComplete="new-password" />
           </Form.Item>
@@ -792,17 +804,7 @@ const HospitalPage: React.FC = () => {
             name="confirmNewPassword"
             label="确认新密码"
             dependencies={['newPassword']}
-            rules={[
-              { required: true, message: '请再次输入新密码' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('newPassword') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('两次密码不一致'));
-                },
-              }),
-            ]}
+            rules={passwordConfirmRules('newPassword')}
           >
             <Input.Password
               placeholder="再次输入新密码"
@@ -812,6 +814,73 @@ const HospitalPage: React.FC = () => {
         </Form>
       </Modal>
     </PageContainer>
+  );
+};
+
+// ── 密码规则提示 ──
+// 大厂风格：实时显示 4 条规则（长度、字母、数字、字符集）+ 强度条，
+// 已通过的规则标绿，未通过的标红。空值时不显示（避免视觉噪音）。
+// 用 Form.useWatch 订阅字段值，input 变化时实时重渲。
+const PasswordRuleHint: React.FC<{ name: string; form: any }> = ({ name, form }) => {
+  const value: string | undefined = Form.useWatch(name, form);
+  if (!value) return null;
+  const len = value.length;
+  const hasLetter = /[a-zA-Z]/.test(value);
+  const hasDigit = /\d/.test(value);
+  const validChars = /^[a-zA-Z\d@$!%*?&]+$/.test(value);
+  const lengthOk = len >= PASSWORD_MIN && len <= PASSWORD_MAX;
+  const rules = [
+    { ok: lengthOk, text: `长度 ${PASSWORD_MIN}-${PASSWORD_MAX} 位（当前 ${len}）` },
+    { ok: hasLetter, text: '包含字母' },
+    { ok: hasDigit, text: '包含数字' },
+    { ok: validChars, text: '仅含字母、数字和 @$!%*?&' },
+  ];
+  const strength = passwordStrength(value);
+  const sLabel = PASSWORD_STRENGTH_LABEL[strength];
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
+        {rules.map((r) => (
+          <span
+            key={r.text}
+            style={{
+              color: r.ok ? '#52c41a' : '#ff4d4f',
+              transition: 'color 0.2s',
+            }}
+          >
+            {r.ok ? '✓' : '○'} {r.text}
+          </span>
+        ))}
+      </div>
+      <div
+        style={{
+          marginTop: 4,
+          height: 4,
+          background: '#f0f0f0',
+          borderRadius: 2,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <div
+          style={{
+            width: `${(strength / 3) * 100}%`,
+            height: '100%',
+            background: sLabel.color,
+            transition: 'width 0.2s',
+          }}
+        />
+      </div>
+      <div
+        style={{
+          marginTop: 2,
+          fontSize: 12,
+          color: sLabel.color,
+        }}
+      >
+        强度：{sLabel.text}
+      </div>
+    </div>
   );
 };
 

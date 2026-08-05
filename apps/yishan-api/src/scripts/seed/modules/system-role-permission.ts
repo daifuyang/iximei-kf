@@ -72,9 +72,12 @@ export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: numb
   // 不应作为每个角色都要配置的业务权限。
   const adminCodes = allCodes.filter((code) => code === 'auth:login')
 
-  // 医院账号：仅「医院列表只读」+ 派单'看+回' + 区域下拉。
+  // 医院账号：医院档案查看+编辑 + 派单'看+回' + 区域下拉。
   // 注意：必须使用**显式白名单**而非 `crm:hospitals:` 前缀匹配（plan §5.3.3），
   // 否则新增的 crm:hospitals:rename / :create / :update / :delete 会随前缀自动授权到医院账号。
+  //   持有 :update 是为了让医院账号能改自己医院资料（地址/经营性质等），
+  //   但**不持有** crm:hospitals:manage-account —— 账号管理(启停/重置密码/改账号邮箱手机号)
+  //   是 admin 级操作,医院账号不应拥有。
   // region 一族 4 个 perm code 中,医院账号业务只需 tree(级联树)+ path(回填路径);
   // list/read 是 admin 端只读管理页用的,不给医院账号。
   const hospitalAccountCodes = allCodes.filter((code) =>

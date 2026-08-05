@@ -17,8 +17,7 @@ import { useState } from 'react';
 import { useIntl } from '@umijs/max';
 import { logout } from '@/utils/auth';
 import { appChangeMyPassword } from '@/services/generated/appUsers';
-
-const PASSWORD_PATTERN = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/;
+import { passwordRules } from '@/utils/password';
 
 export default function ChangePasswordPage() {
   const { message } = App.useApp();
@@ -104,13 +103,7 @@ export default function ChangePasswordPage() {
           <Form.Item
             name="newPassword"
             label={t('pages.changePassword.newPassword', '新密码')}
-            rules={[
-              { required: true, message: '请输入新密码' },
-              {
-                pattern: PASSWORD_PATTERN,
-                message: '密码至少 6 位,且必须包含字母和数字',
-              },
-            ]}
+            rules={passwordRules({ required: true })}
           >
             <Input.Password
               prefix={<LockOutlined />}

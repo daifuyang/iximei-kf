@@ -228,7 +228,8 @@ const hospitals: FastifyPluginAsync = async (app) => {
   route.patch(
     '/hospitals/:id/account',
     {
-      access: { permission: PERMS.HOSPITAL_UPDATE },
+      // 同 reset-password：账号联系方式/启停属于账号管理,需要 manage-account 权限。
+      access: { permission: PERMS.HOSPITAL_ACCOUNT_MANAGE },
       schema: {
         tags: [ROUTE_TAG],
         summary: '更新医院账号联系方式 / 启停',
@@ -247,7 +248,10 @@ const hospitals: FastifyPluginAsync = async (app) => {
   route.post(
     '/hospitals/:id/account/reset-password',
     {
-      access: { permission: PERMS.HOSPITAL_UPDATE },
+      // 重置账号密码是 admin 级账号管理操作,需要独立的 manage-account 权限。
+      // 不沿用 HOSPITAL_UPDATE —— 否则医院账号角色(持有 :update 用于改自己医院资料)
+      // 会顺带拿到重置他人密码的权限,违反 §5.3.3 "医院账号不持有 crm:hospitals:* 前缀" 的隔离原则。
+      access: { permission: PERMS.HOSPITAL_ACCOUNT_MANAGE },
       schema: {
         tags: [ROUTE_TAG],
         summary: '重置医院账号密码',

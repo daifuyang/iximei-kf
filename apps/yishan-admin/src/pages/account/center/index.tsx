@@ -44,6 +44,7 @@ import React, {
 import { AttachmentImageSelect } from '@/components/AttachmentSelect';
 import { ImageCropperModal } from '@/components';
 import { getCurrentUser } from '@/services/generated/auth';
+import { passwordRules } from '@/utils/password';
 import {
   appChangeMyPassword,
   appUpdateMe,
@@ -99,9 +100,6 @@ const useStyles = createStyles(({ token }) => {
 });
 
 type TabKey = 'profile' | 'security' | 'apiToken';
-
-// 与后端 schema 保持一致：必须含字母和数字，长度 ≥ 6
-const PASSWORD_PATTERN = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/;
 
 const SecurityPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
   intl,
@@ -163,13 +161,7 @@ const SecurityPanel: React.FC<{ intl: ReturnType<typeof useIntl> }> = ({
         <Form.Item
           name="newPassword"
           label={t('account.center.security.newPassword')}
-          rules={[
-            { required: true, message: '请输入新密码' },
-            {
-              pattern: PASSWORD_PATTERN,
-              message: '密码至少 6 位，且必须包含字母和数字',
-            },
-          ]}
+          rules={passwordRules({ required: true })}
         >
           <Input.Password
             prefix={<LockOutlined />}
