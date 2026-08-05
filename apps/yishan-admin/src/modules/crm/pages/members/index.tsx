@@ -143,7 +143,9 @@ function useMemberOverview() {
 
 const MemberPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
-  const { message } = App.useApp();
+  // antd 6 推荐使用 App.useApp() 取 modal 实例（而非 Modal.confirm 静态调用），
+  // 才能消费动态主题/上下文，否则控制台会报"Static function can not consume context"。
+  const { message, modal } = App.useApp();
 
   // State
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
@@ -187,9 +189,13 @@ const MemberPage: React.FC = () => {
   const overview = useMemberOverview();
 
   // ── 对操作成功的统一回调 ──
+  // 触发 ProTable 重新拉数据 + 顶部概览卡重新拉数据。
+  // 注意：这里**不能**写成 `reloadAll()`，那会导致无限递归并立即抛栈溢出
+  // —— drawer 关闭后用户看不到表格刷新，会以为"添加失败"。改用 actionRef 调
+  // ProTable.reload，再单独刷新概览。
 
   const reloadAll = useCallback(() => {
-    reloadAll();
+    actionRef.current?.reload();
     overview.reload();
   }, [overview]);
 
@@ -477,7 +483,7 @@ const MemberPage: React.FC = () => {
         reloadAll();
         // If result is agree_dispatch, prompt to create dispatch
         if (values.result === 'agree_dispatch') {
-          Modal.confirm({
+          modal.confirm({
             title: '跟进记录已保存，是否立即创建派单？',
             okText: '创建派单',
             cancelText: '暂不派单',
@@ -548,7 +554,7 @@ const MemberPage: React.FC = () => {
   const handleBatchTag = async (values: any) => {
     const ids = selectedRowKeys.length > 0 ? selectedRowKeys : currentMember ? [currentMember.id] : [];
     try {
-      const res = await batchTagMembers({ memberIds: ids, tagIds: values.tagIds });
+      const res = await batchTagMembers({ memberIds: ids, tagsText: values.tagsText });
       if (res?.success) {
         message.success('打标签成功');
         setBatchTagOpen(false);
@@ -695,6 +701,11 @@ const MemberPage: React.FC = () => {
           if (Object.keys(rest).length > 0 && rest._resetPreset !== false) {
             setActivePreset(null);
           }
+          // 输入关键词（精确搜索）时清掉快捷预设，避免预设条件（如 ownerUserId=我）
+          // 反过来影响精确搜索体验；同时保留数据权限（后端仍按 SELF 收紧）。
+          if (keyword) {
+            setActivePreset(null)
+          }
           const res = await getMembers({
             page: current,
             pageSize,
@@ -752,7 +763,7 @@ const MemberPage: React.FC = () => {
         open={createOpen}
         onOpenChange={setCreateOpen}
         width={640}
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
         onFinish={handleCreate}
         submitter={{
           submitButtonProps: { title: '创建会员' },
@@ -760,7 +771,7 @@ const MemberPage: React.FC = () => {
           render: (props: any, doms: any) => {
             return [
               <Button key="cancel" onClick={() => { if (props.form?.isFieldsTouched()) {
-                Modal.confirm({ title: '当前内容尚未保存，确认放弃吗？', okText: '确认放弃', cancelText: '继续编辑', onOk: () => setCreateOpen(false) });
+                modal.confirm({ title: '当前内容尚未保存，确认放弃吗？', okText: '确认放弃', cancelText: '继续编辑', onOk: () => setCreateOpen(false) });
               } else { setCreateOpen(false); }}}>取消</Button>,
               <Button key="submit" type="primary" loading={props.submitting} onClick={() => props.form?.submit()}>创建会员</Button>,
             ];
@@ -838,7 +849,12 @@ const MemberPage: React.FC = () => {
             <ProFormText name="budgetRange" label="预算范围" placeholder="例如：1-3万" />
             <ProFormDatePicker name="expectedDate" label="期望时间" />
             <ProFormSelect name="ownerUserId" label="归属客服" options={users.map((u: any) => ({ label: u.realName || u.username, value: u.id }))} rules={[{ required: true }]} />
-            <ProFormSelect name="tagIds" label="顾客标签" mode="multiple" options={tags.map((t: any) => ({ label: t.name, value: t.id }))} />
+            <ProFormText
+              name="tagsText"
+              label="顾客标签"
+              placeholder="多个标签用逗号分隔，例如：VIP, 高净值"
+              extra={<>直接输入文字即可，多个标签请用 <code>, / ， / 、</code> 或换行分隔</>}
+            />
             <ProFormTextArea name="firstContactRecord" label="首次沟通记录" placeholder="输入首次沟通内容" />
             <ProFormDateTimePicker name="nextFollowUpAt" label="下次跟进时间" />
             <ProFormTextArea name="remark" label="备注" />
@@ -861,7 +877,12 @@ const MemberPage: React.FC = () => {
             <ProFormText name="budgetRange" label="预算范围" placeholder="例如：1-3万" />
             <ProFormDatePicker name="expectedDate" label="期望时间" />
             <ProFormSelect name="ownerUserId" label="归属客服" options={users.map((u: any) => ({ label: u.realName || u.username, value: u.id }))} rules={[{ required: true }]} />
-            <ProFormSelect name="tagIds" label="顾客标签" mode="multiple" options={tags.map((t: any) => ({ label: t.name, value: t.id }))} />
+            <ProFormText
+              name="tagsText"
+              label="顾客标签"
+              placeholder="多个标签用逗号分隔，例如：VIP, 高净值"
+              extra={<>直接输入文字即可，多个标签请用 <code>, / ， / 、</code> 或换行分隔</>}
+            />
             <Divider>跟进安排</Divider>
             <ProFormTextArea name="firstContactRecord" label="首次沟通记录" placeholder="输入首次沟通内容" />
             <ProFormDateTimePicker name="nextFollowUpAt" label="下次跟进时间" />
@@ -876,11 +897,12 @@ const MemberPage: React.FC = () => {
         open={editOpen}
         onOpenChange={setEditOpen}
         width={640}
-        drawerProps={{ destroyOnClose: true }}
+        drawerProps={{ destroyOnHidden: true }}
         onFinish={handleUpdate}
         initialValues={editingMember ? {
           ...editingMember,
-          tagIds: editingMember.tags?.map((t: any) => t.id) || [],
+          // 把标签数组反序列化成逗号串形式回显（纯文本编辑）
+          tagsText: (editingMember.tags?.map((t: any) => t.name).filter(Boolean) || []).join(', '),
         } : undefined}
       >
         {editingMember && (
@@ -907,7 +929,12 @@ const MemberPage: React.FC = () => {
         <ProFormText name="budgetRange" label="预算范围" />
         <ProFormDatePicker name="expectedDate" label="期望时间" />
         <ProFormSelect name="ownerUserId" label="归属客服" options={users.map((u: any) => ({ label: u.realName || u.username, value: u.id }))} />
-        <ProFormSelect name="tagIds" label="顾客标签" mode="multiple" options={tags.map((t: any) => ({ label: t.name, value: t.id }))} />
+        <ProFormText
+          name="tagsText"
+          label="顾客标签"
+          placeholder="多个标签用逗号分隔，例如：VIP, 高净值"
+          extra={<>直接输入文字即可，多个标签请用 <code>, / ， / 、</code> 或换行分隔</>}
+        />
         <Divider>跟进安排</Divider>
         <ProFormDateTimePicker name="nextFollowUpAt" label="下次跟进时间" />
         <ProFormTextArea name="remark" label="备注" />
@@ -918,8 +945,8 @@ const MemberPage: React.FC = () => {
         title="会员顾客详情"
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        width={800}
-        destroyOnClose
+        size={800}
+        destroyOnHidden
         extra={
           <Space>
             <Button onClick={() => { if (detailMember) handleEdit(detailMember); }}>编辑</Button>
@@ -1028,7 +1055,7 @@ const MemberPage: React.FC = () => {
         onFinish={handleFollowUp}
         width={560}
         layout="vertical"
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{ destroyOnHidden: true }}
       >
         <ProFormSelect name="followUpMethod" label="跟进方式" options={FOLLOW_UP_METHODS} placeholder="请选择" />
         <ProFormTextArea name="content" label="跟进内容" rules={[{ required: true, max: 5000 }]} placeholder="请输入跟进内容" />
@@ -1095,13 +1122,12 @@ const MemberPage: React.FC = () => {
         onFinish={handleBatchTag}
         width={420}
       >
-        <ProFormSelect
-          name="tagIds"
-          label="选择标签"
-          mode="multiple"
-          options={tags.map((t: any) => ({ label: t.name, value: t.id }))}
+        <ProFormText
+          name="tagsText"
+          label="顾客标签"
           rules={[{ required: true }]}
-          placeholder="请选择标签"
+          placeholder="多个标签用逗号分隔，例如：VIP, 高净值"
+          extra={<>直接输入文字即可，多个标签请用 <code>, / ， / 、</code> 或换行分隔</>}
         />
         <Space>
           <Button size="small" type="link" onClick={() => setCreateTagOpen(true)} icon={<PlusOutlined />}>新建标签</Button>
