@@ -452,10 +452,42 @@ describe("批量操作", () => {
   it("批量标签去重（调用 batchSetMemberTags）", async () => {
     const batchSpy = vi.spyOn(MembersRepository, "batchSetMemberTags").mockResolvedValue(undefined);
 
-    await MembersService.batchAddTags([1, 2], [1, 2, 2, 3], 1, DATA_SCOPE.ALL);
+    await MembersService.batchAddTags([1, 2], { tagIds: [1, 2, 2, 3] }, 1, DATA_SCOPE.ALL);
 
-    expect(batchSpy).toHaveBeenCalledWith([1, 2], [1, 2, 2, 3]);
-    // 去重逻辑在 repository 层处理
+    expect(batchSpy).toHaveBeenCalledWith([1, 2], [1, 2, 3]);
+    // 去重逻辑在 service 层（resolveTagIds）+ repository 层双重兜底
+  });
+
+  it("批量打标签：tagNames 会被自动创建并解析为 tagIds", async () => {
+    vi.spyOn(MembersRepository, "createTag").mockImplementation(async (input: any) => ({ id: 100 + Math.floor(Math.random() * 1000), ...input }));
+    const batchSpy = vi.spyOn(MembersRepository, "batchSetMemberTags").mockResolvedValue(undefined);
+
+    await MembersService.batchAddTags([1, 2], { tagNames: ['VIP', '高净值', 'VIP'] }, 1, DATA_SCOPE.ALL);
+
+    // 'VIP' 重复传入会被去重一次；createTag 应当只被调用 2 次（VIP / 高净值）
+    expect(MembersRepository.createTag).toHaveBeenCalledTimes(2);
+    // 传入 batchSetMemberTags 的 tagIds 已经 dedupe
+    const callArgs = (batchSpy.mock.calls[0] as any)[1] as number[]
+    expect([...new Set(callArgs)]).toEqual(callArgs)
+    expect(callArgs.length).toBe(2)
+  });
+
+  it("批量打标签：tagsText（纯文本逗号串）会被拆分、自动创建标签", async () => {
+    vi.spyOn(MembersRepository, "createTag").mockImplementation(async (input: any) => ({ id: 100 + Math.floor(Math.random() * 1000), ...input }));
+    const batchSpy = vi.spyOn(MembersRepository, "batchSetMemberTags").mockResolvedValue(undefined);
+
+    await MembersService.batchAddTags(
+      [1, 2],
+      { tagsText: 'VIP, 高净值、复购\n新客  VIP' },
+      1,
+      DATA_SCOPE.ALL,
+    );
+
+    // 期望拆出 4 个：VIP / 高净值 / 复购 / 新客（重复的 VIP 被去重）
+    expect(MembersRepository.createTag).toHaveBeenCalledTimes(4);
+    const callArgs = (batchSpy.mock.calls[0] as any)[1] as number[]
+    expect([...new Set(callArgs)]).toEqual(callArgs)
+    expect(callArgs.length).toBe(4)
   });
 });
 

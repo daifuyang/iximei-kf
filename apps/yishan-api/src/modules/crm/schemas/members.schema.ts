@@ -37,7 +37,11 @@ export const CrmMemberFromCustomerReqSchema = Type.Object({
   expectedDate: Type.Optional(Type.String({ format: 'date' })),
   preferredHospitalId: Type.Optional(Type.Integer({ minimum: 1 })),
   ownerUserId: Type.Optional(Type.Integer({ minimum: 1 })),
+  // 顾客标签：纯文本输入；多个标签用 , / ， / 、 / 换行 分隔；空字符串视为空
+  tagsText: Type.Optional(Type.String({ maxLength: 2000 })),
+  // 兼容旧调用方：仍可显式传 tag IDs 或 name 数组
   tagIds: Type.Optional(Type.Array(Type.Integer({ minimum: 1 }))),
+  tagNames: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 50 }))),
   firstContactRecord: Type.Optional(Type.String({ maxLength: 2000 })),
   nextFollowUpAt: Type.Optional(Type.String({ format: 'date-time' })),
   remark: Type.Optional(Type.String({ maxLength: 2000 })),
@@ -68,7 +72,11 @@ export const CrmMemberDirectReqSchema = Type.Object({
   expectedDate: Type.Optional(Type.String({ format: 'date' })),
   preferredHospitalId: Type.Optional(Type.Integer({ minimum: 1 })),
   ownerUserId: Type.Optional(Type.Integer({ minimum: 1 })),
+  // 顾客标签：纯文本输入；多个标签用 , / ， / 、 / 换行 分隔
+  tagsText: Type.Optional(Type.String({ maxLength: 2000 })),
+  // 兼容旧调用方
   tagIds: Type.Optional(Type.Array(Type.Integer({ minimum: 1 }))),
+  tagNames: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 50 }))),
   firstContactRecord: Type.Optional(Type.String({ maxLength: 2000 })),
   nextFollowUpAt: Type.Optional(Type.String({ format: 'date-time' })),
   remark: Type.Optional(Type.String({ maxLength: 2000 })),
@@ -98,7 +106,11 @@ export const CrmMemberUpdateReqSchema = Type.Object({
   expectedDate: Type.Optional(Type.String({ format: 'date' })),
   preferredHospitalId: Type.Optional(Type.Integer({ minimum: 1 })),
   ownerUserId: Type.Optional(Type.Integer({ minimum: 1 })),
+  // 顾客标签：纯文本输入；多个标签用 , / ， / 、 / 换行 分隔
+  tagsText: Type.Optional(Type.String({ maxLength: 2000 })),
+  // 兼容旧调用方
   tagIds: Type.Optional(Type.Array(Type.Integer({ minimum: 1 }))),
+  tagNames: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 50 }))),
   nextFollowUpAt: Type.Optional(Type.String({ format: 'date-time' })),
   remark: Type.Optional(Type.String({ maxLength: 2000 })),
 }, { $id: 'crmMemberUpdateReq', minProperties: 1 })
@@ -138,7 +150,11 @@ export const CrmMemberBatchAssignReqSchema = Type.Object({
 
 export const CrmMemberBatchTagReqSchema = Type.Object({
   memberIds: Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1 }),
-  tagIds: Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1 }),
+  // 顾客标签：纯文本输入；多个标签用 , / ， / 、 / 换行 分隔
+  tagsText: Type.Optional(Type.String({ maxLength: 2000 })),
+  // 兼容旧调用方
+  tagNames: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 50 }))),
+  tagIds: Type.Optional(Type.Array(Type.Integer({ minimum: 1 }))),
 }, { $id: 'crmMemberBatchTagReq' })
 
 export const CrmMemberBatchInvalidateReqSchema = Type.Object({

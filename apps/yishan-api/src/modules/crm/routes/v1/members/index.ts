@@ -321,7 +321,7 @@ const members: FastifyPluginAsync = async (app) => {
     async (req: any, reply: any) => {
       const result = await MembersService.batchAddTags(
         req.body.memberIds,
-        req.body.tagIds,
+        { tagIds: req.body.tagIds, tagNames: req.body.tagNames, tagsText: req.body.tagsText },
         uid(req),
         scope(req),
       )

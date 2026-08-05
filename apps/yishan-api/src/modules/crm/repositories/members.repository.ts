@@ -11,6 +11,15 @@ import { todayYmd, formatBusinessNumber } from './_number-id.js'
 const active = (t: any) => isNull(t.deletedAt)
 const page = (q: any, p: any) => p.pageSize === 0 ? q : q.limit(p.pageSize).offset((p.page - 1) * p.pageSize)
 
+// 关键词精确匹配：手机号 / 会员编号 / 姓名 任一字段完全相等
+// 不再使用 LIKE 模糊搜索，避免输入"138"命中所有含 138 的手机号
+const buildKeywordExactMatch = (keyword: string) =>
+  or(
+    eq(crmMemberCustomer.mobile, keyword),
+    eq(crmMemberCustomer.numberId, keyword),
+    eq(crmMemberCustomer.name, keyword),
+  )!
+
 export class MembersRepository {
 
   // ── 列表 ──
@@ -52,13 +61,10 @@ export class MembersRepository {
       c.push(lte(crmMemberCustomer.nextFollowUpAt, new Date()))
     }
 
-    // 关键词搜索
+    // 关键词搜索（精确匹配：手机号 / 会员编号 / 姓名 必须完全相等）
     if (q.keyword) {
-      c.push(or(
-        like(crmMemberCustomer.name, `%${q.keyword}%`),
-        like(crmMemberCustomer.mobile, `%${q.keyword}%`),
-        like(crmMemberCustomer.numberId, `%${q.keyword}%`),
-      )!)
+      const kw = String(q.keyword).trim()
+      if (kw) c.push(buildKeywordExactMatch(kw))
     }
 
     const where = and(...c)

@@ -23,6 +23,54 @@ function ownerScopeFor(scope: DataScopeCode, userId: number): number | undefined
   return undefined
 }
 
+/**
+ * 解析纯文本标签字符串为标签名数组。
+ * 分隔符：英文逗号、中文逗号、顿号、换行、空白。
+ * 例子："VIP, 高净值、复购\n投诉" → ["VIP", "高净值", "复购", "投诉"]
+ */
+function splitTagsText(text: string | null | undefined): string[] {
+  if (!text) return []
+  return String(text)
+    .split(/[,,、\n\r\s]+/g)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+/**
+ * 解析 tagNames / tagIds / tagsText 混合输入为最终的 tag ID 列表。
+ * - 已存在的标签名复用其 ID；
+ * - 不存在的标签名自动创建（去重 + 去空白）；
+ * - tagIds 与 tagNames 合并返回，按出现顺序去重。
+ */
+async function resolveTagIds(args: {
+  tagsText?: string | null
+  tagNames?: string[] | null
+  tagIds?: number[] | null
+  userId: number
+}): Promise<number[]> {
+  const result: number[] = []
+  if (Array.isArray(args.tagIds)) {
+    for (const id of args.tagIds) if (Number.isFinite(id)) result.push(Number(id))
+  }
+  const names: string[] = []
+  if (args.tagsText) names.push(...splitTagsText(args.tagsText))
+  if (Array.isArray(args.tagNames)) names.push(...args.tagNames)
+  if (names.length) {
+    const seen = new Set<string>()
+    for (const raw of names) {
+      const name = String(raw ?? '').trim()
+      if (!name || seen.has(name)) continue
+      seen.add(name)
+      const tag = await MembersRepository.createTag({
+        name,
+        creatorId: args.userId,
+      })
+      if (tag?.id) result.push(Number(tag.id))
+    }
+  }
+  return [...new Set(result)]
+}
+
 export class MembersService {
 
   // ── 列表 ──
@@ -117,7 +165,7 @@ export class MembersService {
   // ── 从客户转会员 ──
 
   static async createFromCustomer(input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
-    const { customerId, tagIds, firstContactRecord, ...memberFields } = input
+    const { customerId, tagIds, tagNames, tagsText, firstContactRecord, ...memberFields } = input
 
     // 检查客户是否存在
     const customer = await CustomersRepository.findById(customerId)
@@ -171,9 +219,10 @@ export class MembersService {
 
     const member = await MembersService._createWithNumberIdRetry(data)
 
-    // Set tags
-    if (tagIds?.length) {
-      await withDbErrorMapping(() => MembersRepository.setMemberTags(member.id, tagIds))
+    // Set tags (支持纯文本输入，自动 find-or-create)
+    const resolvedTagIds = await resolveTagIds({ tagsText, tagNames, tagIds, userId })
+    if (resolvedTagIds.length) {
+      await withDbErrorMapping(() => MembersRepository.setMemberTags(member.id, resolvedTagIds))
       member.tags = await MembersRepository.getMemberTagIds(member.id)
     }
 
@@ -197,7 +246,7 @@ export class MembersService {
   // ── 直接新增会员 ──
 
   static async createDirect(input: any, userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
-    const { tagIds, firstContactRecord, sourceChannel, ...rest } = input
+    const { tagIds, tagNames, tagsText, firstContactRecord, sourceChannel, ...rest } = input
     requireString(rest.name, { field: '会员姓名', min: 1, max: 50 })
 
     // Check mobile uniqueness
@@ -256,9 +305,10 @@ export class MembersService {
 
     const member = await MembersService._createWithNumberIdRetry(data)
 
-    // Set tags
-    if (tagIds?.length) {
-      await withDbErrorMapping(() => MembersRepository.setMemberTags(member.id, tagIds))
+    // Set tags (支持纯文本输入，自动 find-or-create)
+    const resolvedTagIds = await resolveTagIds({ tagsText, tagNames, tagIds, userId })
+    if (resolvedTagIds.length) {
+      await withDbErrorMapping(() => MembersRepository.setMemberTags(member.id, resolvedTagIds))
       member.tags = await MembersRepository.getMemberTagIds(member.id)
     }
 
@@ -285,7 +335,7 @@ export class MembersService {
     const existing = await this.getById(id, userId, scope)
     if (!existing) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '会员不存在或无权访问')
 
-    const { tagIds, ...fields } = input
+    const { tagIds, tagNames, tagsText, ...fields } = input
     if (fields.name !== undefined) {
       requireString(fields.name, { field: '会员姓名', min: 1, max: 50 })
     }
@@ -325,9 +375,10 @@ export class MembersService {
 
     await withDbErrorMapping(() => MembersRepository.update(id, data))
 
-    // Update tags
-    if (tagIds !== undefined) {
-      await withDbErrorMapping(() => MembersRepository.setMemberTags(id, tagIds))
+    // Update tags (支持纯文本输入，自动 find-or-create)
+    if (tagsText !== undefined || tagNames !== undefined || tagIds !== undefined) {
+      const resolvedTagIds = await resolveTagIds({ tagsText, tagNames, tagIds, userId })
+      await withDbErrorMapping(() => MembersRepository.setMemberTags(id, resolvedTagIds))
     }
 
     return MembersRepository.findById(id, { includeTags: true })
@@ -452,9 +503,16 @@ export class MembersService {
 
   // ── 批量打标签 ──
 
-  static async batchAddTags(memberIds: number[], tagIds: number[], userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
+  static async batchAddTags(
+    memberIds: number[],
+    tags: { tagIds?: number[]; tagNames?: string[]; tagsText?: string },
+    userId: number,
+    scope: DataScopeCode = DATA_SCOPE.ALL,
+  ) {
+    const tagIds = await resolveTagIds({ tagsText: tags.tagsText, tagNames: tags.tagNames, tagIds: tags.tagIds, userId })
+    if (!tagIds.length) return { success: true, affected: memberIds.length, tagIds: [] as number[] }
     await withDbErrorMapping(() => MembersRepository.batchSetMemberTags(memberIds, tagIds))
-    return { success: true, affected: memberIds.length }
+    return { success: true, affected: memberIds.length, tagIds }
   }
 
   // ── 标签管理 ──
