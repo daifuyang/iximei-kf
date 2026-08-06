@@ -213,8 +213,10 @@ const Login: React.FC = () => {
     setLoginError("");
 
     try {
-      // 登录
-      const msg = await userLogin({ ...values });
+      // 登录 — skipErrorHandler 抑制全局 BizError toast，本页自管提示文案。
+      // 后端错误码 22007(用户名或密码错误) / 用户被禁用 / 锁定等都会以 success:false 形态
+      // 返回到 msg，这里用 msg.message 兜底；只在网络层抛异常时才走 catch。
+      const msg = await userLogin({ ...values }, { skipErrorHandler: true });
 
       // 完全依赖API返回的success字段判断成功或失败
       if (msg.success) {
@@ -240,17 +242,26 @@ const Login: React.FC = () => {
         return;
       }
 
-      // 登录失败，直接使用API返回的错误信息
+      // 登录失败，直接使用API返回的错误信息（后端业务异常已映射到 msg.message）
       const errorMessage = msg.message || "登录失败，请重试";
       message.error(errorMessage);
       setLoginError(errorMessage);
-    } catch (_error: any) {
+    } catch (error: any) {
+      // 网络/底层异常：requestErrorConfig 会通过 BizError 把后端 message 注入到 error.info。
+      // 这里兜底链：后端真实文案 -> error.message -> 国际化兜底。
+      const apiMessage =
+        error?.info?.errorMessage ||
+        error?.response?.data?.message ||
+        (typeof error?.message === "string" && error.message
+          ? error.message
+          : null);
       const defaultLoginFailureMessage = intl.formatMessage({
         id: "pages.login.failure",
-        defaultMessage: "登录失败，请重试！",
+        defaultMessage: "登录失败，请重试",
       });
-      message.error(defaultLoginFailureMessage);
-      setLoginError(defaultLoginFailureMessage);
+      const errorMessage = apiMessage || defaultLoginFailureMessage;
+      message.error(errorMessage);
+      setLoginError(errorMessage);
     } finally {
       setLoading(false);
     }
