@@ -184,6 +184,11 @@ const MemberPage: React.FC = () => {
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [customerKeyword, setCustomerKeyword] = useState('');
 
+  // 直接新增模式：基于手机号反查已有客户的弹窗（18396533112 case）
+  const [directMobileConflict, setDirectMobileConflict] = useState<any | null>(null);
+  const [directMobileChecked, setDirectMobileChecked] = useState<string>('');
+  const directMobileCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── 概览（独立接口，不与列表推导） ──
 
   const overview = useMemberOverview();
@@ -429,10 +434,29 @@ const MemberPage: React.FC = () => {
     handleOpenFollowUp(record);
   };
 
+  // ── 把 dayjs 对象转为 ISO 字符串 ──
+  // 后端 TypeBox schema `format: 'date-time'` 只接受字符串；ProFormDateTimePicker 默认
+  // 返回 Dayjs 实例，直接发到后端会被拒为「nextFollowUpAt:类型不正确」。
+  // 这里做最小兼容：dayjs / Date / 已是字符串 的都规整为 ISO 字符串。
+  const toIso = (v: any) => {
+    if (v === undefined || v === null || v === '') return v;
+    if (typeof v === 'string') return v;
+    if (v && typeof v === 'object' && typeof v.toDate === 'function') return v.toDate().toISOString();
+    if (v instanceof Date) return v.toISOString();
+    return v;
+  };
+
+  // 只规范化后端期望为 ISO 的字段；birthday/expectedDate 当前是 YYYY-MM-DD 字符串不需要改。
+  const normalizeFollowUpPayload = (v: any) => ({
+    ...v,
+    nextFollowUpAt: toIso(v?.nextFollowUpAt),
+  });
+
   // ── 创建会员 ──
 
   const handleCreate = async (values: any) => {
     try {
+      const payload = normalizeFollowUpPayload(values);
       let res: any;
       if (createMode === 'from_customer') {
         if (!selectedCustomer) {
@@ -441,10 +465,10 @@ const MemberPage: React.FC = () => {
         }
         res = await createMemberFromCustomer({
           customerId: selectedCustomer.id,
-          ...values,
+          ...payload,
         });
       } else {
-        res = await createMemberDirect(values);
+        res = await createMemberDirect(payload);
       }
       if (res?.success) {
         message.success('创建成功');
@@ -461,7 +485,8 @@ const MemberPage: React.FC = () => {
 
   const handleUpdate = async (values: any) => {
     try {
-      const res = await updateMember(editingMember.id, values);
+      const payload = normalizeFollowUpPayload(values);
+      const res = await updateMember(editingMember.id, payload);
       if (res?.success) {
         message.success('修改成功');
         setEditOpen(false);
@@ -476,7 +501,8 @@ const MemberPage: React.FC = () => {
 
   const handleFollowUp = async (values: any) => {
     try {
-      const res = await addMemberFollowUp(currentMember.id, values);
+      const payload = normalizeFollowUpPayload(values);
+      const res = await addMemberFollowUp(currentMember.id, payload);
       if (res?.success) {
         message.success('跟进记录已保存');
         setFollowUpOpen(false);
@@ -761,7 +787,18 @@ const MemberPage: React.FC = () => {
       <DrawerForm
         title="新增会员顾客"
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            // 关闭抽屉时清理反查状态，避免下次打开还残留上次的命中
+            setDirectMobileConflict(null);
+            setDirectMobileChecked('');
+            if (directMobileCheckTimer.current) {
+              clearTimeout(directMobileCheckTimer.current);
+              directMobileCheckTimer.current = null;
+            }
+          }
+        }}
         width={640}
         drawerProps={{ destroyOnHidden: true }}
         onFinish={handleCreate}
@@ -863,7 +900,67 @@ const MemberPage: React.FC = () => {
           <>
             <Divider>基本资料</Divider>
             <ProFormText name="name" label="顾客姓名" rules={[{ required: true, max: 50 }]} placeholder="请输入姓名" />
-            <ProFormText name="mobile" label="手机号" rules={[{ required: true, pattern: /^1\d{10}$/, message: '请输入正确的手机号' }]} placeholder="请输入手机号" />
+            <ProFormText
+              name="mobile"
+              label="手机号"
+              rules={[{ required: true, pattern: /^1\d{10}$/, message: '请输入正确的手机号' }]}
+              placeholder="请输入手机号"
+              // 输入合法 11 位手机号时，debounce 反查已有客户；命中即弹窗提示，避免填完
+              // 整个表单才看到「该手机号已存在客户记录」错误。
+              fieldProps={{
+                onChange: (e: any) => {
+                  const value = String(e?.target?.value ?? '').trim();
+                  if (directMobileCheckTimer.current) {
+                    clearTimeout(directMobileCheckTimer.current);
+                    directMobileCheckTimer.current = null;
+                  }
+                  // 同一手机号不再重复弹
+                  if (value === directMobileChecked) return;
+                  if (!/^1[3-9]\d{9}$/.test(value)) {
+                    setDirectMobileConflict(null);
+                    return;
+                  }
+                  directMobileCheckTimer.current = setTimeout(async () => {
+                    try {
+                      const res = await getSelectableCustomers({ keyword: value, page: 1, pageSize: 5 });
+                      if (value !== directMobileChecked) {
+                        setDirectMobileChecked(value);
+                      }
+                      const list = (res as any)?.data || [];
+                      const exact = list.find((c: any) => c.mobile === value);
+                      if (exact && exact.deletedAt == null) {
+                        setDirectMobileConflict(exact);
+                        modal.confirm({
+                          title: '该手机号已是客户',
+                          content: (
+                            <div>
+                              <p>已存在客户：<b>{exact.name}</b>（编号 {exact.numberId}）</p>
+                              <p style={{ color: 'rgba(0,0,0,0.65)' }}>建议「从已有客户转为会员」，可继承基础资料并保留跟进记录。</p>
+                            </div>
+                          ),
+                          okText: '去转为会员',
+                          cancelText: '继续新增',
+                          onOk: () => {
+                            setCreateMode('from_customer');
+                            setSelectedCustomer(exact);
+                            setCreateOpen(false);
+                            // 重新打开抽屉并预填客户
+                            setTimeout(() => setCreateOpen(true), 0);
+                          },
+                          onCancel: () => {
+                            setDirectMobileConflict(exact);
+                          },
+                        });
+                      } else {
+                        setDirectMobileConflict(null);
+                      }
+                    } catch {
+                      // 网络错误时静默，不影响后续提交
+                    }
+                  }, 350);
+                },
+              }}
+            />
             <ProFormText name="wechat" label="微信号" placeholder="请输入微信号" />
             <ProFormRadio.Group name="gender" label="性别" options={[{ label: '男', value: 1 }, { label: '女', value: 2 }, { label: '未知', value: 0 }]} initialValue={0} />
             <ProFormDatePicker name="birthday" label="出生日期" />
