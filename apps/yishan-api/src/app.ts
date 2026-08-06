@@ -28,7 +28,52 @@ try {
 }
 
 export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> { }
-const options: AppOptions = {}
+
+/**
+ * Fastify `trustProxy` 默认值。
+ *
+ * 部署在阿里云函数计算（FC 3.0，custom runtime）上时，FC 网关到实例的源 IP
+ * 落在 `21.0.0.0/8` 段（FC 实例内网寻址段），所以 `request.ip` 默认拿到的 socket
+ * 对端是 `21.0.0.1` 而非真实客户端。FC HTTP 触发器会把客户端 IP 透传到
+ * `X-Forwarded-For` 头（见阿里云开发者社区 Q&A 541749），所以必须 trust 这一跳。
+ *
+ * - `127.0.0.1/32,::1/128` —— dev (`fastify-cli`) 和 `fastify.inject()`
+ *   单元测试的 source 都在 loopback。proxy-addr 不像 express 那样支持
+ *   `loopback` 别名，必须用 ipaddr.js 能解析的 CIDR。
+ * - `21.0.0.0/8` —— FC 内部网段（含 `21.0.0.0/15`）。
+ *
+ * 显式 CIDR 列表而不是 `true`：trustProxy=true 会让任何客户端通过伪造
+ * `X-Forwarded-For` 改 `request.ip`，会把基于 IP 的限流桶 key
+ * （`core/plugins/external/rate-limit.ts`）和登录/审计日志全部打开，任意人
+ * 改一个头就能换"身份"打满别人的限流。
+ *
+ * **两路入口必须同步**：
+ * 1. prod：`server.ts` 直接 `Fastify({ trustProxy, ... })` 读本常量。
+ * 2. dev：fastify-cli **有自己一套** `--trust-proxy-ips` 标志（`--trust-proxy-ips`
+ *    / `--trust-proxy-enabled` / `--trust-proxy-hop`），它根本不会从
+ *    `options` 读取 `trustProxy`（参见 fastify-cli start.js:168：`opts.trustProxy`
+ *    会覆盖 `options.trustProxy`，且不传 `--options` 时连 `options` 都不合并）。
+ *    所以 `package.json#scripts.dev` 必须显式传
+ *    `--trust-proxy-ips="${TRUST_PROXY:-127.0.0.1/32,::1/128,21.0.0.0/8}"`，
+ *    否则 dev 路径仍然退化到 `trustProxy: false`，登录日志写 127.0.0.1。
+ *
+ * 运营侧可通过 `TRUST_PROXY` 环境变量覆盖：逗号分隔 CIDR、`true` 或 `false`。
+ * 调小这个集合就等价于拒绝信任上游——影响范围只是把 `request.ip` 回退到更近
+ * 的那一跳（例如 CDN 边缘 IP），不会丢日志。
+ */
+export const TRUST_PROXY_DEFAULT = '127.0.0.1/32,::1/128,21.0.0.0/8'
+
+function resolveTrustProxy (): AppOptions['trustProxy'] {
+  const env = process.env.TRUST_PROXY
+  if (env === undefined || env === '') return TRUST_PROXY_DEFAULT
+  if (env === 'true') return true
+  if (env === 'false') return false
+  return env
+}
+
+const options: AppOptions = {
+  trustProxy: resolveTrustProxy()
+}
 
 const app: FastifyPluginAsync<AppOptions> = async (fastify, opts): Promise<void> => {
   // 1. External Fastify plugins (cors / jwt / redis / multipart / ...) — registered first

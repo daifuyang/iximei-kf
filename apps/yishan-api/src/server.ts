@@ -12,7 +12,7 @@ import fp from 'fastify-plugin'
 import closeWithGrace from 'close-with-grace'
 
 // Import your application as a normal plugin.
-import serviceApp from './app.js'
+import serviceApp, { options } from './app.js'
 
 /**
  * Do not use NODE_ENV to determine what logger (or any env related feature) to use
@@ -38,6 +38,10 @@ function getLoggerOptions () {
 
 const app = Fastify({
   logger: getLoggerOptions(),
+  // 与 src/app.ts 的 options.trustProxy 共用同一默认值（详见 app.ts 注释）。
+  // server.ts 路径下 Fastify 实例是这里显式 new 出来的，plugin options 不会
+  // 作用到 Fastify 构造器，所以必须在这里再设一次。
+  trustProxy: options.trustProxy,
   pluginTimeout: Number(process.env.FASTIFY_PLUGIN_TIMEOUT) || 60000,
   ajv: {
     customOptions: {

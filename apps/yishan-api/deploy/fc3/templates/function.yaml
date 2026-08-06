@@ -44,6 +44,11 @@ resources:
         # 改为 "/" 即可让 admin 重新占用根路径（前提是 admin 也是用 PUBLIC_PATH=/ 构建）。
         ADMIN_BASE_PATH: ${env(ADMIN_BASE_PATH, '/admin')}
         ADMIN_REDIRECT_ROOT: ${env(ADMIN_REDIRECT_ROOT, 'true')}
+        # 客户端 IP 信任链。FC 3.0 custom runtime 默认 socket 对端是
+        # 21.0.0.0/8（FC 实例侧内网网关），必须 trust 这一跳才能让 request.ip
+        # 拿到 X-Forwarded-For 里的真实 IP。默认等价于 src/app.ts#TRUST_PROXY_DEFAULT。
+        # 调整后 src/app.ts 和 src/server.ts 都会读到同一个值；详见 app.ts 注释。
+        TRUST_PROXY: ${env(TRUST_PROXY, '127.0.0.1/32,::1/128,21.0.0.0/8')}
       customRuntimeConfig:
         command:
           - node
