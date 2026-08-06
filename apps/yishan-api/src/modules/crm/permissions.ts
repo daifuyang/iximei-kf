@@ -8,6 +8,11 @@ export const PERMS = Object.freeze({
   HOSPITAL_ACCOUNT_MANAGE: { code: 'crm:hospitals:manage-account', label: 'CRM-医院-账号管理', group: 'crm' },
   CUSTOMER_LIST: { code: 'crm:customers:list', label: 'CRM-客户-查看', group: 'crm' }, CUSTOMER_CREATE: { code: 'crm:customers:create', label: 'CRM-客户-新建', group: 'crm' }, CUSTOMER_UPDATE: { code: 'crm:customers:update', label: 'CRM-客户-编辑', group: 'crm' }, CUSTOMER_DELETE: { code: 'crm:customers:delete', label: 'CRM-客户-删除', group: 'crm' }, CUSTOMER_DISPATCH: { code: 'crm:customers:dispatch', label: 'CRM-客户-派单', group: 'crm' },
   DISPATCH_LIST: { code: 'crm:dispatches:list', label: 'CRM-派单-查看', group: 'crm' }, DISPATCH_UPDATE: { code: 'crm:dispatches:update', label: 'CRM-派单-编辑', group: 'crm' }, DISPATCH_DELETE: { code: 'crm:dispatches:delete', label: 'CRM-派单-删除', group: 'crm' }, DISPATCH_REPLY: { code: 'crm:dispatches:reply', label: 'CRM-派单-回复', group: 'crm' }, DISPATCH_LOG: { code: 'crm:dispatches:log', label: 'CRM-派单-跟进', group: 'crm' },
+  // 医院账号点眼睛查看派单客户手机号明文 —— 默认脱敏，点击触发记录后才返回明文。
+  // super_admin 不需要（本身就返回明文）。
+  DISPATCH_VIEW_MOBILE: { code: 'crm:dispatches:view-mobile', label: 'CRM-派单-查看客户手机号', group: 'crm' },
+  // super_admin 在派单详情查看「谁在何时查看了哪个派单的手机号」。
+  DISPATCH_VIEW_MOBILE_LOGS: { code: 'crm:dispatches:view-mobile-logs', label: 'CRM-派单-手机号查看日志', group: 'crm' },
   MEMBER_LIST: { code: 'crm:members:list', label: 'CRM-会员-查看', group: 'crm' }, MEMBER_CREATE: { code: 'crm:members:create', label: 'CRM-会员-新建', group: 'crm' }, MEMBER_UPDATE: { code: 'crm:members:update', label: 'CRM-会员-编辑', group: 'crm' }, MEMBER_DELETE: { code: 'crm:members:delete', label: 'CRM-会员-删除', group: 'crm' }, MEMBER_REMARK: { code: 'crm:members:remark', label: 'CRM-会员-备注', group: 'crm' }, MEMBER_FOLLOW_UP: { code: 'crm:members:follow_up', label: 'CRM-会员-跟进', group: 'crm' }, MEMBER_ASSIGN: { code: 'crm:members:assign', label: 'CRM-会员-分配', group: 'crm' }, MEMBER_TAG: { code: 'crm:members:tag', label: 'CRM-会员-标签', group: 'crm' }, MEMBER_INVALIDATE: { code: 'crm:members:invalidate', label: 'CRM-会员-作废', group: 'crm' }, MEMBER_RESTORE: { code: 'crm:members:restore', label: 'CRM-会员-恢复', group: 'crm' }, MEMBER_EXPORT: { code: 'crm:members:export', label: 'CRM-会员-导出', group: 'crm' },
   DASHBOARD_VIEW: { code: 'crm:dashboard:view', label: 'CRM-数据看板-查看', group: 'crm' },
 } satisfies Record<string, PermissionRef>)

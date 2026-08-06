@@ -24,6 +24,32 @@ export const crmDispatch = mysqlTable('crm_dispatch', { id: int().primaryKey().a
 export const crmDispatchReply = mysqlTable('crm_dispatch_reply', { id: int().primaryKey().autoincrement().notNull(), dispatchId: int('dispatch_id').notNull(), userId: int('user_id').notNull(), content: text().notNull(), createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`) }, (t) => [index('idx_crm_dispatch_reply_dispatch').on(t.dispatchId), index('idx_crm_dispatch_reply_user').on(t.userId)])
 export const crmDispatchFollowLog = mysqlTable('crm_dispatch_follow_log', { id: int().primaryKey().autoincrement().notNull(), dispatchId: int('dispatch_id').notNull(), userId: int('user_id').notNull(), content: text().notNull(), createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`) }, (t) => [index('idx_crm_dispatch_log_dispatch').on(t.dispatchId), index('idx_crm_dispatch_log_user').on(t.userId)])
 
+/**
+ * 派单客户手机号查看日志
+ *
+ * 设计目标：医院账号在派单列表/详情中默认看到的是脱敏后的手机号（138****1234），
+ * 点击眼睛图标才看到明文。该动作会被记录到本表，super_admin 可在派单详情查看
+ * 「谁在何时查看了哪个派单的客户手机号」。
+ *
+ * 字段约定：
+ * - viewer_user_id + viewer_username 冗余记录，方便审计时直接看到人
+ * - viewer_hospital_name 仅当查看人是医院账号时有值
+ * - ip_address 来自 req.ip，便于事后排查
+ */
+export const crmDispatchMobileViewLog = mysqlTable('crm_dispatch_mobile_view_log', {
+  id: int().primaryKey().autoincrement().notNull(),
+  dispatchId: int('dispatch_id').notNull(),
+  viewerUserId: int('viewer_user_id').notNull(),
+  viewerUsername: varchar('viewer_username', { length: 100 }).notNull(),
+  viewerHospitalName: varchar('viewer_hospital_name', { length: 100 }),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+}, (t) => [
+  index('idx_crm_dispatch_mvlog_dispatch').on(t.dispatchId),
+  index('idx_crm_dispatch_mvlog_user').on(t.viewerUserId),
+  index('idx_crm_dispatch_mvlog_created').on(t.createdAt),
+])
+
 // ──────────────────────────────────────────────
 // 会员顾客模块 (enhanced)
 // ──────────────────────────────────────────────

@@ -18,8 +18,10 @@ import {
   Select,
   Space,
   Tag,
+  Timeline,
   Typography,
 } from 'antd';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import React, {
   useCallback,
@@ -35,6 +37,8 @@ import {
   getDispatches,
   getDispatchStatuses,
   getRegionTree,
+  viewDispatchMobile,
+  getDispatchMobileViewLogs,
 } from '../../api';
 import {
   fetchCloudStorageConfig,
@@ -82,12 +86,137 @@ const findRegionName = (regions: any[], code?: number): string | undefined => {
   return undefined;
 };
 
+// ──────────────────────────────────────────────
+// 医院账号派单列表手机号渲染：默认脱敏，点击眼睛查看（透明审计）
+// ──────────────────────────────────────────────
+
+const DispatchMobileCell: React.FC<{ record: any; isHospitalAccount: boolean }> = ({
+  record,
+  isHospitalAccount,
+}) => {
+  const { message } = App.useApp();
+  const [revealed, setRevealed] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const customer = record?.customer;
+  // 非医院角色：直接展示后端给的 mobile（保持原行为不变）
+  if (!isHospitalAccount) {
+    return <span>{customer?.mobile || '-'}</span>;
+  }
+
+  // 医院角色：默认显示 mobileMasked；点击眼睛触发接口拿明文 + 记日志
+  if (revealed) {
+    return <span>{revealed}</span>;
+  }
+  const masked = customer?.mobileMasked || '-';
+  // 仅当有 mobile 字段存在才显示眼睛按钮；mobileMasked 由后端基于 mobile 生成，
+  // 没有原 mobile 时不会有 masked，也不会有眼睛。
+  const hasMobile = !!(customer?.mobile || customer?.mobileMasked);
+  return (
+    <Space size={6}>
+      <span>{masked}</span>
+      {hasMobile ? (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          loading={loading}
+          onClick={async () => {
+            setLoading(true);
+            try {
+              const res = await viewDispatchMobile(record.id);
+              if (res?.success) {
+                setRevealed(res.data?.mobile || '-');
+              } else {
+                message.error(res?.message || '查看失败');
+              }
+            } catch (e: any) {
+              message.error(e?.message || '查看失败');
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
+          查看
+        </Button>
+      ) : null}
+    </Space>
+  );
+};
+
+// ──────────────────────────────────────────────
+// super_admin：派单详情底部展示「手机号查看日志」
+// ──────────────────────────────────────────────
+
+const MobileViewLogsPanel: React.FC<{ dispatchId: number }> = ({ dispatchId }) => {
+  const [list, setList] = React.useState<any[] | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await getDispatchMobileViewLogs(dispatchId);
+        if (!cancelled && res?.success) setList((res.data as any)?.list || []);
+      } catch {
+        if (!cancelled) setList([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatchId]);
+
+  if (loading && !list) return <Typography.Text type="secondary">加载中…</Typography.Text>;
+  if (!list || list.length === 0) {
+    return (
+      <Typography.Text type="secondary">暂无手机号查看记录</Typography.Text>
+    );
+  }
+
+  return (
+    <Timeline
+      items={list.map((it: any) => ({
+        children: (
+          <div>
+            <div>
+              <b>{it.viewerUsername}</b>
+              {it.viewerHospitalName ? `（${it.viewerHospitalName}）` : ''}
+              <span style={{ color: 'rgba(0,0,0,0.45)', marginLeft: 8 }}>
+                {dayjs(it.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+              </span>
+            </div>
+            {it.ipAddress ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                IP: {it.ipAddress}
+              </Typography.Text>
+            ) : null}
+          </div>
+        ),
+      }))}
+    />
+  );
+};
+
 const DispatchPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const { message } = App.useApp();
   // 导出 CSV 仅 super_admin 可见（导出整张派单表，敏感操作）
   const { initialState } = useModel('@@initialState')
-  const isSuperAdmin = Boolean(initialState?.currentUser?.roleIds?.includes(1))
+  const permissions: string[] = initialState?.currentUser?.permissions ?? []
+  const accessPath: string[] = initialState?.currentUser?.accessPath ?? []
+  const isSuperAdmin = permissions.includes('__super_admin__')
+  // /auth/me 当前不返回 roleIds；hospital 角色的可访问路由只有 4 个（/account 两条 + /crm/hospitals + /crm/dispatches），
+  // 用 accessPath 长度作为简单启发式，且必须含 /crm/dispatches（医院账号可访问派单列表）。
+  // 这里再叠加显式检查：新加的 crm:dispatches:view-mobile 仅医院角色持有。
+  const isHospitalAccount =
+    !isSuperAdmin &&
+    permissions.includes('crm:dispatches:view-mobile') &&
+    accessPath.includes('/crm/dispatches') &&
+    !accessPath.includes('/crm/members')
   const [detail, setDetail] = useState<any>();
   const [open, setOpen] = useState(false);
   const [statusOptions, setStatusOptions] = useState<
@@ -168,7 +297,14 @@ const DispatchPage: React.FC = () => {
     },
     { title: '医院', dataIndex: ['hospital', 'hospitalName'], search: false },
     { title: '客户', dataIndex: ['customer', 'name'], search: false },
-    { title: '手机', dataIndex: ['customer', 'mobile'], search: false },
+    {
+      title: '手机',
+      dataIndex: ['customer', 'mobile'],
+      search: false,
+      render: (_, record: any) => (
+        <DispatchMobileCell record={record} isHospitalAccount={isHospitalAccount} />
+      ),
+    },
     { title: '整形项目', dataIndex: ['customer', 'plastic'], search: false },
     {
       title: '状态',
@@ -314,7 +450,7 @@ const DispatchPage: React.FC = () => {
                   {detail?.hospital?.hospitalName || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="客户手机">
-                  {detail?.customer?.mobile || '-'}
+                  <DispatchMobileCell record={detail} isHospitalAccount={isHospitalAccount} />
                 </Descriptions.Item>
                 <Descriptions.Item label="QQ">
                   {detail?.customer?.qq || '-'}
@@ -479,6 +615,15 @@ const DispatchPage: React.FC = () => {
                   />
                 </Form.Item>
               </Form>
+              {isSuperAdmin && detail?.id ? (
+                <Card
+                  size="small"
+                  title="手机号查看日志"
+                  style={{ marginTop: 16 }}
+                >
+                  <MobileViewLogsPanel dispatchId={detail.id} />
+                </Card>
+              ) : null}
             </div>
           </Col>
         </Row>

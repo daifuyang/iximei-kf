@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, or } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
-import { crmCustomer, crmDispatch, crmDispatchFollowLog, crmDispatchReply, crmDispatchStatus, crmHospital } from '../db/schema.js'
+import { crmCustomer, crmDispatch, crmDispatchFollowLog, crmDispatchMobileViewLog, crmDispatchReply, crmDispatchStatus, crmHospital } from '../db/schema.js'
 import { sysUser } from '@/db/schema'
 
 const active = (t: any) => isNull(t.deletedAt)
@@ -137,6 +137,38 @@ export class DispatchesRepository {
 
   static addLog(id: number, userId: number, content: string) {
     return drizzleDb.insert(crmDispatchFollowLog).values({ dispatchId: id, userId, content })
+  }
+
+  // ── 客户手机号查看日志 ──
+
+  /**
+   * 记录一次"医院账号查看派单客户手机号明文"的事件。
+   * viewer_user_id / viewer_username / viewer_hospital_name 直接冗余写入，
+   * 避免后续审计时还要 join sys_user / crm_hospital。
+   */
+  static recordMobileView(input: {
+    dispatchId: number
+    viewerUserId: number
+    viewerUsername: string
+    viewerHospitalName?: string | null
+    ipAddress?: string | null
+  }) {
+    return drizzleDb.insert(crmDispatchMobileViewLog).values({
+      dispatchId: input.dispatchId,
+      viewerUserId: input.viewerUserId,
+      viewerUsername: input.viewerUsername,
+      viewerHospitalName: input.viewerHospitalName ?? null,
+      ipAddress: input.ipAddress ?? null,
+    })
+  }
+
+  /** 列出一个派单的全部手机号查看记录（super_admin 在派单详情查看）。 */
+  static listMobileViews(dispatchId: number) {
+    return drizzleDb
+      .select()
+      .from(crmDispatchMobileViewLog)
+      .where(eq(crmDispatchMobileViewLog.dispatchId, dispatchId))
+      .orderBy(desc(crmDispatchMobileViewLog.createdAt))
   }
 
   static async exportAll(q: any) {

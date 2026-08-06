@@ -186,6 +186,64 @@ const dispatches: FastifyPluginAsync = async (app) => {
       return csvHeader + csvRows
     },
   )
+
+  // ── 医院账号：查看派单客户手机号明文（写日志） ──
+  // 不设 response schema：ResponseUtil.success 会用 { success, code, message, data, timestamp }
+  // 信封包裹返回，直接断言内层 mobile 会触发 Fastify 5 的 envelope 校验。其它路由（getCrmDispatch
+  // 等）也未设 response schema，保持一致。
+
+  route.post(
+    '/dispatches/:id/view-mobile',
+    {
+      access: { permission: PERMS.DISPATCH_VIEW_MOBILE },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '查看派单客户手机号（医院账号触发，写入审计日志）',
+        operationId: 'viewCrmDispatchMobile',
+        params: CrmIdParamsSchema,
+      },
+    },
+    async (req: any, reply: any) => {
+      const user: any = req.currentUser
+      const hospitalName: string | null =
+        user?.hospitalName ?? user?.hospital?.hospitalName ?? null
+      const ip: string | null =
+        req.ip ?? (req.headers?.['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ?? null
+      const result = await DispatchesService.viewDispatchMobile(
+        id(req),
+        uid(req),
+        user?.username ?? '',
+        roleIds(req),
+        scope(req),
+        { ip, hospitalName },
+      )
+      return ResponseUtil.success(reply, result)
+    },
+  )
+
+  // ── super_admin：列出某派单的全部手机号查看记录 ──
+
+  route.get(
+    '/dispatches/:id/mobile-view-logs',
+    {
+      access: { permission: PERMS.DISPATCH_VIEW_MOBILE_LOGS },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '派单手机号查看日志（仅 super_admin）',
+        operationId: 'listCrmDispatchMobileViewLogs',
+        params: CrmIdParamsSchema,
+      },
+    },
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.listDispatchMobileViews(
+        id(req),
+        uid(req),
+        roleIds(req),
+        scope(req),
+      )
+      return ResponseUtil.success(reply, result)
+    },
+  )
 }
 
 export default dispatches

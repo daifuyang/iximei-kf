@@ -80,11 +80,13 @@ export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: numb
   //   是 admin 级操作,医院账号不应拥有。
   // region 一族 4 个 perm code 中,医院账号业务只需 tree(级联树)+ path(回填路径);
   // list/read 是 admin 端只读管理页用的,不给医院账号。
+  // 2026-08 新增：crm:dispatches:view-mobile（点眼睛查看派单客户手机号明文，写审计日志）。
   const hospitalAccountCodes = allCodes.filter((code) =>
     code === 'crm:hospitals:list' ||
     code === 'crm:hospitals:update' ||
     code === 'crm:dispatches:list' ||
     code === 'crm:dispatches:reply' ||
+    code === 'crm:dispatches:view-mobile' ||
     code === 'region:tree' ||
     code === 'region:path',
   )

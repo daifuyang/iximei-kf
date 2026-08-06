@@ -24,6 +24,7 @@ import {
   getCrmMember,
   listCrmCustomerStatuses,
   listCrmCustomers,
+  listCrmDispatchMobileViewLogs,
   listCrmDispatches,
   listCrmDispatchStatuses,
   listCrmHospitals,
@@ -33,6 +34,7 @@ import {
   updateCrmDispatch,
   updateCrmHospital,
   updateCrmMember,
+  viewCrmDispatchMobile,
 } from '@/services/generated/crm';
 
 import { getSystemRegionTree } from '@/services/generated/systemRegions';
@@ -80,6 +82,14 @@ export const addDispatchReply = (id: number, body: object) =>
   createCrmDispatchReply({ id }, body as never);
 export const addDispatchLog = (id: number, body: object) =>
   createCrmDispatchLog({ id }, body as never);
+
+/** 医院账号点眼睛 → 后端记日志 + 返回明文（operationId: viewCrmDispatchMobile） */
+export const viewDispatchMobile = (id: number) =>
+  viewCrmDispatchMobile({ id });
+
+/** super_admin：拉取某派单的手机号查看日志（operationId: listCrmDispatchMobileViewLogs） */
+export const getDispatchMobileViewLogs = (id: number) =>
+  listCrmDispatchMobileViewLogs({ id });
 
 /* ---------- 医院 ---------- */
 

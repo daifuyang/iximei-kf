@@ -1,6 +1,7 @@
 import { BusinessError } from '@/exceptions/business-error.js'
 import { ResourceErrorCode } from '@/constants/business-codes/resource.js'
 import { ValidationErrorCode } from '@/constants/business-codes/validation.js'
+import { AuthErrorCode } from '@/constants/business-codes/auth.js'
 import { withDbErrorMapping } from '@/core/plugins/external/db-error.js'
 import { DispatchesRepository } from '../repositories/dispatches.repository.js'
 import { HospitalsRepository } from '../repositories/hospitals.repository.js'
@@ -29,6 +30,40 @@ async function dispatchFilters(
   return { creatorUserIds: [userId] }
 }
 
+/**
+ * 把 11 位手机号脱敏成 138****1234 形式；非 11 位数字原样返回。
+ * 派单列表 / 详情接口在 HOSPITAL_ACCOUNT 视角下调用，避免医院账号未授权看到明文。
+ */
+function maskPhone(phone?: string | null): string | null {
+  if (!phone) return phone ?? null
+  const s = String(phone).trim()
+  if (!/^\d{11}$/.test(s)) return s || null
+  return `${s.slice(0, 3)}****${s.slice(7)}`
+}
+
+/**
+ * 给派单对象的 customer.mobile 脱敏；hospital 视角调用，其它角色保持原样。
+ * 同时给 customer 增加 mobileMasked 字段（医院视角下原 mobile 字段置 null）。
+ */
+function maskDispatchForHospital<T extends { customer?: { mobile?: string | null } | null }>(
+  dispatch: T | null,
+  roleIds: ReadonlyArray<number>,
+): T | null {
+  if (!dispatch) return dispatch
+  if (!roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) return dispatch
+  const c: any = dispatch.customer
+  if (!c) return dispatch
+  const original = c.mobile
+  return {
+    ...dispatch,
+    customer: {
+      ...c,
+      mobile: null,
+      mobileMasked: maskPhone(original),
+    },
+  }
+}
+
 export class DispatchesService {
   static async listStatuses() {
     await CustomersRepository.ensureDefaultStatuses()
@@ -43,7 +78,13 @@ export class DispatchesService {
   ) {
     const p = pageArgs(q)
     const extra = await dispatchFilters(roleIds, userId)
-    return { ...(await DispatchesRepository.list({ ...q, ...p, ...extra })), ...p }
+    const result: any = await DispatchesRepository.list({ ...q, ...p, ...extra })
+    const isHospital = roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)
+    const list = (result.list || []).map((d: any) => {
+      const cleaned = sanitizeDispatchReplies(d)
+      return isHospital ? maskDispatchForHospital(cleaned, roleIds) : cleaned
+    })
+    return { ...result, list, ...p }
   }
 
   static async getById(
@@ -61,7 +102,8 @@ export class DispatchesService {
     } else {
       if (d.creatorId !== userId && scope === DATA_SCOPE.SELF) return null
     }
-    return sanitizeDispatchReplies(d)
+    const cleaned = sanitizeDispatchReplies(d)
+    return maskDispatchForHospital(cleaned, roleIds)
   }
 
   static async update(
@@ -152,6 +194,82 @@ export class DispatchesService {
   ) {
     const extra = await dispatchFilters(roleIds, userId)
     return DispatchesRepository.exportAll({ ...q, ...extra })
+  }
+
+  // ── 医院账号：查看派单客户手机号明文（写日志） ──
+
+  /**
+   * 仅 hospital_account 实际会触发此接口；其它角色（含 super_admin）拿到 getById
+   * 时本来就看得到明文，本方法对它们也是幂等的（写日志 + 返回明文）。
+   * 写日志失败不阻塞明文返回，否则会让"已记日志但接口失败"或"接口失败但未记日志"
+   * 两种状态都不收敛。
+   */
+  static async viewDispatchMobile(
+    id: number,
+    userId: number,
+    username: string,
+    roleIds: ReadonlyArray<number>,
+    scope: DataScopeCode,
+    meta: { ip?: string | null; hospitalName?: string | null },
+  ): Promise<{ mobile: string | null }> {
+    const d: any = await DispatchesRepository.findById(id)
+    if (!d) {
+      throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在')
+    }
+    // 数据范围校验（与 getById 一致）
+    if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
+      const ids = (await HospitalsRepository.accessibleHospitalIds(userId)).map((x: any) => x.hospitalId)
+      if (!ids.includes(d.hospitalId)) {
+        throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
+      }
+    } else if (!roleIds.includes(ROLE_IDS.SUPER_ADMIN)) {
+      if (d.creatorId !== userId && scope === DATA_SCOPE.SELF) {
+        throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在或无权访问')
+      }
+    }
+
+    await withDbErrorMapping(() =>
+      DispatchesRepository.recordMobileView({
+        dispatchId: id,
+        viewerUserId: userId,
+        viewerUsername: username,
+        viewerHospitalName: meta.hospitalName ?? null,
+        ipAddress: meta.ip ?? null,
+      }),
+    ).catch(() => {})
+
+    return { mobile: d.customer?.mobile ?? null }
+  }
+
+  // ── super_admin：列出某派单的全部手机号查看记录 ──
+
+  static async listDispatchMobileViews(
+    id: number,
+    userId: number,
+    roleIds: ReadonlyArray<number>,
+    scope: DataScopeCode,
+  ) {
+    // 双重门禁：路由层 PERMS.DISPATCH_VIEW_MOBILE_LOGS，这里再校验 super_admin。
+    if (!roleIds.includes(ROLE_IDS.SUPER_ADMIN)) {
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '仅系统管理员可查看手机号查看日志')
+    }
+    const exists = await DispatchesRepository.findById(id)
+    if (!exists) {
+      throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在')
+    }
+    const rows = await DispatchesRepository.listMobileViews(id)
+    return {
+      list: rows.map((r: any) => ({
+        id: Number(r.id),
+        dispatchId: Number(r.dispatchId),
+        viewerUserId: Number(r.viewerUserId),
+        viewerUsername: String(r.viewerUsername),
+        viewerHospitalName: r.viewerHospitalName ?? null,
+        ipAddress: r.ipAddress ?? null,
+        createdAt:
+          r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+      })),
+    }
   }
 }
 void compact
