@@ -72,10 +72,6 @@ const health: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
                       error: { type: "string" },
                     },
                   },
-                  // === 临时 trustProxy 探针字段（验证后回滚）===
-                  requestIp: { type: "string" },
-                  xForwardedForHeader: { type: "string" },
-                  socketRemoteAddress: { type: "string" },
                 },
               },
               timestamp: { type: "string" },
@@ -84,7 +80,7 @@ const health: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         },
       },
     },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (_request: FastifyRequest, reply: FastifyReply) => {
       const dbCheck = await checkDb();
       const commitSha =
         process.env.GIT_COMMIT_SHA ??
@@ -101,15 +97,6 @@ const health: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         uptimeSeconds: Math.round(process.uptime()),
         timestamp: dateUtils.now(),
         db: dbCheck,
-        // === 临时 trustProxy 探针（验证 FC 真实 IP 透传后回滚）===
-        // 三件套看清 prod 实际行为：
-        //  - request.ip          Fastify 经 trustProxy 解析后的最终 IP（写入 sys_login_log 的值）
-        //  - xForwardedForHeader FC 网关实际注入的原始头（可能是单 IP 或逗号分隔链）
-        //  - socketRemoteAddress Node.js socket 对端 IP（FC 内网网关，应为 21.0.0.x）
-        // 验证完按 commit hash 直接 revert 这一段。
-        requestIp: request.ip,
-        xForwardedForHeader: request.headers["x-forwarded-for"] ?? null,
-        socketRemoteAddress: request.socket.remoteAddress ?? null,
       };
       const message = dbCheck.ok ? "Service is healthy" : "Service degraded";
       return ResponseUtil.success(reply, payload, message);
