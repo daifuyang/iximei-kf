@@ -45,21 +45,20 @@ export async function listCrmCustomers(
 /** 新建客户 POST /api/crm/v1/customers */
 export async function createCrmCustomer(
   body: {
-    numberId?: string;
     name: string;
     gender?: number;
-    birthday?: string;
-    telphone?: string;
-    mobile?: string;
-    qq?: string;
-    wechat?: string;
-    provinceId?: number;
-    cityId?: number;
-    districtId?: number;
-    address?: string;
-    plastic?: string;
+    birthday?: null | string;
+    telphone?: null | string;
+    mobile?: null | string;
+    qq?: null | string;
+    wechat?: null | string;
+    provinceId?: null | number;
+    cityId?: null | number;
+    districtId?: null | number;
+    address?: null | string;
+    plastic?: null | string;
     statusId?: number;
-    remark?: string;
+    remark?: null | string;
     ownerUserId?: number;
   },
   options?: { [key: string]: any }
@@ -107,21 +106,20 @@ export async function updateCrmCustomer(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmCustomerParams,
   body: {
-    numberId?: string;
     name?: string;
     gender?: number;
-    birthday?: string;
-    telphone?: string;
-    mobile?: string;
-    qq?: string;
-    wechat?: string;
-    provinceId?: number;
-    cityId?: number;
-    districtId?: number;
-    address?: string;
-    plastic?: string;
+    birthday?: null | string;
+    telphone?: null | string;
+    mobile?: null | string;
+    qq?: null | string;
+    wechat?: null | string;
+    provinceId?: null | number;
+    cityId?: null | number;
+    districtId?: null | number;
+    address?: null | string;
+    plastic?: null | string;
     statusId?: number;
-    remark?: string;
+    remark?: null | string;
     ownerUserId?: number;
   },
   options?: { [key: string]: any }
@@ -205,21 +203,20 @@ export async function listCrmCustomers2(
 /** 新建客户 POST /api/crm/v1/customers/customers */
 export async function createCrmCustomer2(
   body: {
-    numberId?: string;
     name: string;
     gender?: number;
-    birthday?: string;
-    telphone?: string;
-    mobile?: string;
-    qq?: string;
-    wechat?: string;
-    provinceId?: number;
-    cityId?: number;
-    districtId?: number;
-    address?: string;
-    plastic?: string;
+    birthday?: null | string;
+    telphone?: null | string;
+    mobile?: null | string;
+    qq?: null | string;
+    wechat?: null | string;
+    provinceId?: null | number;
+    cityId?: null | number;
+    districtId?: null | number;
+    address?: null | string;
+    plastic?: null | string;
     statusId?: number;
-    remark?: string;
+    remark?: null | string;
     ownerUserId?: number;
   },
   options?: { [key: string]: any }
@@ -267,21 +264,20 @@ export async function updateCrmCustomer2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateCrmCustomerParams,
   body: {
-    numberId?: string;
     name?: string;
     gender?: number;
-    birthday?: string;
-    telphone?: string;
-    mobile?: string;
-    qq?: string;
-    wechat?: string;
-    provinceId?: number;
-    cityId?: number;
-    districtId?: number;
-    address?: string;
-    plastic?: string;
+    birthday?: null | string;
+    telphone?: null | string;
+    mobile?: null | string;
+    qq?: null | string;
+    wechat?: null | string;
+    provinceId?: null | number;
+    cityId?: null | number;
+    districtId?: null | number;
+    address?: null | string;
+    plastic?: null | string;
     statusId?: number;
-    remark?: string;
+    remark?: null | string;
     ownerUserId?: number;
   },
   options?: { [key: string]: any }
@@ -577,6 +573,20 @@ export async function createCrmDispatchLog(
   });
 }
 
+/** 派单手机号查看日志（仅 super_admin） GET /api/crm/v1/dispatches/${param0}/mobile-view-logs */
+export async function listCrmDispatchMobileViewLogs(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmDispatchMobileViewLogsParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/dispatches/${param0}/mobile-view-logs`, {
+    method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 派单回复 POST /api/crm/v1/dispatches/${param0}/reply */
 export async function createCrmDispatchReply(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -598,6 +608,20 @@ export async function createCrmDispatchReply(
     },
     params: { ...queryParams },
     data: body,
+    ...(options || {}),
+  });
+}
+
+/** 查看派单客户手机号（医院账号触发，写入审计日志） POST /api/crm/v1/dispatches/${param0}/view-mobile */
+export async function viewCrmDispatchMobile(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.viewCrmDispatchMobileParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/dispatches/${param0}/view-mobile`, {
+    method: "POST",
+    params: { ...queryParams },
     ...(options || {}),
   });
 }
@@ -717,6 +741,23 @@ export async function createCrmDispatchLog2(
   });
 }
 
+/** 派单手机号查看日志（仅 super_admin） GET /api/crm/v1/dispatches/dispatches/${param0}/mobile-view-logs */
+export async function listCrmDispatchMobileViewLogs2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmDispatchMobileViewLogsParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(
+    `/api/crm/v1/dispatches/dispatches/${param0}/mobile-view-logs`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
 /** 派单回复 POST /api/crm/v1/dispatches/dispatches/${param0}/reply */
 export async function createCrmDispatchReply2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -740,6 +781,23 @@ export async function createCrmDispatchReply2(
     data: body,
     ...(options || {}),
   });
+}
+
+/** 查看派单客户手机号（医院账号触发，写入审计日志） POST /api/crm/v1/dispatches/dispatches/${param0}/view-mobile */
+export async function viewCrmDispatchMobile2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.viewCrmDispatchMobileParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(
+    `/api/crm/v1/dispatches/dispatches/${param0}/view-mobile`,
+    {
+      method: "POST",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
 }
 
 /** 派单状态字典 GET /api/crm/v1/dispatches/dispatches/statuses */
@@ -810,6 +868,8 @@ export async function createCrmHospital(
     contractPhotos?: string[];
     wechatOpenid?: string;
     status?: number;
+    hospitalName: string;
+    /** 医院账号密码 */
     accountPassword: string;
     accountEmail?: string;
     accountPhone?: string;
@@ -941,6 +1001,7 @@ export async function resetCrmHospitalAccountPassword(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.resetCrmHospitalAccountPasswordParams,
   body: {
+    /** 医院账号新密码 */
     newPassword: string;
   },
   options?: { [key: string]: any }
@@ -1029,6 +1090,8 @@ export async function createCrmHospital2(
     contractPhotos?: string[];
     wechatOpenid?: string;
     status?: number;
+    hospitalName: string;
+    /** 医院账号密码 */
     accountPassword: string;
     accountEmail?: string;
     accountPhone?: string;
@@ -1160,6 +1223,7 @@ export async function resetCrmHospitalAccountPassword2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.resetCrmHospitalAccountPasswordParams,
   body: {
+    /** 医院账号新密码 */
     newPassword: string;
   },
   options?: { [key: string]: any }
@@ -1200,7 +1264,7 @@ export async function renameCrmHospital2(
   });
 }
 
-/** 医院搜索（前端下拉） GET /api/crm/v1/hospitals/hospitals/search/options */
+/** 派单医院搜索（前端下拉） GET /api/crm/v1/hospitals/hospitals/search/options */
 export async function searchCrmHospitals2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.searchCrmHospitalsParams,
@@ -1215,7 +1279,7 @@ export async function searchCrmHospitals2(
   });
 }
 
-/** 医院搜索（前端下拉） GET /api/crm/v1/hospitals/search/options */
+/** 派单医院搜索（前端下拉） GET /api/crm/v1/hospitals/search/options */
 export async function searchCrmHospitals(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.searchCrmHospitalsParams,
@@ -1342,7 +1406,9 @@ export async function updateCrmMember(
     expectedDate?: string;
     preferredHospitalId?: number;
     ownerUserId?: number;
+    tagsText?: string;
     tagIds?: number[];
+    tagNames?: string[];
     nextFollowUpAt?: string;
     remark?: string;
   },
@@ -1533,7 +1599,9 @@ export async function batchInvalidateCrmMembers(
 export async function batchTagCrmMembers(
   body: {
     memberIds: number[];
-    tagIds: number[];
+    tagsText?: string;
+    tagNames?: string[];
+    tagIds?: number[];
   },
   options?: { [key: string]: any }
 ) {
@@ -1589,7 +1657,9 @@ export async function createCrmMemberDirect(
     expectedDate?: string;
     preferredHospitalId?: number;
     ownerUserId?: number;
+    tagsText?: string;
     tagIds?: number[];
+    tagNames?: string[];
     firstContactRecord?: string;
     nextFollowUpAt?: string;
     remark?: string;
@@ -1618,7 +1688,9 @@ export async function createCrmMemberFromCustomer(
     expectedDate?: string;
     preferredHospitalId?: number;
     ownerUserId?: number;
+    tagsText?: string;
     tagIds?: number[];
+    tagNames?: string[];
     firstContactRecord?: string;
     nextFollowUpAt?: string;
     remark?: string;
@@ -1747,7 +1819,9 @@ export async function updateCrmMember2(
     expectedDate?: string;
     preferredHospitalId?: number;
     ownerUserId?: number;
+    tagsText?: string;
     tagIds?: number[];
+    tagNames?: string[];
     nextFollowUpAt?: string;
     remark?: string;
   },
@@ -1938,7 +2012,9 @@ export async function batchInvalidateCrmMembers2(
 export async function batchTagCrmMembers2(
   body: {
     memberIds: number[];
-    tagIds: number[];
+    tagsText?: string;
+    tagNames?: string[];
+    tagIds?: number[];
   },
   options?: { [key: string]: any }
 ) {
@@ -1974,7 +2050,9 @@ export async function createCrmMemberDirect2(
     expectedDate?: string;
     preferredHospitalId?: number;
     ownerUserId?: number;
+    tagsText?: string;
     tagIds?: number[];
+    tagNames?: string[];
     firstContactRecord?: string;
     nextFollowUpAt?: string;
     remark?: string;
@@ -2003,7 +2081,9 @@ export async function createCrmMemberFromCustomer2(
     expectedDate?: string;
     preferredHospitalId?: number;
     ownerUserId?: number;
+    tagsText?: string;
     tagIds?: number[];
+    tagNames?: string[];
     firstContactRecord?: string;
     nextFollowUpAt?: string;
     remark?: string;

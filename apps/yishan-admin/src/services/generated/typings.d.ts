@@ -432,8 +432,8 @@ declare namespace API {
     email?: string;
     /** 手机号 */
     phone?: string;
-    /** 真实姓名 */
-    realName: string;
+    /** 真实姓名（医院账号从老 iximei 导入时可能为空） */
+    realName?: string;
     /** 头像URL */
     avatar?: string;
     /** 性别（0-未知，1-男，2-女） */
@@ -458,8 +458,8 @@ declare namespace API {
     updatedAt: string;
     /** 已授权菜单路径列表 */
     accessPath?: string[];
-    /** 已绑定角色 ID 列表 */
-    roleIds?: number[];
+    /** 已绑定权限码集合（含 __super_admin__ sentinel） */
+    permissions?: string[];
     /** 密码 hash 算法格式, 0=老 iximei ###md5; 1=新系统 scrypt v1 */
     passwordFormat?: number;
     /** 是否推荐改密, true=前端应展示 banner */
@@ -1070,6 +1070,8 @@ declare namespace API {
     sortBy?: "createdAt" | "updatedAt" | "lastLoginTime" | "loginCount";
     /** 排序方向 */
     sortOrder?: "asc" | "desc";
+    /** 角色 ID 过滤 */
+    roleId?: number;
   };
 
   type importRemoteImagesReq = {
@@ -1140,6 +1142,14 @@ declare namespace API {
     startTime?: string;
     endTime?: string;
     statusId?: number;
+  };
+
+  type listCrmDispatchMobileViewLogsParams = {
+    id: number;
+  };
+
+  type listCrmDispatchMobileViewLogsParams = {
+    id: number;
   };
 
   type listCrmHospitalsParams = {
@@ -1971,12 +1981,12 @@ declare namespace API {
     updaterName?: string;
     /** 更新时间 */
     updatedAt: string;
-    /** 自定义数据范围的部门ID列表 */
-    deptIds?: number[];
     /** 菜单ID列表 */
     menuIds?: number[];
     /** 后端功能/API 权限码列表 */
     permissionCodes?: string[];
+    /** 自定义数据范围的部门ID列表，仅 dataScope=2 生效 */
+    deptIds?: number[];
   };
 
   type systemOptionItem = {
@@ -2257,12 +2267,14 @@ declare namespace API {
     description?: string;
     /** 状态（0-禁用，1-启用） */
     status?: "0" | "1";
-    /** 数据权限范围（1-全部数据，2-本部门数据，3-本部门及子部门数据，4-仅本人数据，5-自定义数据） */
+    /** 数据权限范围（1-全部数据，2-自定义数据，3-本部门数据，4-本部门及子部门数据，5-仅本人数据） */
     dataScope?: "1" | "2" | "3" | "4" | "5";
     /** 菜单ID列表 */
     menuIds?: number[];
     /** 后端功能/API 权限码列表 */
     permissionCodes?: string[];
+    /** 自定义数据范围的部门ID列表，仅 dataScope=2 生效 */
+    deptIds?: number[];
   };
 
   type updateUserParams = {
@@ -2369,6 +2381,8 @@ declare namespace API {
     sortBy?: "createdAt" | "updatedAt" | "lastLoginTime" | "loginCount";
     /** 排序方向 */
     sortOrder?: "asc" | "desc";
+    /** 角色 ID 过滤 */
+    roleId?: number;
   };
 
   type userListResp = {
@@ -2378,5 +2392,13 @@ declare namespace API {
     data: sysUser[];
     timestamp: string;
     pagination: paginationResponse;
+  };
+
+  type viewCrmDispatchMobileParams = {
+    id: number;
+  };
+
+  type viewCrmDispatchMobileParams = {
+    id: number;
   };
 }

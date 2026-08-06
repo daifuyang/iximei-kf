@@ -8,8 +8,11 @@ export interface CurrentUser {
   email?: string
   /** 手机号 */
   phone?: string
-  /** 真实姓名 */
-  realName: string
+  /**
+   * 真实姓名（医院账号从老 iximei 导入时可能为空）。
+   * 与 generated `API.currentUser.realName` 对齐：可选。
+   */
+  realName?: string
   /** 头像URL */
   avatar?: string
   /** 性别（0-未知，1-男，2-女） */

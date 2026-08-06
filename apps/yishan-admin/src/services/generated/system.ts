@@ -80,6 +80,19 @@ export async function batchSetSystemOption(
   );
 }
 
+/** 获取存储启动配置 返回已脱敏的上传存储配置，仅供登录后客户端初始化使用 GET /api/v1/admin/system/options/bootstrap */
+export async function getStorageBootstrapOptions(options?: {
+  [key: string]: any;
+}) {
+  return request<API.batchGetSystemOptionResp>(
+    "/api/v1/admin/system/options/bootstrap",
+    {
+      method: "GET",
+      ...(options || {}),
+    }
+  );
+}
+
 /** 批量获取系统参数（QueryString） 通过 query 参数 ?key[]=a&key[]=b 批量获取系统参数值 GET /api/v1/admin/system/options/query */
 export async function batchGetSystemOptionByQuery(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -96,14 +109,6 @@ export async function batchGetSystemOptionByQuery(
       ...(options || {}),
     }
   );
-}
-
-/** 获取上传存储启动配置 登录后获取已脱敏的存储配置 GET /api/v1/admin/system/options/bootstrap */
-export async function getStorageBootstrapOptions(options?: { [key: string]: any }) {
-  return request<API.batchGetSystemOptionResp>("/api/v1/admin/system/options/bootstrap", {
-    method: "GET",
-    ...(options || {}),
-  });
 }
 
 /** 获取七牛云上传临时凭证 根据七牛云官方文档生成上传凭证（uptoken） GET /api/v1/admin/system/qiniu/token */
