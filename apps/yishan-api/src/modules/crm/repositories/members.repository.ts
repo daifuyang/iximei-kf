@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, lte, like, inArray, isNull, isNotNull, or, not } from 'drizzle-orm'
+import { and, count, desc, eq, gte, lte, like, inArray, isNull, isNotNull, or, notExists } from 'drizzle-orm'
 import { drizzleDb, type AppQueryDb } from '@/db'
 import { sysUser } from '@/db/schema'
 import {
@@ -401,6 +401,11 @@ export class MembersRepository {
 
   static async listSelectableCustomers(q: any) {
     const c: any[] = [isNull(crmCustomer.deletedAt)]
+
+    // 数据权限：service 层已按 scope 解析出 ownerUserId，这里只负责落 SQL。
+    // 之前这里漏了 owner 过滤，customer_service 会看到所有客服的客户。
+    if (q.ownerUserId) c.push(eq(crmCustomer.ownerUserId, q.ownerUserId))
+
     if (q.keyword) {
       c.push(or(
         like(crmCustomer.name, `%${q.keyword}%`),
@@ -409,14 +414,19 @@ export class MembersRepository {
       )!)
     }
 
-    // Exclude customers that already have active member profiles
-    const subQuery = drizzleDb.select({ customerId: crmMemberCustomer.customerId })
+    // 排除已有活跃会员记录的客户。
+    // 用关联子查询 + NOT EXISTS 而非 NOT IN：NOT IN 的子查询只要含一个 NULL
+    // customer_id（直接新增的会员允许不关联客户），整个谓词就退化为 UNKNOWN，
+    // 查询恒返回 0 行。NOT EXISTS 对 NULL 天然安全，且直接表达「该客户存在
+    // 活跃会员」这一意图。
+    const hasActiveMember = drizzleDb.select({ id: crmMemberCustomer.id })
       .from(crmMemberCustomer)
       .where(and(
         isNull(crmMemberCustomer.deletedAt),
         eq(crmMemberCustomer.memberStatus, 'active'),
+        eq(crmMemberCustomer.customerId, crmCustomer.id), // 关联外查询的客户 id
       ))
-    c.push(not(inArray(crmCustomer.id, subQuery)))
+    c.push(notExists(hasActiveMember))
 
     const where = and(...c)
     const [items, totals] = await Promise.all([
