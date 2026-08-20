@@ -2,6 +2,7 @@ import {
   type ActionType,
   PageContainer,
   type ProColumns,
+  ProDescriptions,
   ProTable,
 } from '@ant-design/pro-components';
 import { useModel } from '@umijs/max';
@@ -12,6 +13,7 @@ import {
   Card,
   Col,
   Descriptions,
+  Divider,
   Form,
   Modal,
   Row,
@@ -35,6 +37,7 @@ import {
   addDispatchReply,
   getDispatch,
   getDispatches,
+  getDispatchHospitalViewLogs,
   getDispatchStatuses,
   getRegionTree,
   viewDispatchMobile,
@@ -226,6 +229,7 @@ const DispatchPage: React.FC = () => {
   const [processing, setProcessing] = useState(false);
   const processingRef = useRef(false);
   const [replyForm] = Form.useForm();
+  const [hospitalViewLogs, setHospitalViewLogs] = useState<any[]>([]);
 
   const loadStatuses = useCallback(async () => {
     const res = await getDispatchStatuses();
@@ -482,6 +486,41 @@ const DispatchPage: React.FC = () => {
                   {detail?.status?.name || '-'}
                 </Descriptions.Item>
               </Descriptions>
+              <Divider>医院查看状态</Divider>
+              <ProDescriptions
+                column={1}
+                dataSource={hospitalViewLogs}
+                request={async () => {
+                  if (!detail?.id) {
+                    return { success: false, data: [] };
+                  }
+                  const res: any = await getDispatchHospitalViewLogs(detail.id);
+                  const list = (res?.data as any)?.list || [];
+                  setHospitalViewLogs(list);
+                  if (res?.success) {
+                    return { success: true, data: res.data };
+                  }
+                  return { success: false, data: [] };
+                }}
+                columns={[
+                  { title: '医院名称', dataIndex: 'hospitalName' },
+                  {
+                    title: '查看状态',
+                    dataIndex: 'id',
+                    valueEnum: {
+                      '': { text: '未查看', status: 'Default' },
+                      viewed: { text: '已查看', status: 'Success' },
+                    },
+                  },
+                  {
+                    title: '首次查看时间',
+                    dataIndex: 'createdAt',
+                    valueType: 'dateTime',
+                  },
+                  { title: '查看账号', dataIndex: 'viewerUsername' },
+                  { title: 'IP', dataIndex: 'ipAddress' },
+                ]}
+              />
             </div>
           </Col>
           <Col xs={24} lg={13} style={{ height: '100%' }}>

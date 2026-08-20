@@ -91,6 +91,12 @@ export const viewDispatchMobile = (id: number) =>
 export const getDispatchMobileViewLogs = (id: number) =>
   listCrmDispatchMobileViewLogs({ id });
 
+/** super_admin / admin：拉取某派单的全部医院查看日志
+ *  手写 wrapper：T5 落了路由 + schema，但 OpenAPI 尚未重生（生成的 services/crm.ts 里没有 listCrmDispatchHospitalViewLogs），
+ *  走 request 直接命中后端契约。等下次 `pnpm --filter yishan-admin openapi` 之后可替换为生成的函数。 */
+export const getDispatchHospitalViewLogs = (id: number) =>
+  request<any>(`/api/crm/v1/dispatches/${id}/hospital-view-logs`);
+
 /* ---------- 医院 ---------- */
 
 export const getHospitals = (params: object) =>
