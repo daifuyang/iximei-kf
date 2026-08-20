@@ -26,6 +26,7 @@ import {
   getMemberOverview,
 } from '../../api';
 import { getCustomerServiceUsers } from '../../api';
+import { extractApiError, normalizeMemberPayload } from './utils';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -448,29 +449,11 @@ const MemberPage: React.FC = () => {
     handleOpenFollowUp(record);
   };
 
-  // ── 把 dayjs 对象转为 ISO 字符串 ──
-  // 后端 TypeBox schema `format: 'date-time'` 只接受字符串；ProFormDateTimePicker 默认
-  // 返回 Dayjs 实例，直接发到后端会被拒为「nextFollowUpAt:类型不正确」。
-  // 这里做最小兼容：dayjs / Date / 已是字符串 的都规整为 ISO 字符串。
-  const toIso = (v: any) => {
-    if (v === undefined || v === null || v === '') return v;
-    if (typeof v === 'string') return v;
-    if (v && typeof v === 'object' && typeof v.toDate === 'function') return v.toDate().toISOString();
-    if (v instanceof Date) return v.toISOString();
-    return v;
-  };
-
-  // 只规范化后端期望为 ISO 的字段；birthday/expectedDate 当前是 YYYY-MM-DD 字符串不需要改。
-  const normalizeFollowUpPayload = (v: any) => ({
-    ...v,
-    nextFollowUpAt: toIso(v?.nextFollowUpAt),
-  });
-
   // ── 创建会员 ──
 
   const handleCreate = async (values: any) => {
     try {
-      const payload = normalizeFollowUpPayload(values);
+      const payload = normalizeMemberPayload(values);
       let res: any;
       if (createMode === 'from_customer') {
         if (!selectedCustomer) {
@@ -493,13 +476,13 @@ const MemberPage: React.FC = () => {
         message.error(res?.message || '创建失败');
       }
     } catch (e: any) {
-      message.error(e?.message || '创建失败');
+      message.error(extractApiError(e) || '创建失败');
     }
   };
 
   const handleUpdate = async (values: any) => {
     try {
-      const payload = normalizeFollowUpPayload(values);
+      const payload = normalizeMemberPayload(values);
       const res = await updateMember(editingMember.id, payload);
       if (res?.success) {
         message.success('修改成功');
@@ -509,13 +492,13 @@ const MemberPage: React.FC = () => {
         message.error(res?.message || '修改失败');
       }
     } catch (e: any) {
-      message.error(e?.message || '修改失败');
+      message.error(extractApiError(e) || '修改失败');
     }
   };
 
   const handleFollowUp = async (values: any) => {
     try {
-      const payload = normalizeFollowUpPayload(values);
+      const payload = normalizeMemberPayload(values);
       const res = await addMemberFollowUp(currentMember.id, payload);
       if (res?.success) {
         message.success('跟进记录已保存');
@@ -544,7 +527,7 @@ const MemberPage: React.FC = () => {
         message.error(res?.message || '保存失败');
       }
     } catch (e: any) {
-      message.error(e?.message || '保存失败');
+      message.error(extractApiError(e) || '保存失败');
     }
   };
 
@@ -559,7 +542,7 @@ const MemberPage: React.FC = () => {
         reloadAll();
       }
     } catch (e: any) {
-      message.error(e?.message || '操作失败');
+      message.error(extractApiError(e) || '操作失败');
     }
   };
 
@@ -572,7 +555,7 @@ const MemberPage: React.FC = () => {
         reloadAll();
       }
     } catch (e: any) {
-      message.error(e?.message || '恢复失败');
+      message.error(extractApiError(e) || '恢复失败');
     }
   };
 
@@ -587,7 +570,7 @@ const MemberPage: React.FC = () => {
         reloadAll();
       }
     } catch (e: any) {
-      message.error(e?.message || '分配失败');
+      message.error(extractApiError(e) || '分配失败');
     }
   };
 
@@ -602,7 +585,7 @@ const MemberPage: React.FC = () => {
         reloadAll();
       }
     } catch (e: any) {
-      message.error(e?.message || '打标签失败');
+      message.error(extractApiError(e) || '打标签失败');
     }
   };
 
