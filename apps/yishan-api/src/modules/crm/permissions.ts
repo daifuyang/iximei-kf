@@ -15,6 +15,11 @@ export const PERMS = Object.freeze({
   DISPATCH_VIEW_MOBILE_LOGS: { code: 'crm:dispatches:view-mobile-logs', label: 'CRM-派单-手机号查看日志', group: 'crm' },
   MEMBER_LIST: { code: 'crm:members:list', label: 'CRM-会员-查看', group: 'crm' }, MEMBER_CREATE: { code: 'crm:members:create', label: 'CRM-会员-新建', group: 'crm' }, MEMBER_UPDATE: { code: 'crm:members:update', label: 'CRM-会员-编辑', group: 'crm' }, MEMBER_DELETE: { code: 'crm:members:delete', label: 'CRM-会员-删除', group: 'crm' }, MEMBER_REMARK: { code: 'crm:members:remark', label: 'CRM-会员-备注', group: 'crm' }, MEMBER_FOLLOW_UP: { code: 'crm:members:follow_up', label: 'CRM-会员-跟进', group: 'crm' }, MEMBER_ASSIGN: { code: 'crm:members:assign', label: 'CRM-会员-分配', group: 'crm' }, MEMBER_TAG: { code: 'crm:members:tag', label: 'CRM-会员-标签', group: 'crm' }, MEMBER_INVALIDATE: { code: 'crm:members:invalidate', label: 'CRM-会员-作废', group: 'crm' }, MEMBER_RESTORE: { code: 'crm:members:restore', label: 'CRM-会员-恢复', group: 'crm' }, MEMBER_EXPORT: { code: 'crm:members:export', label: 'CRM-会员-导出', group: 'crm' },
   DASHBOARD_VIEW: { code: 'crm:dashboard:view', label: 'CRM-数据看板-查看', group: 'crm' },
+  // 医院账号首次访问派单详情自动落 crm_dispatch_view_log 后,
+  // super_admin 在派单详情查看的"医院查看日志"（谁在何时打开过该派单）。
+  DISPATCH_VIEW_HOSPITAL_LOG: { code: 'crm:dispatches:view-hospital-log', label: 'CRM-派单-查看医院查看日志', group: 'crm' },
+  // 医院账号登录后看到的数据看板（汇总该医院的派单 / 客户 / 跟进）。
+  HOSPITAL_DASHBOARD_VIEW: { code: 'crm:hospital-dashboard:view', label: 'CRM-医院后台-数据看板', group: 'crm' },
 } satisfies Record<string, PermissionRef>)
 registerPermissions(...Object.values(PERMS))
 export type CrmPermission = keyof typeof PERMS

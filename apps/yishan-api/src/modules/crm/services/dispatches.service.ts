@@ -92,6 +92,7 @@ export class DispatchesService {
     userId: number,
     roleIds: ReadonlyArray<number>,
     scope: DataScopeCode,
+    req?: any,
   ) {
     const d: any = await DispatchesRepository.findById(id)
     if (!d) return null
@@ -99,6 +100,17 @@ export class DispatchesService {
     if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
       const ids = (await HospitalsRepository.accessibleHospitalIds(userId)).map((x: any) => x.hospitalId)
       if (!ids.includes(d.hospitalId)) return null
+      // 医院账号首次访问自动写 view_log —— 写日志失败不阻塞详情接口。
+      const user = req?.currentUser
+      const ip = req?.ip ?? null
+      void DispatchesRepository.recordView({
+        dispatchId: d.id,
+        hospitalId: d.hospitalId,
+        viewerUserId: userId,
+        viewerUsername: user?.username ?? '',
+        viewerHospitalName: user?.hospitalName ?? null,
+        ipAddress: ip,
+      }).catch(() => {})
     } else {
       if (d.creatorId !== userId && scope === DATA_SCOPE.SELF) return null
     }

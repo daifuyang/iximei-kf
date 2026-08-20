@@ -77,7 +77,7 @@ const dispatches: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const d = await DispatchesService.getById(id(req), uid(req), roleIds(req), scope(req))
+      const d = await DispatchesService.getById(id(req), uid(req), roleIds(req), scope(req), req)
       if (!d) return ResponseUtil.error(reply, 40401, '派单不存在或无权访问')
       return ResponseUtil.success(reply, d)
     },
