@@ -50,6 +50,30 @@ export const crmDispatchMobileViewLog = mysqlTable('crm_dispatch_mobile_view_log
   index('idx_crm_dispatch_mvlog_created').on(t.createdAt),
 ])
 
+/**
+ * 派单「医院查看」留痕日志。
+ *
+ * 设计目标：医院账号首次打开派单详情时自动写一条。
+ * UNIQUE (dispatch_id, hospital_id, viewer_user_id) 兜底幂等。
+ * hospital_id 冗余避免派单改派后失去归属链。
+ */
+export const crmDispatchViewLog = mysqlTable('crm_dispatch_view_log', {
+  id: int().primaryKey().autoincrement().notNull(),
+  dispatchId: int('dispatch_id').notNull(),
+  hospitalId: int('hospital_id').notNull(),
+  viewerUserId: int('viewer_user_id').notNull(),
+  viewerUsername: varchar('viewer_username', { length: 100 }).notNull(),
+  viewerHospitalName: varchar('viewer_hospital_name', { length: 100 }),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP(0)`),
+}, (t) => [
+  uniqueIndex('uniq_crm_dispatch_view_log_dispatch_hospital_user')
+    .on(t.dispatchId, t.hospitalId, t.viewerUserId),
+  index('idx_crm_dispatch_view_log_dispatch').on(t.dispatchId),
+  index('idx_crm_dispatch_view_log_hospital').on(t.hospitalId),
+  index('idx_crm_dispatch_view_log_created').on(t.createdAt),
+])
+
 // ──────────────────────────────────────────────
 // 会员顾客模块 (enhanced)
 // ──────────────────────────────────────────────
