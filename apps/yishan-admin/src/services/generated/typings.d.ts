@@ -1115,6 +1115,10 @@ declare namespace API {
     startTime?: string;
     endTime?: string;
     excludeMember?: number;
+    /** 按手机号精确搜索（11位中国大陆手机号） */
+    mobile?: string;
+    /** 按客户姓名搜索（支持前缀匹配） */
+    name?: string;
   };
 
   type listCrmCustomersSelectableParams = {
@@ -1124,6 +1128,10 @@ declare namespace API {
     startTime?: string;
     endTime?: string;
     excludeMember?: number;
+    /** 按手机号精确搜索（11位中国大陆手机号） */
+    mobile?: string;
+    /** 按客户姓名搜索（支持前缀匹配） */
+    name?: string;
   };
 
   type listCrmDispatchesParams = {
