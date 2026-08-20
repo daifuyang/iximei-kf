@@ -406,7 +406,12 @@ export class MembersRepository {
     // 之前这里漏了 owner 过滤，customer_service 会看到所有客服的客户。
     if (q.ownerUserId) c.push(eq(crmCustomer.ownerUserId, q.ownerUserId))
 
-    if (q.keyword) {
+    // A.1: 优先按 mobile / name 精确/前缀匹配，再回退 keyword 模糊
+    if (q.mobile && /^1[3-9]\d{9}$/.test(String(q.mobile))) {
+      c.push(eq(crmCustomer.mobile, String(q.mobile)))
+    } else if (q.name && typeof q.name === 'string') {
+      c.push(like(crmCustomer.name, `${q.name}%`))
+    } else if (q.keyword) {
       c.push(or(
         like(crmCustomer.name, `%${q.keyword}%`),
         like(crmCustomer.mobile, `%${q.keyword}%`),

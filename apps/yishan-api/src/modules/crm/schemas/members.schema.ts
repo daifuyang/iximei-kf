@@ -186,6 +186,8 @@ export const CrmCustomerSelectableQuerySchema = Type.Intersect([
   CrmPageQuerySchema,
   Type.Object({
     excludeMember: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
+    mobile: Type.Optional(Type.String({ pattern: '^1[3-9]\\d{9}$', maxLength: 11 })),
+    name: Type.Optional(Type.String({ maxLength: 50 })),
   }),
 ], { $id: 'crmCustomerSelectableQuery' })
 
