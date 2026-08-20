@@ -87,6 +87,7 @@ export async function bindRolePermissionsByDefault(db: SeedDb, adminUserId: numb
     code === 'crm:dispatches:list' ||
     code === 'crm:dispatches:reply' ||
     code === 'crm:dispatches:view-mobile' ||
+    code === 'crm:hospital-dashboard:view' ||
     code === 'region:tree' ||
     code === 'region:path',
   )
