@@ -2,7 +2,6 @@ import {
   type ActionType,
   PageContainer,
   type ProColumns,
-  ProDescriptions,
   ProTable,
 } from '@ant-design/pro-components';
 import { useModel } from '@umijs/max';
@@ -487,30 +486,37 @@ const DispatchPage: React.FC = () => {
                 </Descriptions.Item>
               </Descriptions>
               <Divider>医院查看状态</Divider>
-              <ProDescriptions
-                column={1}
+              <ProTable
+                rowKey="id"
+                size="small"
                 dataSource={hospitalViewLogs}
+                search={false}
+                options={false}
+                pagination={false}
                 request={async () => {
                   if (!detail?.id) {
-                    return { success: false, data: [] };
+                    return { success: false, data: [], total: 0 };
                   }
                   const res: any = await getDispatchHospitalViewLogs(detail.id);
                   const list = (res?.data as any)?.list || [];
                   setHospitalViewLogs(list);
-                  if (res?.success) {
-                    return { success: true, data: res.data };
-                  }
-                  return { success: false, data: [] };
+                  return {
+                    success: !!res?.success,
+                    data: list,
+                    total: list.length,
+                  };
                 }}
                 columns={[
                   { title: '医院名称', dataIndex: 'hospitalName' },
                   {
                     title: '查看状态',
-                    dataIndex: 'id',
-                    valueEnum: {
-                      '': { text: '未查看', status: 'Default' },
-                      viewed: { text: '已查看', status: 'Success' },
-                    },
+                    dataIndex: 'viewerUsername',
+                    render: (v: any) =>
+                      v ? (
+                        <Tag color="success">已查看</Tag>
+                      ) : (
+                        <Tag>未查看</Tag>
+                      ),
                   },
                   {
                     title: '首次查看时间',
