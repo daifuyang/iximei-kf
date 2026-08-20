@@ -16,16 +16,16 @@
 
 import { useModel } from '@umijs/max';
 import { useEffect } from 'react';
+import { ROLE_IDS } from '@/constants/roleIds';
 import { getHospitalUnviewedCount } from '@/modules/crm/api';
 
-const HOSPITAL_ACCOUNT_ROLE_ID = 3;
 const POLL_INTERVAL_MS = 60_000;
 
 export default function HospitalUnviewedBadge() {
   const { initialState, setInitialState } = useModel('@@initialState');
   const roleIds = initialState?.currentUser?.roleIds ?? [];
   const enabled =
-    Array.isArray(roleIds) && roleIds.includes(HOSPITAL_ACCOUNT_ROLE_ID);
+    Array.isArray(roleIds) && roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT);
 
   useEffect(() => {
     if (!enabled) return;
