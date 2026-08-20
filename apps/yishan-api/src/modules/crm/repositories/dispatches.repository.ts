@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, or } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
-import { crmCustomer, crmDispatch, crmDispatchFollowLog, crmDispatchMobileViewLog, crmDispatchReply, crmDispatchStatus, crmHospital } from '../db/schema.js'
+import { crmCustomer, crmDispatch, crmDispatchFollowLog, crmDispatchMobileViewLog, crmDispatchReply, crmDispatchStatus, crmDispatchViewLog, crmHospital } from '../db/schema.js'
 import { sysUser } from '@/db/schema'
 
 const active = (t: any) => isNull(t.deletedAt)
@@ -169,6 +169,53 @@ export class DispatchesRepository {
       .from(crmDispatchMobileViewLog)
       .where(eq(crmDispatchMobileViewLog.dispatchId, dispatchId))
       .orderBy(desc(crmDispatchMobileViewLog.createdAt))
+  }
+
+  // ── 派单「医院查看」留痕 ──
+
+  static recordView(input: {
+    dispatchId: number
+    hospitalId: number
+    viewerUserId: number
+    viewerUsername: string
+    viewerHospitalName?: string | null
+    ipAddress?: string | null
+  }) {
+    return drizzleDb
+      .insert(crmDispatchViewLog)
+      .values({
+        dispatchId: input.dispatchId,
+        hospitalId: input.hospitalId,
+        viewerUserId: input.viewerUserId,
+        viewerUsername: input.viewerUsername,
+        viewerHospitalName: input.viewerHospitalName ?? null,
+        ipAddress: input.ipAddress ?? null,
+      })
+      .onDuplicateKeyUpdate({
+        // 不更新任何字段；保留首次查看时间。
+        set: { viewerUsername: input.viewerUsername },
+      })
+  }
+
+  static listViewLogs(dispatchId: number) {
+    return drizzleDb
+      .select()
+      .from(crmDispatchViewLog)
+      .where(eq(crmDispatchViewLog.dispatchId, dispatchId))
+      .orderBy(desc(crmDispatchViewLog.createdAt))
+  }
+
+  static listViewLogsByDispatchAndHospital(dispatchId: number, hospitalId: number) {
+    return drizzleDb
+      .select()
+      .from(crmDispatchViewLog)
+      .where(
+        and(
+          eq(crmDispatchViewLog.dispatchId, dispatchId),
+          eq(crmDispatchViewLog.hospitalId, hospitalId),
+        ),
+      )
+      .orderBy(asc(crmDispatchViewLog.createdAt))
   }
 
   static async exportAll(q: any) {
