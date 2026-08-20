@@ -106,11 +106,15 @@ const HospitalDashboard: React.FC = () => {
                 xField="date"
                 yField="count"
                 height={280}
-                point={{ size: 3 }}
-                smooth
-                yAxis={{ title: { text: '派单数' } }}
-                xAxis={{ title: { text: '日期' }, tickInterval: 2 }}
-                tooltip={{ showCrosshairs: true, shared: true }}
+                autoFit
+                shapeField="smooth"
+                axis={{
+                  x: { title: '日期' },
+                  y: { title: '派单数' },
+                }}
+                style={{ stroke: '#1677ff', lineWidth: 2 }}
+                point={{ shapeField: 'circle', sizeField: 4 }}
+                tooltip={{ title: 'date', items: [{ channel: 'y', field: 'count' }] }}
               />
             </Card>
           </Col>
@@ -126,8 +130,12 @@ const HospitalDashboard: React.FC = () => {
                 radius={0.8}
                 innerRadius={0.5}
                 height={280}
-                label={{ type: 'inner', content: '{percentage}', style: { fontSize: 14 } }}
-                legend={{ position: 'bottom' }}
+                legend={{ color: { position: 'bottom' } }}
+                label={{
+                  position: 'inside',
+                  text: (d: { value: number }) =>
+                    `${((d.value / (trend.statusBreakdown.viewed + trend.statusBreakdown.unviewed)) * 100).toFixed(0)}%`,
+                }}
               />
             </Card>
           </Col>
