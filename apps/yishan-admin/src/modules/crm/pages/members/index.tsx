@@ -182,6 +182,9 @@ const MemberPage: React.FC = () => {
   const [customerSearchResult, setCustomerSearchResult] = useState<any[]>([]);
   const [customerSearchTotal, setCustomerSearchTotal] = useState(0);
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  // 记录最近一次「无结果」搜索的关键词（含 11 位手机号），用于展示「未找到对应顾客」空态。
+  // 与 customerSearchResult.length === 0 配合判定，避免初次/loading 闪烁。
+  const [customerSearchNoResult, setCustomerSearchNoResult] = useState<string | null>(null);
   const [customerKeyword, setCustomerKeyword] = useState('');
 
   // 直接新增模式：基于手机号反查已有客户的弹窗（18396533112 case）
@@ -225,14 +228,25 @@ const MemberPage: React.FC = () => {
   useEffect(() => { loadUsers(); loadTags(); }, [loadUsers, loadTags]);
 
   // ── 客户搜索 ──
-
-  const searchCustomers = useCallback(async (keyword: string, page = 1) => {
+  // 11 位手机号走严格精确匹配（调后端 mobile 字段），避免被 keyword 模糊匹配吞掉。
+  // 其他关键词仍走 keyword 模糊搜索（姓名 / 客户编号）。无结果时记录最后关键词，
+  // 让结果区显示「未找到对应顾客」空态而非「请输入关键词搜索客户」。
+  const fetchCustomerSearch = useCallback(async (rawKeyword: string, page = 1) => {
     setCustomerSearchLoading(true);
     try {
-      const res = await getSelectableCustomers({ keyword, page, pageSize: 10 });
+      const trimmed = rawKeyword.trim();
+      const isMobile = /^1[3-9]\d{9}$/.test(trimmed);
+      const params = isMobile
+        ? { mobile: trimmed, page, pageSize: 10 }
+        : { keyword: rawKeyword, page, pageSize: 10 };
+      const res: any = await getSelectableCustomers(params);
       if (res?.success) {
-        setCustomerSearchResult(res.data || []);
+        const list = res.data || [];
+        setCustomerSearchResult(list);
         setCustomerSearchTotal(res.pagination?.total || 0);
+        setCustomerSearchNoResult(list.length > 0 ? null : trimmed);
+      } else {
+        setCustomerSearchNoResult(trimmed);
       }
     } catch { /* */ }
     setCustomerSearchLoading(false);
@@ -793,6 +807,10 @@ const MemberPage: React.FC = () => {
             // 关闭抽屉时清理反查状态，避免下次打开还残留上次的命中
             setDirectMobileConflict(null);
             setDirectMobileChecked('');
+            setCustomerSearchResult([]);
+            setCustomerSearchTotal(0);
+            setCustomerSearchNoResult(null);
+            setCustomerKeyword('');
             if (directMobileCheckTimer.current) {
               clearTimeout(directMobileCheckTimer.current);
               directMobileCheckTimer.current = null;
@@ -840,7 +858,7 @@ const MemberPage: React.FC = () => {
                   placeholder="搜索客户姓名、手机号、客户编号"
                   enterButton="搜索"
                   loading={customerSearchLoading}
-                  onSearch={(val) => { setCustomerKeyword(val); searchCustomers(val); }}
+                  onSearch={(val) => { setCustomerKeyword(val); fetchCustomerSearch(val); }}
                 />
                 <div style={{ marginTop: 12, maxHeight: 300, overflow: 'auto' }}>
                   {customerSearchResult.length > 0 ? (
@@ -852,7 +870,7 @@ const MemberPage: React.FC = () => {
                         simple: true,
                         total: customerSearchTotal,
                         pageSize: 10,
-                        onChange: (p) => searchCustomers(customerKeyword, p),
+                        onChange: (p) => fetchCustomerSearch(customerKeyword, p),
                       }}
                       columns={[
                         { title: '客户编号', dataIndex: 'numberId', width: 120 },
@@ -863,7 +881,11 @@ const MemberPage: React.FC = () => {
                       ]}
                     />
                   ) : (
-                    customerSearchLoading ? null : <Empty description="请输入关键词搜索客户" />
+                    customerSearchLoading ? null : (
+                      customerSearchNoResult
+                        ? <Empty description={`未找到对应顾客（${customerSearchNoResult}）`} />
+                        : <Empty description="请输入关键词搜索客户" />
+                    )
                   )}
                 </div>
               </>
@@ -922,11 +944,13 @@ const MemberPage: React.FC = () => {
                   }
                   directMobileCheckTimer.current = setTimeout(async () => {
                     try {
-                      const res = await getSelectableCustomers({ keyword: value, page: 1, pageSize: 5 });
+                      // 严格按手机号精确匹配（后端 mobile 字段），不走模糊 keyword，避免被 LIKE 模式污染。
+                      const res = await getSelectableCustomers({ mobile: value, page: 1, pageSize: 5 });
                       if (value !== directMobileChecked) {
                         setDirectMobileChecked(value);
                       }
                       const list = (res as any)?.data || [];
+                      // 入参已精确 mobile，列表只可能 0/1 行；用 find 做容错兜底。
                       const exact = list.find((c: any) => c.mobile === value);
                       if (exact && exact.deletedAt == null) {
                         setDirectMobileConflict(exact);
