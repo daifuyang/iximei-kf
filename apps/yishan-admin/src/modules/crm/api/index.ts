@@ -236,3 +236,7 @@ export const getHospitalDashboardStats = () =>
 /** 医院账号未查看派单数（顶栏红点） */
 export const getHospitalUnviewedCount = () =>
   request<any>('/api/crm/v1/hospital/dispatches/unviewed-count');
+
+/** 医院账号近 30 天派单趋势 + 查看状态分布（折线/饼图用，operationId 暂未生成） */
+export const getHospitalDashboardTrend = () =>
+  request<any>('/api/crm/v1/hospital/dashboard/trend');

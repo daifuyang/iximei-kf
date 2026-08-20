@@ -3,26 +3,42 @@
  *
  * - 由 T5 后端提供 /api/crm/v1/hospital/dashboard/stats
  *   返回字段：todayCount / monthCount / yearCount / totalCount / viewedCount / unviewedCount
+ * - 由 T3 后端提供 /api/crm/v1/hospital/dashboard/trend
+ *   返回字段：daily[]（date/count）+ statusBreakdown{viewed, unviewed}
  * - 顶部 4 张统计卡（今日/本月/本年/累计派单）
- * - 底部 3 张统计卡（已查看/未查看/查看率%）
+ * - 中部 3 张统计卡（已查看/未查看/查看率%）
+ * - 底部 1 个 Row：折线图（近 30 天派单趋势）+ 饼图（查看状态分布）
  */
 
+import { Line, Pie } from '@ant-design/charts';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Col, Row, Spin, Statistic } from 'antd';
+import { Button, Card, Col, Row, Spin, Statistic, Typography } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { getHospitalDashboardStats } from '../../api';
+import { getHospitalDashboardStats, getHospitalDashboardTrend } from '../../api';
+
+const { Text } = Typography;
 
 const HospitalDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
+  const [trend, setTrend] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [trendError, setTrendError] = useState(false);
 
   useEffect(() => {
     setLoading(true);
+    // 顶部数字卡（已有）
     getHospitalDashboardStats()
       .then((res: any) => {
         if (res?.success) setStats(res.data);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
+    // 新增趋势图（独立加载 + 失败降级，不阻塞 stats）
+    getHospitalDashboardTrend()
+      .then((res: any) => {
+        if (res?.success) setTrend(res.data);
+      })
+      .catch(() => setTrendError(true));
   }, []);
 
   if (loading || !stats) return <Spin />;
@@ -81,6 +97,66 @@ const HospitalDashboard: React.FC = () => {
           </Card>
         </Col>
       </Row>
+      {trend && (
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col xs={24} lg={16}>
+            <Card title="近 30 天派单趋势">
+              <Line
+                data={trend.daily}
+                xField="date"
+                yField="count"
+                height={280}
+                point={{ size: 3 }}
+                smooth
+                yAxis={{ title: { text: '派单数' } }}
+                xAxis={{ title: { text: '日期' }, tickInterval: 2 }}
+                tooltip={{ showCrosshairs: true, shared: true }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card title="查看状态分布">
+              <Pie
+                data={[
+                  { type: '已查看', value: trend.statusBreakdown.viewed },
+                  { type: '未查看', value: trend.statusBreakdown.unviewed },
+                ].filter((d) => d.value > 0)}
+                angleField="value"
+                colorField="type"
+                radius={0.8}
+                innerRadius={0.5}
+                height={280}
+                label={{ type: 'inner', content: '{percentage}', style: { fontSize: 14 } }}
+                legend={{ position: 'bottom' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
+      {trendError && !trend && (
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <Card>
+              <Text type="secondary">
+                趋势数据加载失败，请
+                <Button
+                  type="link"
+                  onClick={() => {
+                    setTrendError(false);
+                    getHospitalDashboardTrend()
+                      .then((res: any) => {
+                        if (res?.success) setTrend(res.data);
+                      })
+                      .catch(() => setTrendError(true));
+                  }}
+                >
+                  重试
+                </Button>
+              </Text>
+            </Card>
+          </Col>
+        </Row>
+      )}
     </PageContainer>
   );
 };
