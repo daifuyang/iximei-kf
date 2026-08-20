@@ -552,6 +552,20 @@ export async function updateCrmDispatch(
   });
 }
 
+/** 派单医院查看日志（仅 super_admin / admin） GET /api/crm/v1/dispatches/${param0}/hospital-view-logs */
+export async function listCrmDispatchHospitalViewLogs(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmDispatchHospitalViewLogsParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(`/api/crm/v1/dispatches/${param0}/hospital-view-logs`, {
+    method: "GET",
+    params: { ...queryParams },
+    ...(options || {}),
+  });
+}
+
 /** 派单跟进 POST /api/crm/v1/dispatches/${param0}/logs */
 export async function createCrmDispatchLog(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -815,6 +829,26 @@ export async function listCrmDispatchStatuses(options?: {
   [key: string]: any;
 }) {
   return request<any>("/api/crm/v1/dispatches/statuses", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
+/** 医院后台数据看板 GET /api/crm/v1/hospital/dashboard/stats */
+export async function getCrmHospitalDashboardStats(options?: {
+  [key: string]: any;
+}) {
+  return request<any>("/api/crm/v1/hospital/dashboard/stats", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
+/** 医院账号未查看派单数量（菜单 Badge 用） GET /api/crm/v1/hospital/dispatches/unviewed-count */
+export async function getCrmHospitalUnviewedDispatchCount(options?: {
+  [key: string]: any;
+}) {
+  return request<any>("/api/crm/v1/hospital/dispatches/unviewed-count", {
     method: "GET",
     ...(options || {}),
   });

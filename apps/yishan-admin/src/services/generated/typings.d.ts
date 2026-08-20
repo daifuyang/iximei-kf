@@ -1152,6 +1152,10 @@ declare namespace API {
     statusId?: number;
   };
 
+  type listCrmDispatchHospitalViewLogsParams = {
+    id: number;
+  };
+
   type listCrmDispatchMobileViewLogsParams = {
     id: number;
   };
