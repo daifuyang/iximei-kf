@@ -244,6 +244,30 @@ const dispatches: FastifyPluginAsync = async (app) => {
       return ResponseUtil.success(reply, result)
     },
   )
+
+  // ── super_admin / admin：列出某派单的全部医院查看记录 ──
+
+  route.get(
+    '/dispatches/:id/hospital-view-logs',
+    {
+      access: { permission: PERMS.DISPATCH_VIEW_HOSPITAL_LOG },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '派单医院查看日志（仅 super_admin / admin）',
+        operationId: 'listCrmDispatchHospitalViewLogs',
+        params: CrmIdParamsSchema,
+      },
+    },
+    async (req: any, reply: any) => {
+      const result = await DispatchesService.listDispatchHospitalViewLogs(
+        id(req),
+        uid(req),
+        roleIds(req),
+        scope(req),
+      )
+      return ResponseUtil.success(reply, result)
+    },
+  )
 }
 
 export default dispatches

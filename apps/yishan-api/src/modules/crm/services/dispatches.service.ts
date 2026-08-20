@@ -283,5 +283,36 @@ export class DispatchesService {
       })),
     }
   }
+
+  // ── super_admin / admin：列出某派单的全部医院查看记录 ──
+
+  static async listDispatchHospitalViewLogs(
+    id: number,
+    userId: number,
+    roleIds: ReadonlyArray<number>,
+    scope: DataScopeCode,
+  ) {
+    if (!roleIds.includes(ROLE_IDS.SUPER_ADMIN) && !roleIds.includes(ROLE_IDS.ADMIN)) {
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '仅系统管理员可查看医院查看日志')
+    }
+    const d = await DispatchesRepository.findById(id)
+    if (!d) throw new BusinessError(ResourceErrorCode.NOT_FOUND, '派单不存在')
+    const logs = await DispatchesRepository.listViewLogs(id)
+    // 显式 map：listViewLogs 只做裸 select()，字段名 / 类型与 schema 声明不一致。
+    //   - 表格里叫 viewer_hospital_name（"哪家医院的账号查看了"），schema 字段名为 hospitalName，
+    //     沿用 schema 命名避免破坏 OpenAPI 契约。
+    //   - createdAt 是 Date 对象，schema 声明 format: 'date-time' 字符串 → ISO 8601。
+    const list = (logs as any[]).map((r) => ({
+      id: Number(r.id),
+      dispatchId: Number(r.dispatchId),
+      hospitalId: Number(r.hospitalId),
+      hospitalName: r.viewerHospitalName ?? null,
+      viewerUserId: Number(r.viewerUserId),
+      viewerUsername: String(r.viewerUsername),
+      ipAddress: r.ipAddress ?? null,
+      createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+    }))
+    return { list }
+  }
 }
 void compact

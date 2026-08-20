@@ -38,6 +38,29 @@ export const CrmDispatchMobileViewLogListRespSchema = Type.Object(
   { $id: 'crmDispatchMobileViewLogListResp' },
 )
 
+/** GET /dispatches/:id/hospital-view-logs 响应条目：医院账号查看派单留痕。 */
+export const CrmDispatchViewLogRespSchema = Type.Object(
+  {
+    id: Type.Number(),
+    dispatchId: Type.Number(),
+    hospitalId: Type.Number(),
+    hospitalName: Type.Union([Type.String(), Type.Null()]),
+    viewerUserId: Type.Number(),
+    viewerUsername: Type.String(),
+    ipAddress: Type.Union([Type.String(), Type.Null()]),
+    createdAt: Type.String({ format: 'date-time' }),
+  },
+  { $id: 'crmDispatchViewLogResp' },
+)
+
+/** GET /dispatches/:id/hospital-view-logs 响应外壳。 */
+export const CrmDispatchViewLogListRespSchema = Type.Object(
+  {
+    list: Type.Array(CrmDispatchViewLogRespSchema),
+  },
+  { $id: 'crmDispatchViewLogListResp' },
+)
+
 export type CrmDispatchListQuery = import('@sinclair/typebox').Static<typeof CrmDispatchListQuerySchema>
 export type CrmDispatchUpdate = import('@sinclair/typebox').Static<typeof CrmDispatchUpdateSchema>
 export type CrmDispatchReplyReq = import('@sinclair/typebox').Static<typeof CrmDispatchReplyReqSchema>
@@ -45,4 +68,6 @@ export type CrmDispatchLogReq = import('@sinclair/typebox').Static<typeof CrmDis
 export type CrmDispatchMobileViewResp = import('@sinclair/typebox').Static<typeof CrmDispatchMobileViewRespSchema>
 export type CrmDispatchMobileViewLogItem = import('@sinclair/typebox').Static<typeof CrmDispatchMobileViewLogItemSchema>
 export type CrmDispatchMobileViewLogListResp = import('@sinclair/typebox').Static<typeof CrmDispatchMobileViewLogListRespSchema>
+export type CrmDispatchViewLogResp = import('@sinclair/typebox').Static<typeof CrmDispatchViewLogRespSchema>
+export type CrmDispatchViewLogListResp = import('@sinclair/typebox').Static<typeof CrmDispatchViewLogListRespSchema>
 
