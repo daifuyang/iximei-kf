@@ -228,3 +228,11 @@ export const getDashboardStats = (params?: {
   endDate?: string;
   hospitalId?: number;
 }) => getCrmDashboardStats(params || {});
+
+/** 医院账号本院数据看板（operationId 暂未生成，走 request 直接命中后端契约） */
+export const getHospitalDashboardStats = () =>
+  request<any>('/api/crm/v1/hospital/dashboard/stats');
+
+/** 医院账号未查看派单数（顶栏红点） */
+export const getHospitalUnviewedCount = () =>
+  request<any>('/api/crm/v1/hospital/dispatches/unviewed-count');
