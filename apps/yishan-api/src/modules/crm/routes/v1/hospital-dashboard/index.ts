@@ -25,6 +25,7 @@ import { HospitalDashboardService } from '../../../services/hospital-dashboard.s
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import {
   CrmHospitalDashboardRespSchema,
+  CrmHospitalDashboardTrendRespSchema,
   CrmHospitalUnviewedCountRespSchema,
 } from '../../../schemas/hospital-dashboard.schema.js'
 
@@ -33,6 +34,7 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
 
   // Register once so $ref can resolve via $id in OpenAPI generation.
   app.addSchema(CrmHospitalDashboardRespSchema)
+  app.addSchema(CrmHospitalDashboardTrendRespSchema)
   app.addSchema(CrmHospitalUnviewedCountRespSchema)
 
   const uid = (req: any) => req.currentUser.id
@@ -82,6 +84,30 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
     },
     async (req: any, reply: any) => {
       const result = await HospitalDashboardService.getUnviewedCount(uid(req), roleIds(req))
+      return ResponseUtil.success(reply, result)
+    },
+  )
+
+  route.get(
+    '/hospital/dashboard/trend',
+    {
+      access: { permission: PERMS.HOSPITAL_DASHBOARD_VIEW },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '医院数据看板 - 30 天趋势 + 状态分布',
+        operationId: 'getCrmHospitalDashboardTrend',
+        response: {
+          200: Type.Object({
+            success: Type.Boolean(),
+            code: Type.Integer(),
+            message: Type.String(),
+            data: CrmHospitalDashboardTrendRespSchema,
+          }),
+        },
+      },
+    },
+    async (req: any, reply: any) => {
+      const result = await HospitalDashboardService.getTrend(uid(req), roleIds(req))
       return ResponseUtil.success(reply, result)
     },
   )
