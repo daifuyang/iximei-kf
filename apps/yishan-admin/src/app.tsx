@@ -9,8 +9,9 @@ import {
   AvatarName,
   Footer,
 } from "@/components";
+import HospitalUnviewedBadge from "@/components/HospitalUnviewedBadge";
 import { getCurrentUser } from "@/services/generated/auth";
-import { App as AntdApp } from "antd";
+import { App as AntdApp, Badge } from "antd";
 import defaultSettings from "../config/defaultSettings";
 import { errorConfig } from "./requestErrorConfig";
 import { getAuthorizedMenuTree } from "@/services/generated/sysMenus";
@@ -208,6 +209,14 @@ export const layout: RunTimeLayoutConfig = ({
       return (
         <>
           <MustChangePasswordBanner visible={bannerVisible} />
+          {/*
+            hospital_account 角色 60s 轮询 ——
+            HospitalUnviewedBadge 内部用 useModel('@@initialState') 拿到
+            setInitialState,把 count 推到 initialState.dispatchUnviewedCount,
+            下方 menuItemRender 读取该字段并在 /crm/dispatches 上挂 <Badge>。
+            渲染 null,不抢任何布局空间。
+          */}
+          <HospitalUnviewedBadge />
           {defaultDom}
         </>
       );
@@ -234,6 +243,44 @@ export const layout: RunTimeLayoutConfig = ({
       request: async (params) => {
         if (!params?.userId) return [];
         return transformToMenuData(extraRoutes || []);
+      },
+      /**
+       * 在 /crm/dispatches 菜单项右侧挂未查看派单数 badge。
+       *
+       * 仅当 hospital_account 角色持有该菜单项 (route?.path 标准化为 /crm/dispatches),
+       * 且 global store 里的 dispatchUnviewedCount > 0 时渲染。
+       * count > 99 折叠为 99+;为 0 不渲染 (Badge count=0 默认隐藏)。
+       *
+       * defaultDom 已是 antd Menu.Item 的可点击节点,这里在外层包一个 inline-flex
+       * 容器保证 badge 紧贴文字右侧且不影响点击区域。
+       */
+      menuItemRender: (item: MenuDataItem & { isUrl: boolean }, defaultDom: React.ReactNode) => {
+        const rawCount = (initialState as any)?.dispatchUnviewedCount as number | undefined;
+        const normalizedPath = normalizeRoutePath(item.path);
+        if (normalizedPath !== '/crm/dispatches' || !rawCount || rawCount <= 0) {
+          return defaultDom;
+        }
+        const display = rawCount > 99 ? '99+' : rawCount;
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              width: '100%',
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {defaultDom}
+            </span>
+            <Badge
+              count={display}
+              size="small"
+              style={{ backgroundColor: '#ff4d4f', flexShrink: 0 }}
+            />
+          </span>
+        );
       },
     },
     footerRender: () => <Footer />,
