@@ -17,7 +17,7 @@
  * server-side timezone-aware 的 SQL `CONVERT_TZ`。
  */
 
-import { and, count, eq, isNull, sql } from 'drizzle-orm'
+import { and, count, eq, gte, isNull, sql } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
 import { crmDispatch, crmDispatchViewLog } from '../db/schema.js'
 
@@ -98,5 +98,72 @@ export class HospitalDashboardRepository {
         ),
       )
     return Number(row?.count ?? 0)
+  }
+
+  /**
+   * 近 days 天每天的派单量趋势 + 该医院派单的 viewed/unviewed 总览。
+   *
+   * daily：按 DATE(createdAt) 分组聚合，缺失日补 0；
+   * statusBreakdown：复用 getStats 的 LEFT JOIN view_log 模式，
+   * 一次拿全 viewed/unviewed 计数，避免 N+1。
+   */
+  static async getTrend(hospitalId: number, days = 30): Promise<{
+    daily: Array<{ date: string; count: number }>
+    statusBreakdown: { viewed: number; unviewed: number }
+  }> {
+    // 1) 生成 days 个日期（YYYY-MM-DD），从最早到今天
+    const dates: string[] = []
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(d.getDate() - i)
+      dates.push(d.toISOString().slice(0, 10))
+    }
+    const startDate = dates[0]
+
+    // 2) 一次 SQL 聚合：按 DATE(createdAt) 分组
+    const rawDaily = await drizzleDb
+      .select({
+        date: sql<string>`DATE(${crmDispatch.createdAt})`,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(crmDispatch)
+      .where(
+        and(
+          eq(crmDispatch.hospitalId, hospitalId),
+          active(crmDispatch),
+          gte(crmDispatch.createdAt, new Date(startDate)),
+        ),
+      )
+      .groupBy(sql`DATE(${crmDispatch.createdAt})`)
+
+    // 3) 缺失日补 0
+    const dailyMap = new Map(rawDaily.map((r) => [String(r.date), Number(r.count)]))
+    const daily = dates.map((d) => ({ date: d, count: dailyMap.get(d) ?? 0 }))
+
+    // 4) statusBreakdown 复用 LEFT JOIN view_log 模式
+    const [row] = await drizzleDb
+      .select({
+        viewed: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NOT NULL THEN 1 ELSE 0 END)`,
+        unviewed: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL THEN 1 ELSE 0 END)`,
+      })
+      .from(crmDispatch)
+      .leftJoin(
+        crmDispatchViewLog,
+        and(
+          eq(crmDispatchViewLog.dispatchId, crmDispatch.id),
+          eq(crmDispatchViewLog.hospitalId, hospitalId),
+        ),
+      )
+      .where(and(eq(crmDispatch.hospitalId, hospitalId), active(crmDispatch)))
+
+    return {
+      daily,
+      statusBreakdown: {
+        viewed: Number(row?.viewed ?? 0),
+        unviewed: Number(row?.unviewed ?? 0),
+      },
+    }
   }
 }
