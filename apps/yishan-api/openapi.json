@@ -18679,6 +18679,28 @@
           }
         }
       }
+    },
+    "/api/crm/v1/hospital/dashboard/trend": {
+      "get": {
+        "operationId": "getCrmHospitalDashboardTrend",
+        "summary": "医院数据看板 - 30 天趋势 + 状态分布",
+        "tags": [
+          "crm"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
     }
   },
   "security": [

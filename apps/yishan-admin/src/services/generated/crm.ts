@@ -844,6 +844,16 @@ export async function getCrmHospitalDashboardStats(options?: {
   });
 }
 
+/** 医院数据看板 - 30 天趋势 + 状态分布 GET /api/crm/v1/hospital/dashboard/trend */
+export async function getCrmHospitalDashboardTrend(options?: {
+  [key: string]: any;
+}) {
+  return request<any>("/api/crm/v1/hospital/dashboard/trend", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
 /** 医院账号未查看派单数量（菜单 Badge 用） GET /api/crm/v1/hospital/dispatches/unviewed-count */
 export async function getCrmHospitalUnviewedDispatchCount(options?: {
   [key: string]: any;
