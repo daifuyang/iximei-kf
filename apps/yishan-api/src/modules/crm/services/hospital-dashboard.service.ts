@@ -30,10 +30,15 @@ const EMPTY_STATS = {
 
 function assertHospitalAccount(roleIds: ReadonlyArray<number>, action: string) {
   if (!roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
-    throw new BusinessError(
-      AuthErrorCode.FORBIDDEN,
-      `仅医院账号可${action === 'stats' ? '访问本院数据看板' : '查看本院未查看派单数量'}`,
-    )
+    const msg =
+      action === 'stats'
+        ? '访问本院数据看板'
+        : action === 'unviewed-count'
+          ? '查看本院未查看派单数量'
+          : action === 'trend'
+            ? '查看本院数据趋势'
+            : '访问本院数据'
+    throw new BusinessError(AuthErrorCode.FORBIDDEN, `仅医院账号可${msg}`)
   }
 }
 
@@ -64,4 +69,31 @@ export class HospitalDashboardService {
     if (!ids.length) return { count: 0 }
     return { count: await HospitalDashboardRepository.getUnviewedCount(ids[0]) }
   }
+
+  /**
+   * 当前登录医院账号的派单趋势（近 days 天每日新增 + viewed/unviewed 总览）。
+   *
+   * @throws BusinessError(AuthErrorCode.FORBIDDEN) 当非 HOSPITAL_ACCOUNT 角色调用时。
+   */
+  static async getTrend(userId: number, roleIds: ReadonlyArray<number>, days = 30) {
+    assertHospitalAccount(roleIds, 'trend')
+    const ids = (await HospitalsRepository.accessibleHospitalIds(userId)).map((x: any) => x.hospitalId)
+    if (!ids.length) {
+      return { daily: emptyDaily(days), statusBreakdown: { viewed: 0, unviewed: 0 } }
+    }
+    return HospitalDashboardRepository.getTrend(ids[0], days)
+  }
+}
+
+/** 用户没绑定医院时返回的占位 daily：days 个全 0 的日期序列（从最早到今天）。 */
+function emptyDaily(days: number) {
+  const out: Array<{ date: string; count: number }> = []
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    out.push({ date: d.toISOString().slice(0, 10), count: 0 })
+  }
+  return out
 }

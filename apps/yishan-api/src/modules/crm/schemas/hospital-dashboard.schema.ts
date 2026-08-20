@@ -30,3 +30,24 @@ export const CrmHospitalUnviewedCountRespSchema = Type.Object(
   },
   { $id: 'crmHospitalUnviewedCountResp' },
 )
+
+/** 派单趋势响应：近 days 天每日新增 + viewed/unviewed 总览。 */
+export const CrmHospitalDashboardTrendRespSchema = Type.Object(
+  {
+    daily: Type.Array(
+      Type.Object({
+        date: Type.String({ format: 'date' }),
+        count: Type.Number(),
+      }),
+    ),
+    statusBreakdown: Type.Object({
+      viewed: Type.Number(),
+      unviewed: Type.Number(),
+    }),
+  },
+  { $id: 'crmHospitalDashboardTrendResp' },
+)
+
+export type CrmHospitalDashboardTrendResp = import('@sinclair/typebox').Static<
+  typeof CrmHospitalDashboardTrendRespSchema
+>
