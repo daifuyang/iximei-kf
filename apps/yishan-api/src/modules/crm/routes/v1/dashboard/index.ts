@@ -6,10 +6,6 @@ import { PERMS } from '../../../permissions.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import { DashboardService } from '../../../services/dashboard.service.js'
 import { DashboardStatsSchema } from '../../../schemas/dashboard.schema.js'
-import {
-  CrmHospitalRankingsItemSchema,
-  CrmHospitalRankingsRespSchema,
-} from '../../../schemas/dashboard.schema.js'
 import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
@@ -17,10 +13,10 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 const dashboard: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
 
-  // Register schema once so $ref can resolve via $id
+  // Register schema once so $ref can resolve via $id.
+  // NOTE: Do NOT addSchema CrmHospitalRankingsRespSchema / CrmHospitalRankingsItemSchema
+  // separately — DashboardStatsSchema already embeds them, and Ajv rejects duplicate $id.
   app.addSchema(DashboardStatsSchema)
-  app.addSchema(CrmHospitalRankingsRespSchema)
-  app.addSchema(CrmHospitalRankingsItemSchema)
 
   route.get(
     '/dashboard/stats',
