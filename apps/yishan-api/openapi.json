@@ -5681,6 +5681,62 @@
               "customers",
               "dispatches"
             ]
+          },
+          "hospitalRankings": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "hospitalId": {
+                      "type": "number"
+                    },
+                    "hospitalName": {
+                      "type": "string"
+                    },
+                    "dispatchCount": {
+                      "type": "number"
+                    },
+                    "viewedCount": {
+                      "type": "number"
+                    },
+                    "unviewedCount": {
+                      "type": "number"
+                    },
+                    "viewedRate": {
+                      "type": "number"
+                    },
+                    "replyCount": {
+                      "type": "number"
+                    },
+                    "firstViewedAt": {
+                      "type": ["string", "null"],
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "hospitalId",
+                    "hospitalName",
+                    "dispatchCount",
+                    "viewedCount",
+                    "unviewedCount",
+                    "viewedRate",
+                    "replyCount",
+                    "firstViewedAt"
+                  ]
+                }
+              },
+              "generatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "items",
+              "generatedAt"
+            ]
           }
         },
         "required": [

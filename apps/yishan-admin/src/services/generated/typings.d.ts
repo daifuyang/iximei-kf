@@ -421,6 +421,19 @@ declare namespace API {
       customers: { month: string; count: number }[];
       dispatches: { month: string; count: number }[];
     };
+    hospitalRankings?: {
+      items: {
+        hospitalId: number;
+        hospitalName: string;
+        dispatchCount: number;
+        viewedCount: number;
+        unviewedCount: number;
+        viewedRate: number;
+        replyCount: number;
+        firstViewedAt: any;
+      }[];
+      generatedAt: string;
+    };
   };
 
   type currentUser = {
