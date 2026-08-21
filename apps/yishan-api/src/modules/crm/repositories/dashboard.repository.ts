@@ -1,6 +1,10 @@
-import { and, count, eq, gte, isNull, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { drizzleDb, type AppQueryDb } from '@/db'
-import { crmHospital } from '../db/schema.js'
+import {
+  crmDispatch,
+  crmDispatchViewLog,
+  crmHospital,
+} from '../db/schema.js'
 
 const active = (t: any) => isNull(t.deletedAt)
 
@@ -266,5 +270,65 @@ export class DashboardRepository {
       .from(crmHospital)
       .where(and(...c))
     return Number(r?.total ?? 0)
+  }
+
+  /**
+   * 医院效率榜。
+   *
+   * 按医院聚合：
+   * - dispatchCount：未软删除派单数
+   * - viewedCount：crm_dispatch_view_log 中该医院被查看过的派单数（distinct dispatch）
+   *   用 SUM(CASE WHEN view_log.id IS NOT NULL) 在 LEFT JOIN 后统计
+   * - replyCount：该医院所有派单对应的回复数（子查询）
+   * - firstViewedAt：该医院最早一次查看时间（MIN）
+   *
+   * 派生字段：
+   * - unviewedCount = max(0, dispatchCount - viewedCount)
+   * - viewedRate = (viewedCount / dispatchCount) * 100，保留 1 位小数
+   *
+   * 排序：dispatchCount DESC；limit 默认 10。
+   *
+   * 注：本方法不应用角色数据范围过滤 —— 排行榜数据维度由调用方（service 层）
+   * 决定如何约束访问范围。当前任务（T1）仅实现基础聚合。
+   */
+  static async getHospitalRankings(limit = 10) {
+    const rows = await drizzleDb
+      .select({
+        hospitalId: crmHospital.id,
+        hospitalName: crmHospital.hospitalName,
+        dispatchCount: count(crmDispatch.id),
+        viewedCount: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NOT NULL THEN 1 ELSE 0 END)`,
+        replyCount: sql<number>`(SELECT COUNT(*) FROM crm_dispatch_reply r WHERE r.dispatch_id IN (SELECT id FROM crm_dispatch WHERE hospital_id = ${crmHospital.id} AND deleted_at IS NULL))`,
+        firstViewedAt: sql<Date | null>`MIN(${crmDispatchViewLog.createdAt})`,
+      })
+      .from(crmHospital)
+      .leftJoin(
+        crmDispatch,
+        and(eq(crmDispatch.hospitalId, crmHospital.id), active(crmDispatch)),
+      )
+      .leftJoin(crmDispatchViewLog, eq(crmDispatchViewLog.hospitalId, crmHospital.id))
+      .where(active(crmHospital))
+      .groupBy(crmHospital.id, crmHospital.hospitalName)
+      .orderBy(desc(count(crmDispatch.id)))
+      .limit(limit)
+
+    return rows.map((r: any) => {
+      const dispatchCount = Number(r.dispatchCount ?? 0)
+      const viewedCount = Number(r.viewedCount ?? 0)
+      return {
+        hospitalId: Number(r.hospitalId),
+        hospitalName: r.hospitalName,
+        dispatchCount,
+        viewedCount,
+        unviewedCount: Math.max(0, dispatchCount - viewedCount),
+        replyCount: Number(r.replyCount ?? 0),
+        firstViewedAt:
+          r.firstViewedAt instanceof Date ? r.firstViewedAt.toISOString() : null,
+        viewedRate:
+          dispatchCount > 0
+            ? Number(((viewedCount / dispatchCount) * 100).toFixed(1))
+            : 0,
+      }
+    })
   }
 }

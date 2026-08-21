@@ -225,6 +225,10 @@ export class DashboardService {
         customers: customerTrend,
         dispatches: dispatchTrend,
       },
+      hospitalRankings: {
+        items: await DashboardRepository.getHospitalRankings(10),
+        generatedAt: new Date().toISOString(),
+      },
     }
   }
 }

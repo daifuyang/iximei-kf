@@ -418,6 +418,19 @@ export async function getCrmDashboardStats2(
         customers: { month: string; count: number }[];
         dispatches: { month: string; count: number }[];
       };
+      hospitalRankings: {
+        items: {
+          hospitalId: number;
+          hospitalName: string;
+          dispatchCount: number;
+          viewedCount: number;
+          unviewedCount: number;
+          viewedRate: number;
+          replyCount: number;
+          firstViewedAt: any;
+        }[];
+        generatedAt: string;
+      };
     };
   }>("/api/crm/v1/dashboard/dashboard/stats", {
     method: "GET",
@@ -467,6 +480,19 @@ export async function getCrmDashboardStats(
       monthlyTrend: {
         customers: { month: string; count: number }[];
         dispatches: { month: string; count: number }[];
+      };
+      hospitalRankings: {
+        items: {
+          hospitalId: number;
+          hospitalName: string;
+          dispatchCount: number;
+          viewedCount: number;
+          unviewedCount: number;
+          viewedRate: number;
+          replyCount: number;
+          firstViewedAt: any;
+        }[];
+        generatedAt: string;
       };
     };
   }>("/api/crm/v1/dashboard/stats", {
