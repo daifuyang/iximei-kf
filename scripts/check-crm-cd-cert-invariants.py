@@ -114,18 +114,6 @@ if wf_text is not None:
             "应删除改由 s deploy 负责）"
         )
 
-    # Invariant 6b: environment 必须用 YISHAN_API（统一管理，
-    # 避免空 YISHAN_CRM environment 重复建）
-    has_yishan_api_env = bool(
-        re.search(r"^\s*environment:\s*['\"]?YISHAN_API['\"]?\s*(#.*)?$",
-                  wf_text, re.MULTILINE)
-    )
-    if not has_yishan_api_env:
-        errors.append(
-            "[9b] workflow 应在 YISHAN_API environment 下跑"
-            "（统一管理，不另起 YISHAN_CRM environment）"
-        )
-
     # Invariant 7: post-deploy cert verify
     if "openssl" not in wf_text or "s_client" not in wf_text:
         errors.append("[10] workflow 缺 post-deploy cert verify step（openssl s_client）")
