@@ -71,26 +71,15 @@ jobs:
       # ── 1. 证书处理：自己管自己的域名和证书 ────────────────────────────────
       - name: Setup aic config
         env:
-          # aic config 两个 profile 从对应的 GitHub secrets 取值。
-          # default profile (personal) 用于 DNS-01 验证；
-          # enterprise profile 用于 CAS 上传。
-          # 与 fullstack CD 的 ALIBABA_CLOUD_* 共用 enterprise profile 的 AK。
-          ALI_DNS_ACCESS_KEY_ID: ${{ secrets.ALI_DNS_ACCESS_KEY_ID }}
-          ALI_DNS_ACCESS_KEY_SECRET: ${{ secrets.ALI_DNS_ACCESS_KEY_SECRET }}
+          # aic config 只保留 enterprise profile（CAS 上传用）。
+          # DNS-01 验证绕过 aic 直接调 acme.sh（避开 aic 硬编码 2 分钟超时）。
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
         run: |
           mkdir -p ~/.config/aic
           cat > ~/.config/aic/config.toml <<EOF
-          [acme]
-          path = "$HOME/.acme.sh/acme.sh"
-
           [aliyun]
-          default-profile = "default"
-
-          [aliyun.profiles.default]
-          accessKeyId = "$ALI_DNS_ACCESS_KEY_ID"
-          accessKeySecret = "$ALI_DNS_ACCESS_KEY_SECRET"
+          default-profile = "enterprise"
 
           [aliyun.profiles.enterprise]
           accessKeyId = "$ALIBABA_CLOUD_ACCESS_KEY_ID"
@@ -132,9 +121,16 @@ jobs:
 
       - name: Issue certificate (DNS-01)
         if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.days_left == '0' || steps.cert_check.outputs.days_left < env.RENEW_DAYS
+        env:
+          # DNS-01 验证用 personal AK（与 aic config default profile 等价；
+          # 但绕过 aic 的 2 分钟硬编码超时——直接调 acme.sh）
+          Ali_Key: ${{ secrets.ALI_DNS_ACCESS_KEY_ID }}
+          Ali_Secret: ${{ secrets.ALI_DNS_ACCESS_KEY_SECRET }}
         run: |
           echo "Certificate needs renewal (days_left: ${{ steps.cert_check.outputs.days_left }}, threshold: ${{ env.RENEW_DAYS }})"
-          aic cert:issue "${{ env.CUSTOM_DOMAIN }}" -d aliyun -p ${{ env.DNS_PROFILE }}
+          ~/.acme.sh/acme.sh --issue --dns dns_ali \
+            -d "${{ env.CUSTOM_DOMAIN }}" \
+            --keylength 2048
 
       - name: Upload certificate to CAS
         if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.days_left == '0' || steps.cert_check.outputs.days_left < env.RENEW_DAYS
