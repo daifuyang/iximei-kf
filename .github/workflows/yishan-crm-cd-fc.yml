@@ -41,9 +41,12 @@ jobs:
       FUNCTION_REGION: ${{ vars.FUNCTION_REGION }}
       FUNCTION_NAME: ${{ vars.FUNCTION_NAME }}
       CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
-      CERT_NAME: ${{ vars.CRM_CERT_NAME }}
-      DNS_PROFILE: ${{ vars.CRM_DNS_PROFILE || 'default' }}
-      RENEW_DAYS: ${{ vars.CRM_CERT_RENEW_DAYS || '30' }}
+      CERT_NAME: ${{ vars.CERT_NAME }}
+      # 与 yishan-cert-rotate-fc 对齐：DNS_PROFILE/RENEW_DAYS 不暴露成 vars，
+      # 硬编码 default profile (personal) + 30 天阈值。如果未来要 per-domain
+      # 再加 vars.CERT_RENEW_DAYS 等。
+      DNS_PROFILE: default
+      RENEW_DAYS: '30'
     steps:
       - name: Validate deployment variables
         run: |
@@ -51,7 +54,7 @@ jobs:
           : "${FUNCTION_REGION:?Missing FUNCTION_REGION}"
           : "${FUNCTION_NAME:?Missing FUNCTION_NAME}"
           : "${CUSTOM_DOMAIN:?Missing CUSTOM_DOMAIN}"
-          : "${CERT_NAME:?Missing CRM_CERT_NAME}"
+          : "${CERT_NAME:?Missing CERT_NAME}"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
