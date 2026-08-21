@@ -71,10 +71,31 @@ jobs:
       # ── 1. 证书处理：自己管自己的域名和证书 ────────────────────────────────
       - name: Setup aic config
         env:
-          AIC_CONFIG: ${{ secrets.CRM_AIC_CONFIG }}
+          # aic config 两个 profile 从对应的 GitHub secrets 取值。
+          # default profile (personal) 用于 DNS-01 验证；
+          # enterprise profile 用于 CAS 上传。
+          # 与 fullstack CD 的 ALIBABA_CLOUD_* 共用 enterprise profile 的 AK。
+          ALI_DNS_ACCESS_KEY_ID: ${{ secrets.ALI_DNS_ACCESS_KEY_ID }}
+          ALI_DNS_ACCESS_KEY_SECRET: ${{ secrets.ALI_DNS_ACCESS_KEY_SECRET }}
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
         run: |
           mkdir -p ~/.config/aic
-          printf '%s\n' "$AIC_CONFIG" > ~/.config/aic/config.toml
+          cat > ~/.config/aic/config.toml <<EOF
+          [acme]
+          path = "$HOME/.acme.sh/acme.sh"
+
+          [aliyun]
+          default-profile = "default"
+
+          [aliyun.profiles.default]
+          accessKeyId = "$ALI_DNS_ACCESS_KEY_ID"
+          accessKeySecret = "$ALI_DNS_ACCESS_KEY_SECRET"
+
+          [aliyun.profiles.enterprise]
+          accessKeyId = "$ALIBABA_CLOUD_ACCESS_KEY_ID"
+          accessKeySecret = "$ALIBABA_CLOUD_ACCESS_KEY_SECRET"
+          EOF
 
       - name: Install acme.sh
         run: |
