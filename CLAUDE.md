@@ -119,6 +119,14 @@ Migrations are not auto-applied at boot — operators run them via `pnpm --filte
 ### Configuring a module's seed data
 The `seed.ts` file in a module directory is imported by `apps/yishan-api/src/scripts/seed/index.ts`. Seed scripts run via `pnpm --filter yishan-api db:seed` (which does `build:ts` first, then runs from dist). Seeds must be idempotent — use `INSERT ... ON DUPLICATE KEY UPDATE`.
 
+### Auto-seed in fullstack CD
+`yishan-fullstack-cd-fc.yml` deploys the layered function, then auto-runs `db:seed` to keep `sys_role_menu` + `sys_role_permission` in sync with the latest `crm/seed.ts` + `permissions.ts`. Three env flags keep it DDL-free (production `iximei_crm_app` is DML + `CREATE/ALTER/INDEX/REFERENCES` only):
+- `SEED_MINIMAL=true` — skip dept/post/dict/option/region demo data
+- `SEED_SKIP_MIGRATE=true` — skip core `drizzle-kit migrate`
+- `SEED_SKIP_MODULE_MIGRATE=true` — skip `onboard-modules.ts` per-module `drizzle-kit migrate`
+
+Schema migrations still go through `yishan-fc-migrate.yml` (root account on the dedicated `MIGRATION_RUNNER_NAME` function); never via the auto-seed step. If the auto-seed step fails, the deploy has already succeeded — re-run `pnpm --filter yishan-api db:seed` with the same flags from a privileged environment.
+
 ## Architecture: admin route system
 
 The admin routing is split into two layers, with the backend `sys_menu` table as the single source of truth for business pages.

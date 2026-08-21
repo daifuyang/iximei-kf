@@ -114,6 +114,14 @@ async function syncModuleMigrationJournal(id: string): Promise<{ applied: number
 }
 
 async function migrateModule(id: string): Promise<StepOutcome> {
+  // SEED_SKIP_MODULE_MIGRATE=true：CD 自动 seed 场景下，跳过模块 drizzle-kit migrate。
+  // 适用：生产账号是 DML-only（DML 子集 + CREATE/ALTER/INDEX/REFERENCES），DDL 走专门的
+  // migration runner workflow（yishan-fc-migrate.yml 用 root 账号跑）。这里只重绑
+  // 菜单 + 权限等 INSERT/UPDATE 工作，避免被 DDL 权限拦截。
+  if (process.env.SEED_SKIP_MODULE_MIGRATE === 'true') {
+    return { ok: true, message: 'SEED_SKIP_MODULE_MIGRATE=true：跳过模块迁移' }
+  }
+
   const moduleSrcDir = join(MODULES_SRC, id)
   const moduleDistDir = join(MODULES_DIST, id)
   const configTs = join(moduleSrcDir, 'drizzle.config.ts')

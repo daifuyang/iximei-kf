@@ -310,3 +310,35 @@ jobs:
           NODE
           . /tmp/yishan_layered_env.sh
           bash ./deploy/fc3/scripts/deploy-layered-function.sh
+
+      - name: Auto-run db:seed (lightweight role/permission re-bind)
+        # 部署成功后跑一次轻量 seed：重绑 sys_role_menu + sys_role_permission，
+        # 让 crm/seed.ts + permissions.ts 的最新代码自动反映到线上 RBAC 表，
+        # 无需运维手动 db:seed。
+        # 三个 SKIP flag 防止 seed 触发 DDL：
+        #   SEED_MINIMAL             跳过演示数据（dict/post/region 等）
+        #   SEED_SKIP_MIGRATE        跳过 core drizzle-kit migrate
+        #   SEED_SKIP_MODULE_MIGRATE 跳过模块 drizzle-kit migrate（onboard-modules.ts）
+        # DDL 仍走专门的 yishan-fc-migrate workflow（MIGRATION_RUNNER_NAME 函数，root 账号）。
+        # 当前 iximei_crm_app 账号权限 = SELECT/INSERT/UPDATE/DELETE/CREATE/ALTER/INDEX/REFERENCES
+        # （db-isolation 默认 GRANT，allow_drop=false），足以跑菜单 + 权限重绑。
+        if: success()
+        working-directory: apps/yishan-api
+        env:
+          DATABASE_USER: ${{ secrets.YISHAN_API_DATABASE_USER }}
+          DATABASE_PASSWORD: ${{ secrets.YISHAN_API_DATABASE_PASSWORD }}
+          DATABASE_NAME: ${{ secrets.YISHAN_API_DATABASE_NAME }}
+          DATABASE_HOST: ${{ secrets.YISHAN_API_DATABASE_HOST }}
+          DATABASE_PORT: ${{ secrets.YISHAN_API_DATABASE_PORT }}
+          REDIS_URL: ${{ secrets.YISHAN_API_REDIS_URL }}
+          REDIS_HOST: ${{ vars.REDIS_HOST }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.YISHAN_API_SEED_ADMIN_PASSWORD }}
+          ALLOW_PRODUCTION_SEED: 'true'
+          SEED_MINIMAL: 'true'
+          SEED_SKIP_MIGRATE: 'true'
+          SEED_SKIP_MODULE_MIGRATE: 'true'
+        run: |
+          set -euo pipefail
+          export DATABASE_PORT="${DATABASE_PORT:-3306}"
+          echo ">>> Auto db:seed: 重绑菜单 + 权限（skip migrate）"
+          node dist/scripts/seed/index.js
