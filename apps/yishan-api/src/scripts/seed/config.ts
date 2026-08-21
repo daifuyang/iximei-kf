@@ -121,7 +121,17 @@ export function assertSeedEnvironment() {
     throw new Error('生产环境执行 seed 必须显式设置 ALLOW_PRODUCTION_SEED=true');
   }
   if (!adminPassword) {
-    throw new Error('必须通过 SEED_ADMIN_PASSWORD 设置管理员初始密码');
+    // SEED_ADMIN_PASSWORD 仅在创建新管理员账号时被消费（见 ensureAdminUser：
+    // 管理员已存在则直接跳过 password 注入）。三 flag 全开的轻量重绑场景
+    // （CD auto-seed：SEED_MINIMAL+SEED_SKIP_MIGRATE+SEED_SKIP_MODULE_MIGRATE）
+    // 不创建任何账号，password 不会被消费，所以允许为空。
+    const isLightweight = process.env.SEED_MINIMAL === 'true'
+      && process.env.SEED_SKIP_MIGRATE === 'true'
+      && process.env.SEED_SKIP_MODULE_MIGRATE === 'true';
+    if (!isLightweight) {
+      throw new Error('必须通过 SEED_ADMIN_PASSWORD 设置管理员初始密码');
+    }
+    console.log('[seed] SEED_ADMIN_PASSWORD 未设置，但已开启轻量重绑模式（三 flag 全开），跳过 password 守卫');
   }
 }
 
