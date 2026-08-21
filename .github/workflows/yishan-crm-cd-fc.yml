@@ -23,6 +23,13 @@ name: yishan-crm-cd-fc
         description: Force certificate renewal
         required: false
         default: "false"
+      use_staging:
+        description: |
+          Use Let's Encrypt STAGING server (avoid production rate limits).
+          Staging cert is NOT trusted by browsers — skips s deploy to FC.
+          仅用于端到端链路验证，不能用于生产部署。
+        required: false
+        default: "false"
 
 concurrency:
   group: yishan-crm-cd-fc
@@ -126,14 +133,23 @@ jobs:
           # 但绕过 aic 的 2 分钟硬编码超时——直接调 acme.sh）
           Ali_Key: ${{ secrets.ALI_DNS_ACCESS_KEY_ID }}
           Ali_Secret: ${{ secrets.ALI_DNS_ACCESS_KEY_SECRET }}
+          USE_STAGING: ${{ github.event.inputs.use_staging }}
         run: |
           echo "Certificate needs renewal (days_left: ${{ steps.cert_check.outputs.days_left }}, threshold: ${{ env.RENEW_DAYS }})"
-          ~/.acme.sh/acme.sh --issue --dns dns_ali \
-            -d "${{ env.CUSTOM_DOMAIN }}" \
-            --keylength 2048
+          # staging mode 用 LE staging server（不消耗正式配额，且不挂到生产域名）
+          ACME_ARGS="--issue --dns dns_ali -d ${{ env.CUSTOM_DOMAIN }} --keylength 2048"
+          if [ "${USE_STAGING:-false}" = "true" ]; then
+            ACME_ARGS="$ACME_ARGS --server letsencrypt --staging"
+            echo "USE_STAGING=true, using Let's Encrypt staging server (cert will NOT be deployed)"
+          fi
+          ~/.acme.sh/acme.sh $ACME_ARGS
 
       - name: Upload certificate to CAS
-        if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.days_left == '0' || steps.cert_check.outputs.days_left < env.RENEW_DAYS
+        if: >-
+          (github.event.inputs.force_renew_cert == 'true'
+            || steps.cert_check.outputs.days_left == '0'
+            || steps.cert_check.outputs.days_left < env.RENEW_DAYS)
+          && github.event.inputs.use_staging != 'true'
         id: cas_upload
         run: |
           # 从 acme.sh 证书目录读取最新证书
@@ -158,7 +174,11 @@ jobs:
           echo "Certificate uploaded with ID: $CERT_ID"
 
       - name: Deploy domain with renewed cert (CAS reference)
-        if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.days_left == '0' || steps.cert_check.outputs.days_left < env.RENEW_DAYS
+        if: >-
+          (github.event.inputs.force_renew_cert == 'true'
+            || steps.cert_check.outputs.days_left == '0'
+            || steps.cert_check.outputs.days_left < env.RENEW_DAYS)
+          && github.event.inputs.use_staging != 'true'
         env:
           CERT_ID: ${{ steps.cas_upload.outputs.cert_id }}
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
@@ -198,7 +218,11 @@ jobs:
           s deploy -y -t deploy/fc3/templates/domain.yaml -a enterprise
 
       - name: Verify cert after deploy
-        if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.days_left == '0' || steps.cert_check.outputs.days_left < env.RENEW_DAYS
+        if: >-
+          (github.event.inputs.force_renew_cert == 'true'
+            || steps.cert_check.outputs.days_left == '0'
+            || steps.cert_check.outputs.days_left < env.RENEW_DAYS)
+          && github.event.inputs.use_staging != 'true'
         run: |
           set -euo pipefail
           cert_start_line="$(openssl s_client -servername "${{ env.CUSTOM_DOMAIN }}" -connect "${{ env.CUSTOM_DOMAIN }}:443" < /dev/null 2>/dev/null | openssl x509 -noout -startdate)"
