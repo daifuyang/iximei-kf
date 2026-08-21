@@ -393,11 +393,31 @@ export function buildRecentActivities(
 /* ──────── 医院排行榜 ──────── */
 
 export function buildHospitalRankings(
-  _stats: DashboardStats,
+  stats: DashboardStats,
 ): HospitalRankingItem[] {
-  // 后端暂未提供按医院聚合的指标数据，排行榜返回空数组。
-  // UI 将显示"暂无排名数据"状态。
-  return [];
+  // Phase C.3: backend response stats.hospitalRankings.items[]
+  // - rank not assigned by backend; assign 1-based by backend ORDER BY dispatchCount DESC
+  // - arrivalRate ≈ viewedRate (closest measurable signal; Card column "到院率" 语义对齐"已查看")
+  // - conversionRate not provided yet → undefined → UI renders "--"
+  // - (stats as any) because DashboardStats type doesn't declare hospitalRankings (brief: don't touch types.ts)
+  const items = (stats as any)?.hospitalRankings?.items as Array<{
+    hospitalId: number
+    hospitalName: string
+    dispatchCount: number
+    viewedCount: number
+    unviewedCount: number
+    viewedRate: number // 0-100
+    replyCount: number
+    firstViewedAt: string | null
+  }> | undefined
+  if (!items?.length) return []
+  return items.map((it, idx) => ({
+    rank: idx + 1,
+    name: it.hospitalName,
+    dispatchCount: it.dispatchCount,
+    arrivalRate: it.viewedRate,
+    conversionRate: undefined, // TODO: C.3 follow-up
+  }))
 }
 
 /* ──────── 客户状态处理 ──────── */
