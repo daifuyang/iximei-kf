@@ -36,14 +36,14 @@ jobs:
   deploy-crm:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    environment: YISHAN_CRM
+    environment: YISHAN_API
     env:
-      FUNCTION_REGION: ${{ vars.CRM_FUNCTION_REGION }}
+      FUNCTION_REGION: ${{ vars.FUNCTION_REGION }}
       FUNCTION_NAME: ${{ vars.CRM_FUNCTION_NAME }}
       FUNCTION_DESCRIPTION: ${{ vars.CRM_FUNCTION_DESCRIPTION }}
-      FUNCTION_VPC_ID: ${{ vars.CRM_FUNCTION_VPC_ID }}
-      FUNCTION_VSWITCH_ID: ${{ vars.CRM_FUNCTION_VSWITCH_ID }}
-      FUNCTION_SECURITY_GROUP: ${{ vars.CRM_FUNCTION_SECURITY_GROUP }}
+      FUNCTION_VPC_ID: ${{ vars.FUNCTION_VPC_ID }}
+      FUNCTION_VSWITCH_ID: ${{ vars.FUNCTION_VSWITCH_ID }}
+      FUNCTION_SECURITY_GROUP: ${{ vars.FUNCTION_SECURITY_GROUP }}
       CUSTOM_DOMAIN: ${{ vars.CRM_CUSTOM_DOMAIN }}
       CERT_NAME: ${{ vars.CRM_CERT_NAME }}
       DNS_PROFILE: ${{ vars.CRM_DNS_PROFILE || 'personal' }}
@@ -52,12 +52,12 @@ jobs:
       - name: Validate deployment variables
         run: |
           set -euo pipefail
-          : "${FUNCTION_REGION:?Missing CRM_FUNCTION_REGION}"
+          : "${FUNCTION_REGION:?Missing FUNCTION_REGION}"
           : "${FUNCTION_NAME:?Missing CRM_FUNCTION_NAME}"
           : "${FUNCTION_DESCRIPTION:?Missing CRM_FUNCTION_DESCRIPTION}"
-          : "${FUNCTION_VPC_ID:?Missing CRM_FUNCTION_VPC_ID}"
-          : "${FUNCTION_VSWITCH_ID:?Missing CRM_FUNCTION_VSWITCH_ID}"
-          : "${FUNCTION_SECURITY_GROUP:?Missing CRM_FUNCTION_SECURITY_GROUP}"
+          : "${FUNCTION_VPC_ID:?Missing FUNCTION_VPC_ID}"
+          : "${FUNCTION_VSWITCH_ID:?Missing FUNCTION_VSWITCH_ID}"
+          : "${FUNCTION_SECURITY_GROUP:?Missing FUNCTION_SECURITY_GROUP}"
           : "${CUSTOM_DOMAIN:?Missing CRM_CUSTOM_DOMAIN}"
       - uses: actions/checkout@v4
         with:
@@ -222,7 +222,7 @@ jobs:
 
       - name: Build yishan-admin
         env:
-          PUBLIC_PATH: ${{ vars.CRM_ADMIN_BASE_PATH || '/admin/' }}
+          PUBLIC_PATH: ${{ vars.ADMIN_BASE_PATH || '/admin/' }}
         run: pnpm --filter yishan-admin build
 
       - name: Prepare .env
@@ -235,7 +235,7 @@ jobs:
           DATABASE_HOST: ${{ secrets.YISHAN_CRM_DATABASE_HOST }}
           DATABASE_PORT: ${{ secrets.YISHAN_CRM_DATABASE_PORT }}
           REDIS_URL: ${{ secrets.YISHAN_CRM_REDIS_URL }}
-          REDIS_HOST: ${{ vars.CRM_REDIS_HOST }}
+          REDIS_HOST: ${{ vars.REDIS_HOST }}
         run: |
           set -euo pipefail
           ENV_FILE="$(pwd)/.env"
@@ -318,7 +318,7 @@ jobs:
         id: publish_layer
         working-directory: apps/yishan-api
         env:
-          YISHAN_FC_REGION: ${{ vars.CRM_FUNCTION_REGION || 'cn-shanghai' }}
+          YISHAN_FC_REGION: ${{ vars.FUNCTION_REGION || 'cn-shanghai' }}
           YISHAN_FC_LAYER_NAME: ${{ vars.CRM_FC_LAYER_NAME || 'yishan-api-runtime-layer-crm' }}
           YISHAN_FC_ACCESS_ALIAS: enterprise
           ALIBABA_CLOUD_ACCOUNT_ID: ${{ secrets.ALIBABA_CLOUD_ACCOUNT_ID }}
@@ -353,17 +353,17 @@ jobs:
           DATABASE_HOST: ${{ secrets.YISHAN_CRM_DATABASE_HOST }}
           DATABASE_PORT: ${{ secrets.YISHAN_CRM_DATABASE_PORT }}
           REDIS_URL: ${{ secrets.YISHAN_CRM_REDIS_URL }}
-          REDIS_HOST: ${{ vars.CRM_REDIS_HOST }}
+          REDIS_HOST: ${{ vars.REDIS_HOST }}
           JWT_SECRET: ${{ secrets.YISHAN_CRM_JWT_SECRET }}
           YISHAN_API_RUNTIME_LAYER_ARN: ${{ steps.publish_layer.outputs.layer_arn }}
-          FUNCTION_REGION: ${{ vars.CRM_FUNCTION_REGION }}
+          FUNCTION_REGION: ${{ vars.FUNCTION_REGION }}
           FUNCTION_NAME: ${{ vars.CRM_FUNCTION_NAME }}
           FUNCTION_DESCRIPTION: ${{ vars.CRM_FUNCTION_DESCRIPTION }}
-          FUNCTION_VPC_ID: ${{ vars.CRM_FUNCTION_VPC_ID }}
-          FUNCTION_VSWITCH_ID: ${{ vars.CRM_FUNCTION_VSWITCH_ID }}
-          FUNCTION_SECURITY_GROUP: ${{ vars.CRM_FUNCTION_SECURITY_GROUP }}
-          ADMIN_BASE_PATH: ${{ vars.CRM_ADMIN_BASE_PATH || '/admin/' }}
-          ADMIN_REDIRECT_ROOT: ${{ vars.CRM_ADMIN_REDIRECT_ROOT || 'true' }}
+          FUNCTION_VPC_ID: ${{ vars.FUNCTION_VPC_ID }}
+          FUNCTION_VSWITCH_ID: ${{ vars.FUNCTION_VSWITCH_ID }}
+          FUNCTION_SECURITY_GROUP: ${{ vars.FUNCTION_SECURITY_GROUP }}
+          ADMIN_BASE_PATH: ${{ vars.ADMIN_BASE_PATH || '/admin/' }}
+          ADMIN_REDIRECT_ROOT: ${{ vars.ADMIN_REDIRECT_ROOT || 'true' }}
         run: |
           set -euo pipefail
           export DATABASE_PORT="${DATABASE_PORT:-3306}"
