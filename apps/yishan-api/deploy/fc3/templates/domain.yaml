@@ -13,11 +13,9 @@ resources:
       domainName: ${vars.domainName}
       protocol: HTTPS
       certConfig:
-        # CRM CD 走 aic + CAS：先 aic aliyun-cert:upload 上传证书拿到 certId，
-        # 再 export CAS_CERT_NAME=cret-${CERT_ID}，由 s deploy 把域名绑定/更新
-        # 一起做（首次 CreateCustomDomain，后续 UpdateCustomDomain 幂等）。
-        # certName 必须带 cret- 前缀才能引用 CAS 证书。
-        certName: ${env(CAS_CERT_NAME)}
+        certName: ${env(CERT_NAME)}
+        certificate: ${file(../certs/fullchain.cer)}
+        privateKey: ${file(../certs/private.key)}
       routeConfig:
         routes:
           - path: /
