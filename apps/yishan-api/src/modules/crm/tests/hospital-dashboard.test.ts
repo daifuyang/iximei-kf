@@ -35,7 +35,7 @@ describe('HospitalDashboardRepository', () => {
       }
       return chain
     })
-    const stats = await HospitalDashboardRepository.getStats(5)
+    const stats = await HospitalDashboardRepository.getStats([5])
     expect(stats).toHaveProperty('todayCount')
     expect(stats).toHaveProperty('monthCount')
     expect(stats).toHaveProperty('yearCount')
@@ -58,7 +58,7 @@ describe('HospitalDashboardRepository', () => {
       }
       return chain
     })
-    const stats = await HospitalDashboardRepository.getStats(99)
+    const stats = await HospitalDashboardRepository.getStats([99])
     expect(stats.todayCount).toBe(0)
     expect(stats.viewedCount).toBe(0)
     expect(stats.unviewedCount).toBe(0)
@@ -74,7 +74,7 @@ describe('HospitalDashboardRepository', () => {
       }
       return chain
     })
-    const n = await HospitalDashboardRepository.getUnviewedCount(5)
+    const n = await HospitalDashboardRepository.getUnviewedCount([5])
     expect(n).toBe(7)
   })
 
@@ -88,7 +88,7 @@ describe('HospitalDashboardRepository', () => {
       }
       return chain
     })
-    const n = await HospitalDashboardRepository.getUnviewedCount(5)
+    const n = await HospitalDashboardRepository.getUnviewedCount([5])
     expect(n).toBe(0)
   })
 })

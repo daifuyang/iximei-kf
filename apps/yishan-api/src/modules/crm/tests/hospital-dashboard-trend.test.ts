@@ -21,19 +21,22 @@ describe('HospitalDashboardRepository.getTrend', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('返回 30 个日期点, 缺失日补 0', async () => {
-    const result = await HospitalDashboardRepository.getTrend(5, 30)
+    const result = await HospitalDashboardRepository.getTrend([5], 30)
     expect(result.daily).toHaveLength(30)
-    expect(result.daily[0].count).toBe(0)  // 最早天 0
+    // mock 只给了 '2026-07-23' 一条数据：除该日外其余日期都应补 0。
+    // 不依赖“今天”是几号（该日可能在/不在 30 天窗口内）。
+    const nonMock = result.daily.filter((d) => d.date !== '2026-07-23')
+    expect(nonMock.every((d) => d.count === 0)).toBe(true)
   })
 
   it('返回 statusBreakdown 含 viewed/unviewed', async () => {
-    const result = await HospitalDashboardRepository.getTrend(5, 30)
+    const result = await HospitalDashboardRepository.getTrend([5], 30)
     expect(result.statusBreakdown).toHaveProperty('viewed')
     expect(result.statusBreakdown).toHaveProperty('unviewed')
   })
 
   it('SQL 调用了 DATE(createdAt) groupBy', async () => {
-    await HospitalDashboardRepository.getTrend(5, 30)
+    await HospitalDashboardRepository.getTrend([5], 30)
     expect(drizzleDb.select).toHaveBeenCalled()
   })
 })

@@ -4,16 +4,22 @@
  * 端点：
  *   - GET /hospital/dashboard/stats
  *       permission: HOSPITAL_DASHBOARD_VIEW
- *       返回该医院的 6 项看板指标（4 个时间桶 + viewed/unviewed）。
+ *       querystring: { hospitalId?: number; startDate?: string; endDate?: string }
+ *         - SUPER_ADMIN 不传 hospitalId → 全院汇总；传则单院
+ *         - HOSPITAL_ACCOUNT 不传 → 自己医院；传则必须等于自己医院（否则 403）
+ *         - startDate/endDate 可选 (YYYY-MM-DD，闭区间)
+ *       返回 6 项看板指标（4 个时间桶 + viewed/unviewed）。
  *   - GET /hospital/dispatches/unviewed-count
  *       permission: DISPATCH_LIST
- *       返回该医院未查看派单数（菜单 Badge 实时拉取）。
+ *       querystring: { hospitalId?: number }
+ *       返回该（些）医院未查看派单数（菜单 Badge 用）。
+ *   - GET /hospital/dashboard/trend
+ *       permission: HOSPITAL_DASHBOARD_VIEW
+ *       querystring: { hospitalId?; startDate?; endDate? }
+ *       返回派单趋势 (daily) + viewed/unviewed 状态分布。
  *
- * 路由层只做：身份 / 权限前置校验 + 调用 service + 响应封装。
- * 角色门禁（HOSPITAL_ACCOUNT 专属）在 service 里 throw BusinessError。
- *
- * 注：与 `/dispatches` 列表一样用 DISPATCH_LIST 权限（业务动作都是"读派单"）；
- * HOSPITAL_DASHBOARD_VIEW 是新权限点，专门用于看板页入口。
+ * 路由层只做：身份 / 权限前置校验 + querystring 解析 + 调用 service + 响应封装。
+ * 角色门禁 (HOSPITAL_ACCOUNT 越权) 在 service 里 throw BusinessError(FORBIDDEN)。
  */
 
 import type { FastifyPluginAsync } from 'fastify'
@@ -40,14 +46,30 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
   const uid = (req: any) => req.currentUser.id
   const roleIds = (req: any): number[] => req.currentUser?.roleIds ?? []
 
+  /**
+   * querystring shape shared by /stats and /trend:
+   * - hospitalId: optional integer (>0); 不传 = "本角色默认范围"
+   * - startDate / endDate: optional YYYY-MM-DD
+   */
+  const statsTrendQuery = Type.Object({
+    hospitalId: Type.Optional(Type.Integer({ minimum: 0 })),
+    startDate: Type.Optional(Type.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' })),
+    endDate: Type.Optional(Type.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' })),
+  })
+
+  const unviewedQuery = Type.Object({
+    hospitalId: Type.Optional(Type.Integer({ minimum: 0 })),
+  })
+
   route.get(
     '/hospital/dashboard/stats',
     {
       access: { permission: PERMS.HOSPITAL_DASHBOARD_VIEW },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '医院后台数据看板',
+        summary: '医院数据看板',
         operationId: 'getCrmHospitalDashboardStats',
+        querystring: statsTrendQuery,
         response: {
           200: Type.Object({
             success: Type.Boolean(),
@@ -59,7 +81,12 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await HospitalDashboardService.getStats(uid(req), roleIds(req))
+      const { hospitalId, startDate, endDate } = req.query
+      const result = await HospitalDashboardService.getStats(uid(req), roleIds(req), {
+        hospitalId,
+        startDate,
+        endDate,
+      })
       return ResponseUtil.success(reply, result)
     },
   )
@@ -72,6 +99,7 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
         tags: [ROUTE_TAG],
         summary: '医院账号未查看派单数量（菜单 Badge 用）',
         operationId: 'getCrmHospitalUnviewedDispatchCount',
+        querystring: unviewedQuery,
         response: {
           200: Type.Object({
             success: Type.Boolean(),
@@ -83,7 +111,10 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await HospitalDashboardService.getUnviewedCount(uid(req), roleIds(req))
+      const { hospitalId } = req.query
+      const result = await HospitalDashboardService.getUnviewedCount(uid(req), roleIds(req), {
+        hospitalId,
+      })
       return ResponseUtil.success(reply, result)
     },
   )
@@ -94,8 +125,9 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
       access: { permission: PERMS.HOSPITAL_DASHBOARD_VIEW },
       schema: {
         tags: [ROUTE_TAG],
-        summary: '医院数据看板 - 30 天趋势 + 状态分布',
+        summary: '医院数据看板 - 派单趋势 + 状态分布',
         operationId: 'getCrmHospitalDashboardTrend',
+        querystring: statsTrendQuery,
         response: {
           200: Type.Object({
             success: Type.Boolean(),
@@ -107,7 +139,12 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
       },
     },
     async (req: any, reply: any) => {
-      const result = await HospitalDashboardService.getTrend(uid(req), roleIds(req))
+      const { hospitalId, startDate, endDate } = req.query
+      const result = await HospitalDashboardService.getTrend(uid(req), roleIds(req), 30, {
+        hospitalId,
+        startDate,
+        endDate,
+      })
       return ResponseUtil.success(reply, result)
     },
   )

@@ -170,6 +170,22 @@ export class HospitalsRepository {
       )
   }
 
+  /**
+   * 所有「启用中」医院的 id 列表，用于 super_admin 全院汇总。
+   * 排除软删除 + status != 1。
+   */
+  static async allActiveHospitalIds(db: AppQueryDb = drizzleDb): Promise<Array<{ id: number }>> {
+    return db
+      .select({ id: crmHospital.id })
+      .from(crmHospital)
+      .where(
+        and(
+          active(crmHospital),
+          eq(crmHospital.status, 1),
+        ),
+      )
+  }
+
   /* -------------------- 创建/改名事务 -------------------- */
 
   /**

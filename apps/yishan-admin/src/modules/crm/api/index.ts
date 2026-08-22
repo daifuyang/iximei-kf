@@ -234,14 +234,27 @@ export const getDashboardStats = (params?: {
   hospitalId?: number;
 }) => getCrmDashboardStats(params || {});
 
-/** 医院账号本院数据看板（operationId 暂未生成，走 request 直接命中后端契约） */
-export const getHospitalDashboardStats = () =>
-  request<any>('/api/crm/v1/hospital/dashboard/stats');
+/**
+ * 医院数据看板。
+ *
+ * - hospital_account：不传 hospitalId，固定看本院。
+ * - super_admin：不传 hospitalId = 全院汇总；传 = 单院。
+ * - startDate/endDate 可选 (YYYY-MM-DD，闭区间)；不给则统计累计数据。
+ * operationId 暂未生成，走 request 直接命中后端契约。
+ */
+export const getHospitalDashboardStats = (params?: {
+  hospitalId?: number;
+  startDate?: string;
+  endDate?: string;
+}) => request<any>('/api/crm/v1/hospital/dashboard/stats', { params });
 
-/** 医院账号未查看派单数（顶栏红点） */
-export const getHospitalUnviewedCount = () =>
-  request<any>('/api/crm/v1/hospital/dispatches/unviewed-count');
+/** 医院账号未查看派单数（顶栏红点）。super_admin 传 hospitalId=单院，不传=全院。 */
+export const getHospitalUnviewedCount = (params?: { hospitalId?: number }) =>
+  request<any>('/api/crm/v1/hospital/dispatches/unviewed-count', { params });
 
-/** 医院账号近 30 天派单趋势 + 查看状态分布（折线/饼图用，operationId 暂未生成） */
-export const getHospitalDashboardTrend = () =>
-  request<any>('/api/crm/v1/hospital/dashboard/trend');
+/** 医院派单趋势 + 查看状态分布（折线/饼图用，operationId 暂未生成） */
+export const getHospitalDashboardTrend = (params?: {
+  hospitalId?: number;
+  startDate?: string;
+  endDate?: string;
+}) => request<any>('/api/crm/v1/hospital/dashboard/trend', { params });

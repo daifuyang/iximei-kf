@@ -36,6 +36,10 @@ yarn-error.log*
 apps/yishan-app/.swc/
 tmp/
 
+# Local tooling / agent workspace state (not part of the product)
+.agents/
+.dsh-meow/
+
 # Generated artifacts (release output, plugin catalog from profiles/*.yaml)
 artifacts/
 apps/yishan-api/openapi.json
