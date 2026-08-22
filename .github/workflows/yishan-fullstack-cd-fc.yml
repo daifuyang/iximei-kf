@@ -257,6 +257,13 @@ jobs:
       - name: Deploy layered function
         working-directory: apps/yishan-api
         env:
+          # Build 标识注入到 FC 函数实例。
+          # 目的：fail-tracking / "行为不符预期" 时，第一步是读 /api/health 看 commit，
+          # 不再反推或猜 commit。YISHAN_API_VERSION 与每次 deploy 绑定（GH run_number），
+          # GIT_COMMIT_SHA = 触发 workflow 的 commit 短 SHA（GitHub 提供 GITHUB_SHA），
+          # BUILD_TIME     = workflow 实际部署时刻（UTC ISO8601，写到函数 env）。
+          YISHAN_API_VERSION: 1.${{ github.run_number }}.0
+          GIT_COMMIT_SHA: ${{ github.sha }}
           LOG_LEVEL: info
           DATABASE_USER: ${{ secrets.YISHAN_API_DATABASE_USER }}
           DATABASE_PASSWORD: ${{ secrets.YISHAN_API_DATABASE_PASSWORD }}
@@ -278,6 +285,9 @@ jobs:
         run: |
           set -euo pipefail
           export DATABASE_PORT="${DATABASE_PORT:-3306}"
+          export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          export GIT_COMMIT_SHA="${GIT_COMMIT_SHA:0:12}"
+          echo ">>> Build identity: YISHAN_API_VERSION=${YISHAN_API_VERSION}  GIT_COMMIT_SHA=${GIT_COMMIT_SHA}  BUILD_TIME=${BUILD_TIME}"
           node <<'NODE' > /tmp/yishan_layered_env.sh
           const redisUrl = process.env.REDIS_URL || '';
           let redisPort = '6379';
@@ -303,6 +313,10 @@ jobs:
             REDIS_HOST: redisHost,
             REDIS_PASSWORD: redisPassword,
             REDIS_DB: redisDb,
+            // Build 标识（见上方注释）。
+            YISHAN_API_VERSION: process.env.YISHAN_API_VERSION || '',
+            GIT_COMMIT_SHA: (process.env.GIT_COMMIT_SHA || '').slice(0, 12),
+            BUILD_TIME: process.env.BUILD_TIME || '',
           };
           for (const [key, value] of Object.entries(entries)) {
             console.log(`export ${key}=${JSON.stringify(value)}`);

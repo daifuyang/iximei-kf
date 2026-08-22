@@ -12,9 +12,8 @@
 
 import fp from "fastify-plugin";
 import { randomUUID } from "node:crypto";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { buildInfo } from "../../../utils/build-info.js";
 
 const REQUEST_ID_HEADER = "x-request-id";
 const REDACT_KEYS = new Set([
@@ -62,33 +61,13 @@ declare module "fastify" {
   }
 }
 
-function resolveCommitSha(): string {
-  try {
-    const head = join(process.cwd(), ".git", "HEAD");
-    if (existsSync(head)) {
-      const ref = readFileSync(head, "utf8").trim();
-      if (ref.startsWith("ref:")) {
-        const refPath = join(process.cwd(), ".git", ref.slice(5));
-        if (existsSync(refPath)) {
-          return readFileSync(refPath, "utf8").trim().slice(0, 12);
-        }
-      }
-      return ref.slice(0, 12);
-    }
-  } catch {
-    /* not a git checkout */
-  }
-  return process.env.GIT_COMMIT_SHA ?? "unknown";
-}
-
-function resolveVersion(fastify: FastifyInstance): string {
-  const pkg = (fastify as { server?: { opts?: { version?: string } } }).server?.opts?.version;
-  if (pkg) return pkg;
-  return process.env.npm_package_version ?? "0.0.0";
-}
-
 export default fp(
   async (fastify: FastifyInstance) => {
+    // -- 0) Cache build identity (single read per process). ----------------
+    // build-info 单例：所有 [startup] banner / request log 字段 / health
+    // endpoint 都走它，避免在 hot path 反复读 env / fs。
+    const build = buildInfo();
+
     // -- 1) Ensure every request has a requestId. -------------------------
     fastify.decorateRequest("requestId", "");
     fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
@@ -96,8 +75,18 @@ export default fp(
       const requestId = typeof incoming === "string" && incoming.length > 0 ? incoming : randomUUID();
       request.requestId = requestId;
       reply.header(REQUEST_ID_HEADER, requestId);
-      // 把 requestId 注入到 pino 日志子结构，便于跨链路追踪
-      (request.log as unknown as { bindings?: () => unknown }).bindings?.();
+      // 把 requestId + build identity 注入到 pino 日志子结构，**每条** HTTP log
+      // 自带 { commitSha, version, builtAt }，下次"线上行为不符预期"时：
+      //   grep 'commitSha' /var/log/.../yishan-crm.*.log
+      // 立刻定位到具体 commit；不需要再反推 deploy 时间。
+      const childLog = request.log.child({
+        requestId,
+        version: build.version,
+        commitSha: build.commitSha,
+        builtAt: build.builtAt,
+      });
+      // fastify 期望 request.log 是一个绑定好子字段的 logger；这里替换原引用。
+      (request as unknown as { log: typeof childLog }).log = childLog;
     });
 
     // -- 2) Logger redaction: wrap the request log keys through redact() ---
@@ -116,11 +105,12 @@ export default fp(
     // -- 4) Startup banners -----------------------------------------------
     fastify.addHook("onReady", async () => {
       const plugins = Object.keys((fastify as unknown as { [k: string]: unknown }).register ? {} : {});
-      // 仅打印关键启动信息，避免泄露敏感数据
+      // 仅打印关键启动信息，避免泄露敏感数据。
       fastify.log.info(
         {
-          version: resolveVersion(fastify),
-          commitSha: resolveCommitSha(),
+          version: build.version,
+          commitSha: build.commitSha,
+          builtAt: build.builtAt,
           nodeVersion: process.versions.node,
           pluginCount: plugins.length,
           env: process.env.NODE_ENV ?? "development",

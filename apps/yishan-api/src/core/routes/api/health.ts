@@ -12,6 +12,7 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { createRouteRegistrar } from '../route-registrar.js';
 import { dateUtils } from "../../../utils/date.js";
+import { buildInfo } from "../../../utils/build-info.js";
 import { ResponseUtil } from "../../../utils/response.js";
 import { drizzleDb } from "../../../db/index.js";
 import { registerPermissions, type PermissionRef } from '../../permissions/catalog.js';
@@ -62,6 +63,8 @@ const health: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
                   status: { type: "string" },
                   version: { type: "string" },
                   commitSha: { type: "string" },
+                  builtAt: { type: "string" },
+                  nodeVersion: { type: "string" },
                   uptimeSeconds: { type: "number" },
                   timestamp: { type: "string" },
                   db: {
@@ -82,18 +85,14 @@ const health: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const dbCheck = await checkDb();
-      const commitSha =
-        process.env.GIT_COMMIT_SHA ??
-        // Fallback: local git HEAD (12-char)
-        (await import("node:child_process"))
-          .execSync("git rev-parse --short=12 HEAD 2>/dev/null || echo unknown", {
-            encoding: "utf8",
-          })
-          .trim();
+      // 单次 buildInfo() 调用避免重复解析 env 与文件读取。
+      const { version, commitSha, builtAt } = buildInfo();
       const payload = {
         status: dbCheck.ok ? "ok" : "degraded",
-        version: process.env.npm_package_version ?? "0.0.0",
+        version,
         commitSha,
+        builtAt,
+        nodeVersion: process.versions.node,
         uptimeSeconds: Math.round(process.uptime()),
         timestamp: dateUtils.now(),
         db: dbCheck,
