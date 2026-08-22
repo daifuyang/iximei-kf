@@ -167,4 +167,56 @@ describe('MembersRepository.listSelectableCustomers — mobile 精确 / name 前
     // 注意 hasActiveMember 子查询用 eq(customerId, ...) 等不会含 "123"，所以这个匹配足够严格
     expect(dumped).not.toMatch(/crm_customer\.mobile.{0,40}123/)
   })
+
+  /**
+   * 用户截图场景：搜索 11 位手机号 → 列表里仍出现多条相似号码（含已是会员的客户）。
+   * 根因是历史路由曾在 customers 模块下（不带 notExists 排除），后来迁到 members 模块下。
+   * 现在的 listSelectableCustomers 必须把"已是活跃会员"这一谓词落到 SQL 上，否则
+   * 用户体验就和当初 customers 模块那一版退化的"模糊匹配多条"无差异。
+   *
+   * 注意 hasActiveMember 是关联子查询 + NOT EXISTS：dumpSql 会把它展平成
+   * `crm_member_customer` + `crm_member_customer.customer_id` + `crm_member_customer.member_status`
+   * 这些标识符的拼接。换言之，只要主 WHERE 里能看到这些表/列字样，就足以证明
+   * notExists 谓词被组装出来。
+   */
+  it('主 WHERE 拼上了 notExists(hasActiveMember) 子查询谓词（被转会员的客户被排除）', async () => {
+    await MembersRepository.listSelectableCustomers({
+      mobile: '18396533112',
+      page: 1,
+      pageSize: 10,
+    } as any)
+
+    const wheres = captureWhereConditions()
+    expect(wheres.length).toBeGreaterThan(0)
+    const dumped = wheres.map((w) => dumpSql(w)).join(' || ')
+
+    // hasActiveMember 子查询基于 crm_member_customer：必须出现在主 WHERE 里
+    expect(dumped).toContain('crm_member_customer')
+    // 子查询关联外查询的 customer_id（drizzle 用 eq(crmMemberCustomer.customerId, crmCustomer.id)）
+    expect(dumped).toContain('crm_member_customer.customer_id')
+    // 子查询锁定 member_status = 'active'
+    expect(dumped).toContain('crm_member_customer.member_status')
+    expect(dumped).toContain('active')
+    // deletedAt IS NULL 过滤（排除软删除的会员）
+    expect(dumped).toContain('crm_member_customer.deleted_at')
+  })
+
+  /**
+   * 用户期望：不输入关键词时，结果也要遵循 notExists 排除。
+   * (例如清空搜索框、翻页、刷新 — 不能因为参数为空就跳过会员过滤。)
+   */
+  it('没有任何 search 输入时（仅分页）仍然走 notExists 排除路径', async () => {
+    await MembersRepository.listSelectableCustomers({
+      page: 1,
+      pageSize: 10,
+    } as any)
+
+    const wheres = captureWhereConditions()
+    expect(wheres.length).toBeGreaterThan(0)
+    const dumped = wheres.map((w) => dumpSql(w)).join(' || ')
+
+    // 即使没传 mobile/name/keyword，主 WHERE 也必须有 hasActiveMember 关联子查询
+    expect(dumped).toContain('crm_member_customer')
+    expect(dumped).toContain('crm_member_customer.member_status')
+  })
 })

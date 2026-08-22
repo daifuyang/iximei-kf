@@ -218,8 +218,13 @@ export const getMemberOverview = () =>
   request<any>('/api/crm/v1/members/overview');
 
 /** 可转会员的客户列表 */
+// 路由在 crm members 模块下（prefix /api/crm/v1/members），不是 customers 模块。
+// 历史原因：曾短暂挂在 /api/crm/v1/customers/selectable，已迁回 members 模块；
+// 前端如果继续打旧路径会被 module-loader 的 onRequest 404 gate 直接拒掉（code 40400）。
+// members 模块的 listSelectableCustomers 已经实现了 (a) 11位手机号精确匹配
+// (b) notExists 排除已有活跃会员关联的客户；保持 README/期望行为一致。
 export const getSelectableCustomers = (params: object) =>
-  request<any>('/api/crm/v1/customers/selectable', { params });
+  request<any>('/api/crm/v1/members/customers/selectable', { params });
 
 /* ---------- 数据看板 ---------- */
 

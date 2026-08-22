@@ -348,26 +348,6 @@ export async function listCrmCustomerStatuses2(options?: {
   });
 }
 
-/** 可转会员的客户列表 GET /api/crm/v1/customers/selectable */
-export async function listCrmCustomersSelectable(
-  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
-  params: API.listCrmCustomersSelectableParams,
-  options?: { [key: string]: any }
-) {
-  return request<any>("/api/crm/v1/customers/selectable", {
-    method: "GET",
-    params: {
-      // page has a default value: 1
-      page: "1",
-      // pageSize has a default value: 10
-      pageSize: "10",
-
-      ...params,
-    },
-    ...(options || {}),
-  });
-}
-
 /** 客户状态字典 GET /api/crm/v1/customers/statuses */
 export async function listCrmCustomerStatuses(options?: {
   [key: string]: any;
@@ -1686,7 +1666,7 @@ export async function batchTagCrmMembers(
 }
 
 /** 可转会员的客户列表 GET /api/crm/v1/members/customers/selectable */
-export async function listCrmCustomersSelectable2(
+export async function listCrmCustomersSelectable(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.listCrmCustomersSelectableParams,
   options?: { [key: string]: any }
