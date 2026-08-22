@@ -49,6 +49,13 @@ resources:
         # 拿到 X-Forwarded-For 里的真实 IP。默认等价于 src/app.ts#TRUST_PROXY_DEFAULT。
         # 调整后 src/app.ts 和 src/server.ts 都会读到同一个值；详见 app.ts 注释。
         TRUST_PROXY: ${env(TRUST_PROXY, '127.0.0.1/32,::1/128,21.0.0.0/8')}
+        # Build 标识（见 /api/build + utils/build-info.ts）。注入到函数实例
+        # process.env，让 /api/build 显示具体 commit / version / 部署时间，
+        # 任何 request log 也带这些字段（见 core/plugins/external/security.ts）。
+        # 不设时 buildInfo() fallback 到 package.json / .git HEAD / 'local-dev'。
+        YISHAN_API_VERSION: ${env(YISHAN_API_VERSION, '')}
+        GIT_COMMIT_SHA: ${env(GIT_COMMIT_SHA, '')}
+        BUILD_TIME: ${env(BUILD_TIME, '')}
       customRuntimeConfig:
         command:
           - node
