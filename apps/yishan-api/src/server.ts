@@ -46,7 +46,10 @@ const app = Fastify({
   ajv: {
     customOptions: {
       coerceTypes: 'array', // change type of data to match type keyword
-      removeAdditional: 'all' // Remove additional body properties
+      // 真实失败现场（2026-08-22）：fastify ajv 'removeAdditional: all' 配合 Type.Intersect([CrmPageQuerySchema, {...}])
+      // 编译出来的 querystring schema，ajv 把 mobile/name/keyword 等字段全部当成 'additional' 给 strip 掉，
+      // handler 拿到的 req.query={}。 改成 false 让 ajv 不剥这些字段（保留未声明的额外属性）。
+      removeAdditional: false
     }
   }
 })
