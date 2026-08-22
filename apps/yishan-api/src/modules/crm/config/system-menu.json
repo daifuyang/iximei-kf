@@ -1,10 +1,10 @@
 [
   {
     "type": 1,
-    "name": "本院数据看板",
+    "name": "医院看板",
     "path": "/crm/hospital-dashboard",
     "sortOrder": -2,
-    "icon": "dashboard",
+    "icon": "bar-chart",
     "component": "./modules/crm/hospital-dashboard",
     "children": [
       { "type": 2, "name": "查看", "permissionCodes": ["crm:hospital-dashboard:view"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 }

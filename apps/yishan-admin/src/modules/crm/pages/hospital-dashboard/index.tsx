@@ -18,7 +18,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { useModel } from '@umijs/max';
 import { Button, Card, Col, DatePicker, Row, Select, Space, Spin, Statistic, Typography } from 'antd';
 import dayjs from 'dayjs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getHospitals, getHospitalDashboardStats, getHospitalDashboardTrend } from '../../api';
 
 const { Text } = Typography;
@@ -45,6 +45,8 @@ const HospitalDashboard: React.FC = () => {
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
   const [hospitalOptions, setHospitalOptions] = useState<{ label: string; value: number }[]>([]);
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
+  // 是否已应用“默认选最新医院”（只生效一次，避免用户手动切回全院后被覆盖）
+  const defaultAppliedRef = useRef(false);
 
   const buildParams = useCallback(
     (): Filters => {
@@ -63,13 +65,28 @@ const HospitalDashboard: React.FC = () => {
     if (!isSuperAdmin) return;
     setHospitalsLoading(true);
     try {
-      const res = await getHospitals({ page: 1, pageSize: 500, status: 1 });
-      const list = (res?.data || []) as any[];
-      setHospitalOptions(
-        list
-          .map((h) => ({ label: h.hospitalName || `医院#${h.id}`, value: Number(h.id) }))
-          .sort((a, b) => a.label.localeCompare(b.label, 'zh')),
-      );
+      // 后端 CrmPageQuerySchema 限制 pageSize <= 100，需分页拉取全部启用医院。
+      const all: any[] = [];
+      const pageSize = 100;
+      let page = 1;
+      let total = Infinity;
+      while (all.length < total) {
+        const res = await getHospitals({ page, pageSize, status: 1 });
+        const rows = (res?.data || []) as any[];
+        all.push(...rows);
+        total = res?.pagination?.total ?? rows.length;
+        if (rows.length < pageSize) break;
+        page += 1;
+      }
+      const options = all
+        .map((h) => ({ label: h.hospitalName || `医院#${h.id}`, value: Number(h.id) }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'zh'));
+      setHospitalOptions(options);
+      // 默认选中最新（id 最大）的启用医院；无医院则保持“全部医院”。
+      if (!defaultAppliedRef.current && options.length > 0) {
+        defaultAppliedRef.current = true;
+        setHospitalId(Math.max(...options.map((o) => o.value)));
+      }
     } catch {
       setHospitalOptions([]);
     } finally {
