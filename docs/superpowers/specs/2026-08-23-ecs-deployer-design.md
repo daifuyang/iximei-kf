@@ -179,16 +179,25 @@ iximei-mysql-migrate 需要 DDL（`drizzle-kit migrate` 跑 ALTER / CREATE），
 
 Defaults:ecs-deployer !lecture
 Defaults:ecs-deployer !requiretty
-ecs-deployer ALL=(root) NOPASSWD: /usr/bin/mysql --protocol=TCP -h 127.0.0.1 -P 3306 -u codecloud -p* iximei-crm *
-ecs-deployer ALL=(postgres) NOPASSWD: /usr/bin/psql -h 127.0.0.1 -U app_migrator -d opc_os *
+Defaults:ecs-deployer !authenticate
+ecs-deployer ALL=(root) NOPASSWD: /usr/bin/mysql --protocol=TCP -h 127.0.0.1 -P 3306 -u iximei_crm_migrator -p* iximei-crm
 ```
 
-`/usr/bin/mysql` 只走 sudo、二进制路径匹配。这样：
+**实施踩坑 1**：`Defaults:ecs-deployer !authenticate` 是必须的。AL3 8.0 上 SSSD `pam_sss.so` 强制 password prompt，即使 sudoers `NOPASSWD` 也会让 `sudo -n` 走 password path → "a password is required"。
 
-- 不能拿 root shell
-- 不能 ssh 关键字由 mysql 之外的 sudo 任务
+**实施踩坑 2**：sudoers rule **不要 trailing `*`**。`/usr/bin/mysql ... -p* iximei-crm` (无 `*`) 接受 0 个或多个 trailing args；`/usr/bin/mysql ... -p* iximei-crm *` (有 trailing `*`) **要求 ≥1 个 trailing arg** 才能匹配。guard 通过 `exec sudo -n /usr/bin/mysql iximei-crm` 传 0 个 trailing args 时，trailing-`*` 规则不匹配，直接 "command not allowed"。
 
-**OPCOS-psql-migrate 走 `app_migrator` 用户**，该用户本身在 postgres 里有 DDL 权限，所以可以直接用 psql 不必 sudo。本 spec 用 `app_migrator` 那个 sudo 行作为对 opcos-ssh-guard 的兼容（如果决定不向 opcos 切，可去掉该行）。
+**DML/DDL user 分离**（**最关键的安全纪律**）：
+- DML user `iximei_crm_app`：`SELECT, INSERT, UPDATE, DELETE on iximei-crm.*`（运行时高频使用）
+- DDL user `iximei_crm_migrator`：`ALL on iximei-crm.*`（CI/Runner 调用 migrate 时使用）
+
+不混用一个 user 的 4 个理由：
+1. **攻击面分离**：SQL injection 即使命中 runtime user，也拿不到 DDL 权限
+2. **审计粒度**：DDL 在 audit log 里独立可查，淹没在 DML 噪音里会无解
+3. **轮换节奏解耦**：DML=90 天 / DDL=180 天，独立 rotate
+4. **失败模式分离**：DML 凭据泄露 ≠ schema 控制权泄露
+
+**禁止使用 `codecloud` (ECS MySQL root)** 给 iximei-crm 的 migrate 用——`codecloud` 是 ECS 上**所有库**的 root，DML/DDL user 分离后 `codecloud` 不再被 iximei-crm 接触。每个项目必须用自己的 migrator user 满足"1 库 1 账号"原则。
 
 ## 5. ECS 端口策略（云端安全组，不在本 spec 实施）
 
