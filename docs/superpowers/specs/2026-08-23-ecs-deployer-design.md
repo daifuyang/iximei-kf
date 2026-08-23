@@ -93,6 +93,8 @@ Match User ecs-deployer
     PasswordAuthentication no
     PermitRootLogin no
     PubkeyAuthentication yes
+    AuthorizedKeysCommand /usr/bin/true
+    AuthorizedKeysCommandUser nobody
     AuthorizedKeysFile /etc/ecs-deployer/authorized_keys
     ForceCommand /usr/local/bin/ecs-ssh-guard
     AllowTcpForwarding local
@@ -108,6 +110,8 @@ Match User ecs-deployer
 - **`AllowTcpForwarding local`** 而不是 yes：仅允许本地发起 forward，禁止外部把 ECS 当跳板
 - **`PermitOpen`** 把 target 限制在 ECS 回环白名单（DSH 3080 / DB 3306 / Postgres 5432 / Redis 6379 / db-isolation 8787）
 - **不动 `/etc/ssh/sshd_config`** — match block 走 drop-in，便于 review / 单独备份
+- **`AuthorizedKeysCommand /usr/bin/true`** 是关键 override：ECS 主 `/etc/ssh/sshd_config` 默认启用 `/usr/bin/ecs_config_instance_connect`（AWS 风格的 instance metadata AKC）。ECS metadata 不认 `ecs-deployer` uid（仅认 IAM-managed user），AKC subprocess 返回空 → sshd 把 AKC 当 failed → 即使 `AuthorizedKeysFile` 写对了也读不到。强制设 `none` 类替代：`/usr/bin/true` 是 absolute path + exit 0、sshd 解析合法、行为=no-op。`/bin/false` (exit 1) / `none` 都被 sshd 8.0 当 invalid 拒绝。
+- **`authorized_keys` 文件 mode 0644**：sshd 用 `AuthorizedKeysCommandUser nobody` 读 AKC，failed 后 fallback 读 `AuthorizedKeysFile`。nobody 不能读 0600/0640 文件 → 必须 0644 root:root。pub key 本身就是公开数据。
 
 ### 4.4 Guard dispatch
 
