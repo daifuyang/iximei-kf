@@ -75,14 +75,16 @@ ECS 上现按"每产品一个 deployer"的模式：
 ### 4.2 多个独立 key（不共用一把）
 
 ```
-/etc/ecs-deployer/authorized_keys  ← 0600 root:root, 一行一条 key
+/etc/ecs-deployer/authorized_keys  ← 0644 root:root, 一行一条 key
 
-ssh-ed25519 AAA...  opcos-runner@ci
-ssh-ed25519 AAA...  iximei-runner@ci
 ssh-ed25519 AAA...  admin@daifuyang-ubuntu
+ssh-ed25519 AAA...  <other-identity-or-runner-N>
+ssh-ed25519 AAA...  <other-identity-or-runner-N>
 ```
 
-每个身份独立 key，可单 key 撤销，不影响其它 Runner。
+每个身份独立 key，可单 key 撤销。新增 CI Runner 时直接 append 一行 pub key 到这个文件 + `systemctl reload sshd`，不动 ECS user / sshd_config / guard。
+
+> 注：早期 spec 草稿中预留 `opcos-runner@ci` / `iximei-runner@ci` placeholder 注释是**虚构**的——ECS 上从未存在这两个 runner key 的具体载体，未来 Runner 接入时按需 append 即可。
 
 ### 4.3 sshd drop-in，不动主配置
 
@@ -131,7 +133,7 @@ echo "SELECT CURRENT_USER();" | ssh ecs-deployer@HOST iximei-mysql-dml
 |---|---|---|---|
 | `tunnel-dsh` | 通过 sshd -L 到 127.0.0.1:3080 | — | 由 client 决定 forward target |
 | `iximei-mysql-dml` | `mysql ... iximei-crm` as `iximei_crm_app` | `/etc/ecs-deployer/secrets/iximei-app.pass` | CRM 数据访问 |
-| `iximei-mysql-migrate` | `sudo /usr/bin/mysql ... iximei-crm` as `codecloud` (DDL) | sudo 白名单 + `/etc/ecs-deployer/secrets/iximei-migrate.pass` | drizzle migrate |
+| `iximei-mysql-migrate` | `sudo /usr/bin/mysql ... iximei-crm` as `iximei_crm_migrator` (DDL) | sudo 白名单 + `/etc/ecs-deployer/secrets/iximei-migrate.pass` | drizzle migrate |
 | `opcos-psql-dml` | `psql ... opc_os` as `opc_os_app` | `/etc/ecs-deployer/secrets/opcos-app.pass` | opcos 数据访问 |
 | `opcos-psql-migrate` | `psql ... opc_os` as `app_migrator` | `/etc/ecs-deployer/secrets/opcos-migrate.pass` | opcos DDL |
 | `audit-tail` | `journalctl -t ecs-deployer -n 100` | — | 调试审计 |
@@ -238,24 +240,27 @@ ECS 上 systemctl/iptables 操作本 spec 不做。
 | # | 步骤 | 验证 | 回滚 |
 |---|---|---|---|
 | 0 | 本机生成 ed25519 key | `~/.ssh/ecs-deployer.pem` 0600 | `rm` |
-| 1 | ECS 建 user、目录、sudoers | `id ecs-deployer; getent passwd` | `userdel -r ecs-deployer` + `/etc/sudoers.d/ecs-deployer rm` |
-| 2 | ECS 写 `/etc/ecs-deployer/authorized_keys`（含 opcos / iximei / admin key） | `wc -l` | 备份恢复 |
-| 3 | ECS 写 secret 目录初始值 | `ls -la /etc/ecs-deployer/secrets/` | 备份恢复 |
-| 4 | ECS 装 `/usr/local/bin/ecs-ssh-guard` | `bash -n $file` | `rm` |
-| 5 | ECS 写 `/etc/ssh/sshd_config.d/99-ecs-deployer.conf` | `sshd -t` | `rm` |
+| 1 | ECS 建 user、目录、`ecs-deployer` group、`systemd-journal` group | `id ecs-deployer; getent passwd` | `userdel -r ecs-deployer` + `/etc/sudoers.d/ecs-deployer rm` |
+| 2 | ECS 写 `/etc/ecs-deployer/authorized_keys` (mode 0644 root) + 公钥 | `wc -l` | 备份恢复 |
+| 3 | ECS 建 secret 目录初始值 (4 个 pass file 0640 root:ecs-deployer) | `ls -la /etc/ecs-deployer/secrets/` | 备份恢复 |
+| 4 | ECS 装 `/usr/local/bin/ecs-ssh-guard` (0755) | `bash -n $file` | `rm` |
+| 5 | ECS 写 `/etc/ssh/sshd_config.d/99-ecs-deployer.conf` (含 `AuthorizedKeysCommand /usr/bin/true`) | `sshd -t` | `rm` |
 | 6 | **sshd -t 验证** | exit 0 | 中止后续步骤 |
-| 7 | `systemctl reload sshd` | `systemctl status sshd` | reload 一次回滚，或改回 drop-in 文件 |
-| 8 | 本机验证 `ssh ecs-deployer@HOST audit-tail` | journald 出现一条 entry | — |
-| 9 | 本机验证 `ssh ecs-deployer@HOST iximei-mysql-dml -e "SELECT 1"` | mysql 有响应 | — |
-| 10 | 本机验证 tunnel：`ssh -N -L 3080:127.0.0.1:3080 ecs-deployer@HOST` + curl localhost:3080 | TCP 通 | — |
-| 11 | 手工 review：password 文件权限、token 列表、journal 行可读性 | — | — |
-| 12 | **hold**：opcos-deployer 不立即退役。等 opcos repo Runner workflow 改完 SSH user + secrets → 同步迁移 → 7 天观察 → `userdel opcos-deployer` | — | — |
-| 13 | 移除 `/usr/local/bin/opcos-ssh-guard`，drop opcos-/etc/ssh/sshd_config match block | — | — |
+| 7 | `systemctl reload sshd` (先试 `reload`，确认 sshd 还健康才考虑 restart) | `systemctl status sshd` | reload 一次回滚，或改回 drop-in 文件 |
+| 8 | 本机验证 `ssh ecs-deployer@HOST audit-tail` | journald `event=allow ... audit-tail` | — |
+| 9 | 本机验证 `ssh ecs-deployer@HOST iximei-mysql-dml`（SQL via stdin） | mysql: `iximei_crm_app@%` | — |
+| 10 | 本机验证 `iximei-mysql-migrate` 真实 DDL (CREATE+INSERT+SELECT+DROP) | 拿到 `iximei_crm_migrator@%` + 表成功创建/删除 | — |
+| 11 | 本机验证 tunnel：`ssh -N -L 13306:127.0.0.1:3306` + mysql probe | `iximei_crm_app@%` via forward | — |
+| 12 | **DML/DDL user 分离**（commit `1f287dc`）：MySQL 建 `iximei_crm_migrator` (ALL on iximei-crm.*)；guard + sudoers 改 user；新密码写到 `iximei-migrate.pass`；避免借 `codecloud` root 跨库 | DML/DDL token 各自走通 | guard + sudoers 回退 |
+| 13 | 手工 review + 关键修复 `AuthorizedKeysCommand` 走 `/usr/bin/true` + `authorized_keys` mode 0644（commit `6f70f6a`） | `sshd -t` OK + 4 token 全跑通 | — |
+| 14 | **hold**：opcos-deployer 不退役。等 opcos repo Runner workflow 改完 SSH user + 公钥贴入 `ecs-deployer` authorized_keys → 同步迁移 → 7 天观察 → `userdel opcos-deployer` + 删 opcos-ssh-guard | — | — |
 
 **关键纪律**：
 - 每步前 `cp <目标文件> /var/backups/ecs-deployer/$(date +%F)/<file>`
 - 步骤 6（`sshd -t`）失败 → **绝对**不进入步骤 7（reload）。先把 drop-in `rm` 掉。
 - **不** `systemctl restart sshd`（会断所有 SSH，包括运行 CI 的 SSH；reload 即可热加载）
+- 任何改 `authorized_keys` mode 时，确认它对 sshd privsep child (`AuthorizedKeysCommandUser nobody`) 可读 → 必须 0644，不能 0600
+- 任何 match block 内 `AuthorizedKeysCommand` 必须 absolute path + exit 0（`/usr/bin/true` 替代 `none`）
 
 ## 8. 安全要点（按攻击面展开）
 
@@ -278,15 +283,17 @@ ECS 上 systemctl/iptables 操作本 spec 不做。
 ## 10. 自检 checklist
 
 - [ ] 本机 `~/.ssh/ecs-deployer.pem` 生成、0600
-- [ ] ECS `id ecs-deployer` 返回 uid 985，shell `/bin/false`
-- [ ] `/etc/ssh/sshd_config.d/99-ecs-deployer.conf` 内容与 §4.3 一致
+- [ ] ECS `id ecs-deployer` 返回 uid 985，shell `/bin/bash`（不是 `/bin/false`）
+- [ ] `/etc/ssh/sshd_config.d/99-ecs-deployer.conf` 内容与 §4.3 一致（含 `AuthorizedKeysCommand /usr/bin/true`）
 - [ ] `sshd -t` exit 0
-- [ ] ECS 公网 `codecloud/Codecloud2025.` 直接连接 DB 仍工作（破坏性检查：实施未触碰 3306 / `codecloud` 用户）
-- [ ] opcos-deployer / ci-deployer 仍能各自 SSH 登入（未触碰 sshd_config）
+- [ ] `/etc/ecs-deployer/authorized_keys` mode 0644 root:root
+- [ ] ECS 公网 `codecloud/Codecloud2025.` 直接连接 DB 仍工作（破坏性检查：实施未触碰 3306）
+- [ ] opcos-deployer / ci-deployer / dfy / root 仍能各自 SSH 登入（未触碰 sshd_config）
 - [ ] 本机 1 个 audit-tail 调用产生 1 条 journal entry
-- [ ] 本机 1 个 iximei-mysql-dml 调用返回 SELECT 1 = 1
-- [ ] 本机 1 个 tunnel-dsh 调用 connect 127.0.0.1:3080 成功
-- [ ] `/var/backups/ecs-deployer/` 内有这次实施前所有被改文件的 .bak / snapshot
+- [ ] 本机 1 个 iximei-mysql-dml 调用返回 `iximei_crm_app@%`
+- [ ] 本机 1 个 iximei-mysql-migrate 调用能跑 DDL（CREATE+INSERT+DROP 实测）
+- [ ] 本机 1 个 tunnel-dsh 调用通过本地 13306→ECS 3306 forward + mysql 拿到 `iximei_crm_app@%`
+- [ ] `/var/backups/ecs-deployer/2026-08-23/` 内有这次实施前所有被改文件的 .bak / snapshot
 
 ## 11. 等待执行
 
