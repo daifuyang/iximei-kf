@@ -59,35 +59,35 @@ const HospitalDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [trendError, setTrendError] = useState(false);
 
-  // super_admin 筛选状态
+  // 默认"全部医院"——hospitalId=undefined 即不传，让后端汇总所有医院数据。
   const [hospitalId, setHospitalId] = useState<number | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
   const [hospitalOptions, setHospitalOptions] = useState<
     { label: string; value: number }[]
   >([]);
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
-  // 异步搜索：去重 + 防抖 + 取消过期请求
+
+  // 异步搜索：去重 + 防抖 + 取消过期请求。
+  // 后端 /hospitals/search/options 上限已扩到 500；前端不再限流。
   const hospitalSearchSeqRef = useRef(0);
   const hospitalSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
   const [hospitalKeyword, setHospitalKeyword] = useState('');
-  // 是否已应用“默认选最新医院”（只生效一次，避免用户手动切回全院后被覆盖）
-  const defaultAppliedRef = useRef(false);
 
-  const buildParams = useCallback((): Filters => {
-    const params: Filters = {};
-    if (hospitalId !== undefined) params.hospitalId = hospitalId;
-    if (dateRange) {
-      params.startDate = dateRange[0];
-      params.endDate = dateRange[1];
-    }
-    return params;
-  }, [hospitalId, dateRange]);
+const buildParams = useCallback((): Filters => {
+  const params: Filters = {};
+  if (hospitalId !== undefined) params.hospitalId = hospitalId;
+  if (dateRange) {
+    params.startDate = dateRange[0];
+    params.endDate = dateRange[1];
+  }
+  return params;
+}, [hospitalId, dateRange]);
 
-  // 异步搜索：去重 + 防抖 + 取消过期请求。
-  // 后端 /hospitals/search/options 上限已扩到 500；前端不再限流。
-  const handleHospitalSearch = useCallback((keyword: string) => {
+// 异步搜索：去重 + 防抖 + 取消过期请求。
+// 后端 /hospitals/search/options 上限已扩到 500；前端不再限流。
+const handleHospitalSearch = useCallback((keyword: string) => {
     if (hospitalSearchTimerRef.current) {
       clearTimeout(hospitalSearchTimerRef.current);
     }
@@ -100,29 +100,23 @@ const HospitalDashboard: React.FC = () => {
         .then((res: any) => {
           if (seq !== hospitalSearchSeqRef.current) return;
           const list = res?.data ?? [];
-          if (Array.isArray(list)) {
-            // Map 按 id 去重，保留第一次出现的 label（防 ghost / 重复请求拼接）
-            const map = new Map<number, { label: string; value: number }>();
-            for (const h of list) {
-              const value = Number(h.id);
-              if (!map.has(value)) {
-                map.set(value, {
-                  label: h.hospitalName || `医院#${value}`,
-                  value,
-                });
-              }
-            }
-            const sorted = Array.from(map.values()).sort((a, b) =>
-              a.label.localeCompare(b.label, 'zh'),
-            );
-            setHospitalOptions(sorted);
-            // 默认选中 id 最大的启用医院（仅首次）；若用户已手动选过则保留。
-            if (!defaultAppliedRef.current && sorted.length > 0) {
-              defaultAppliedRef.current = true;
-              const maxId = Math.max(...sorted.map((o) => o.value));
-              setHospitalId((current) => (current == null ? maxId : current));
+          if (!Array.isArray(list)) return;
+          // Map 按 id 去重，保留首次出现；按 label 中文升序展示。
+          const map = new Map<number, { label: string; value: number }>();
+          for (const h of list) {
+            const value = Number(h.id);
+            if (!map.has(value)) {
+              map.set(value, {
+                label: h.hospitalName || `医院#${value}`,
+                value,
+              });
             }
           }
+          setHospitalOptions(
+            Array.from(map.values()).sort((a, b) =>
+              a.label.localeCompare(b.label, 'zh'),
+            ),
+          );
         })
         .catch(() => {
           if (seq === hospitalSearchSeqRef.current) setHospitalOptions([]);
@@ -164,8 +158,7 @@ const HospitalDashboard: React.FC = () => {
   // hospital_account 只加载本院数据；super_admin 加载医院选项 + 数据
   useEffect(() => {
     if (isSuperAdmin) {
-      // 进入页面先空搜索一次，下拉未打开也能在用户主动打开时拿到数据；
-      // 同时让 defaultAppliedRef 有机会触发默认选中逻辑。
+      // 进入页面先空搜索一次，让下拉在用户主动打开时有数据可看。
       handleHospitalSearch('');
       setStats(null);
       setTrend(null);
