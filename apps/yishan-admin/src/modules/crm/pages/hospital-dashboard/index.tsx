@@ -59,8 +59,11 @@ const HospitalDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [trendError, setTrendError] = useState(false);
 
-  // 默认"全部医院"——hospitalId=undefined 即不传，让后端汇总所有医院数据。
-  const [hospitalId, setHospitalId] = useState<number | undefined>(undefined);
+  // "全部医院"哨兵值：crm_hospital.id 自增从 1 开始，0 永不冲突。
+  // 比 undefined 更适合做 Select 的 option value（AntD 的 React key 比较稳定，
+  // onChange 触发可靠，切回"全部医院"不会静默失效）。
+  const ALL_HOSPITALS = 0;
+  const [hospitalId, setHospitalId] = useState<number>(ALL_HOSPITALS);
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
   const [hospitalOptions, setHospitalOptions] = useState<
     { label: string; value: number }[]
@@ -75,19 +78,20 @@ const HospitalDashboard: React.FC = () => {
   );
   const [hospitalKeyword, setHospitalKeyword] = useState('');
 
-const buildParams = useCallback((): Filters => {
-  const params: Filters = {};
-  if (hospitalId !== undefined) params.hospitalId = hospitalId;
-  if (dateRange) {
-    params.startDate = dateRange[0];
-    params.endDate = dateRange[1];
-  }
-  return params;
-}, [hospitalId, dateRange]);
+  const buildParams = useCallback((): Filters => {
+    const params: Filters = {};
+    // hospitalId === ALL_HOSPITALS 表示"全部医院"，不传给后端让其汇总。
+    if (hospitalId !== ALL_HOSPITALS) params.hospitalId = hospitalId;
+    if (dateRange) {
+      params.startDate = dateRange[0];
+      params.endDate = dateRange[1];
+    }
+    return params;
+  }, [hospitalId, dateRange]);
 
-// 异步搜索：去重 + 防抖 + 取消过期请求。
-// 后端 /hospitals/search/options 上限已扩到 500；前端不再限流。
-const handleHospitalSearch = useCallback((keyword: string) => {
+  // 异步搜索：去重 + 防抖 + 取消过期请求。
+  // 后端 /hospitals/search/options 上限已扩到 500；前端不再限流。
+  const handleHospitalSearch = useCallback((keyword: string) => {
     if (hospitalSearchTimerRef.current) {
       clearTimeout(hospitalSearchTimerRef.current);
     }
@@ -203,12 +207,11 @@ const handleHospitalSearch = useCallback((keyword: string) => {
               style={{ width: 240 }}
               allowClear
               value={hospitalId}
-              onChange={(v: number | undefined) =>
-                setHospitalId(v ?? undefined)
-              }
-              // 顶部"全部医院"项由前端注入，value=undefined；后端不返此条。
+              onChange={(v: number) => setHospitalId(v)}
+              // 顶部"全部医院"项由前端注入，value=ALL_HOSPITALS=0；
+              // 后端不返此条。
               options={[
-                { label: '全部医院', value: undefined as unknown as number },
+                { label: '全部医院', value: ALL_HOSPITALS },
                 ...hospitalOptions,
               ]}
               showSearch
