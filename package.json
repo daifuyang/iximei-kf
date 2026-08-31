@@ -38,6 +38,7 @@
     "pnpm": ">=8.0.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.6.0",
     "yaml": "^2.9.0"
   }
 }
