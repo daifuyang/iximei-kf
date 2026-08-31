@@ -11,15 +11,34 @@
  * - 顶部 4 张统计卡（今日/本月/本年/累计派单）
  * - 中部 3 张统计卡（已查看/未查看/查看率%）
  * - 底部 1 个 Row：折线图（派单趋势）+ 饼图（查看状态分布）
+ *
+ * 2026-08-24 改动：super_admin 的医院筛选下拉改为 search-only 异步搜索模式
+ * （与 dashboard 页保持一致），不再同步分页拉全部；下拉顶部"全部医院"项由前端
+ * 注入而不是依赖后端返回。后端 /api/crm/v1/hospitals/search/options 上限扩到 500。
  */
 
 import { Line, Pie } from '@ant-design/charts';
 import { PageContainer } from '@ant-design/pro-components';
 import { useModel } from '@umijs/max';
-import { Button, Card, Col, DatePicker, Row, Select, Space, Spin, Statistic, Typography } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getHospitals, getHospitalDashboardStats, getHospitalDashboardTrend } from '../../api';
+import {
+  getHospitalDashboardStats,
+  getHospitalDashboardTrend,
+  searchHospitals,
+} from '../../api';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -43,56 +62,86 @@ const HospitalDashboard: React.FC = () => {
   // super_admin 筛选状态
   const [hospitalId, setHospitalId] = useState<number | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
-  const [hospitalOptions, setHospitalOptions] = useState<{ label: string; value: number }[]>([]);
+  const [hospitalOptions, setHospitalOptions] = useState<
+    { label: string; value: number }[]
+  >([]);
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
+  // 异步搜索：去重 + 防抖 + 取消过期请求
+  const hospitalSearchSeqRef = useRef(0);
+  const hospitalSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [hospitalKeyword, setHospitalKeyword] = useState('');
   // 是否已应用“默认选最新医院”（只生效一次，避免用户手动切回全院后被覆盖）
   const defaultAppliedRef = useRef(false);
 
-  const buildParams = useCallback(
-    (): Filters => {
-      const params: Filters = {};
-      if (hospitalId !== undefined) params.hospitalId = hospitalId;
-      if (dateRange) {
-        params.startDate = dateRange[0];
-        params.endDate = dateRange[1];
-      }
-      return params;
-    },
-    [hospitalId, dateRange],
-  );
-
-  const loadHospitalOptions = useCallback(async () => {
-    if (!isSuperAdmin) return;
-    setHospitalsLoading(true);
-    try {
-      // 后端 CrmPageQuerySchema 限制 pageSize <= 100，需分页拉取全部启用医院。
-      const all: any[] = [];
-      const pageSize = 100;
-      let page = 1;
-      let total = Infinity;
-      while (all.length < total) {
-        const res = await getHospitals({ page, pageSize, status: 1 });
-        const rows = (res?.data || []) as any[];
-        all.push(...rows);
-        total = res?.pagination?.total ?? rows.length;
-        if (rows.length < pageSize) break;
-        page += 1;
-      }
-      const options = all
-        .map((h) => ({ label: h.hospitalName || `医院#${h.id}`, value: Number(h.id) }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'zh'));
-      setHospitalOptions(options);
-      // 默认选中最新（id 最大）的启用医院；无医院则保持“全部医院”。
-      if (!defaultAppliedRef.current && options.length > 0) {
-        defaultAppliedRef.current = true;
-        setHospitalId(Math.max(...options.map((o) => o.value)));
-      }
-    } catch {
-      setHospitalOptions([]);
-    } finally {
-      setHospitalsLoading(false);
+  const buildParams = useCallback((): Filters => {
+    const params: Filters = {};
+    if (hospitalId !== undefined) params.hospitalId = hospitalId;
+    if (dateRange) {
+      params.startDate = dateRange[0];
+      params.endDate = dateRange[1];
     }
-  }, [isSuperAdmin]);
+    return params;
+  }, [hospitalId, dateRange]);
+
+  // 异步搜索：去重 + 防抖 + 取消过期请求。
+  // 后端 /hospitals/search/options 上限已扩到 500；前端不再限流。
+  const handleHospitalSearch = useCallback((keyword: string) => {
+    if (hospitalSearchTimerRef.current) {
+      clearTimeout(hospitalSearchTimerRef.current);
+    }
+    const seq = ++hospitalSearchSeqRef.current;
+    const normalized = keyword.trim();
+    setHospitalKeyword(keyword);
+    setHospitalsLoading(true);
+    hospitalSearchTimerRef.current = setTimeout(() => {
+      searchHospitals(normalized ? { keyword: normalized } : {})
+        .then((res: any) => {
+          if (seq !== hospitalSearchSeqRef.current) return;
+          const list = res?.data ?? [];
+          if (Array.isArray(list)) {
+            // Map 按 id 去重，保留第一次出现的 label（防 ghost / 重复请求拼接）
+            const map = new Map<number, { label: string; value: number }>();
+            for (const h of list) {
+              const value = Number(h.id);
+              if (!map.has(value)) {
+                map.set(value, {
+                  label: h.hospitalName || `医院#${value}`,
+                  value,
+                });
+              }
+            }
+            const sorted = Array.from(map.values()).sort((a, b) =>
+              a.label.localeCompare(b.label, 'zh'),
+            );
+            setHospitalOptions(sorted);
+            // 默认选中 id 最大的启用医院（仅首次）；若用户已手动选过则保留。
+            if (!defaultAppliedRef.current && sorted.length > 0) {
+              defaultAppliedRef.current = true;
+              const maxId = Math.max(...sorted.map((o) => o.value));
+              setHospitalId((current) => (current == null ? maxId : current));
+            }
+          }
+        })
+        .catch(() => {
+          if (seq === hospitalSearchSeqRef.current) setHospitalOptions([]);
+        })
+        .finally(() => {
+          if (seq === hospitalSearchSeqRef.current) setHospitalsLoading(false);
+        });
+    }, 300);
+  }, []);
+
+  // 下拉打开时主动触发一次空 keyword 搜索，让用户看到当前默认医院 + "全部医院"项
+  const handleDropdownVisibleChange = useCallback(
+    (open: boolean) => {
+      if (open && hospitalOptions.length === 0 && !hospitalsLoading) {
+        handleHospitalSearch('');
+      }
+    },
+    [hospitalOptions.length, hospitalsLoading, handleHospitalSearch],
+  );
 
   const load = useCallback(async () => {
     const params = buildParams();
@@ -115,7 +164,9 @@ const HospitalDashboard: React.FC = () => {
   // hospital_account 只加载本院数据；super_admin 加载医院选项 + 数据
   useEffect(() => {
     if (isSuperAdmin) {
-      loadHospitalOptions();
+      // 进入页面先空搜索一次，下拉未打开也能在用户主动打开时拿到数据；
+      // 同时让 defaultAppliedRef 有机会触发默认选中逻辑。
+      handleHospitalSearch('');
       setStats(null);
       setTrend(null);
       load();
@@ -148,21 +199,34 @@ const HospitalDashboard: React.FC = () => {
       : '0.0';
 
   return (
-    <PageContainer header={{ title: isSuperAdmin ? '医院数据看板' : '本院数据看板' }}>
+    <PageContainer
+      header={{ title: isSuperAdmin ? '医院数据看板' : '本院数据看板' }}
+    >
       {isSuperAdmin && (
         <Card size="small" style={{ marginBottom: 16 }}>
           <Space wrap>
             <Select
               placeholder="全部医院"
-              style={{ width: 200 }}
+              style={{ width: 240 }}
               allowClear
               value={hospitalId}
-              onChange={(v: number | undefined) => setHospitalId(v ?? undefined)}
-              options={hospitalOptions}
+              onChange={(v: number | undefined) =>
+                setHospitalId(v ?? undefined)
+              }
+              // 顶部"全部医院"项由前端注入，value=undefined；后端不返此条。
+              options={[
+                { label: '全部医院', value: undefined as unknown as number },
+                ...hospitalOptions,
+              ]}
               showSearch
-              optionFilterProp="label"
+              filterOption={false}
+              searchValue={hospitalKeyword}
+              onSearch={handleHospitalSearch}
+              onDropdownVisibleChange={handleDropdownVisibleChange}
               loading={hospitalsLoading}
-              notFoundContent="暂无医院数据"
+              notFoundContent={
+                hospitalsLoading ? '正在加载医院…' : '没有匹配的医院'
+              }
               aria-label="医院范围筛选"
             />
             <RangePicker
@@ -175,7 +239,10 @@ const HospitalDashboard: React.FC = () => {
               disabledDate={(current) => current?.endOf('day').isAfter(dayjs())}
               onChange={(dates) => {
                 if (dates?.[0] && dates?.[1]) {
-                  setDateRange([dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')]);
+                  setDateRange([
+                    dates[0].format('YYYY-MM-DD'),
+                    dates[1].format('YYYY-MM-DD'),
+                  ]);
                 } else {
                   setDateRange(null);
                 }
@@ -183,7 +250,8 @@ const HospitalDashboard: React.FC = () => {
               aria-label="自定义时间范围"
             />
             <Text type="secondary">
-              统计区间：{dateRange ? `${dateRange[0]} 至 ${dateRange[1]}` : '累计数据'}
+              统计区间：
+              {dateRange ? `${dateRange[0]} 至 ${dateRange[1]}` : '累计数据'}
             </Text>
           </Space>
         </Card>
@@ -257,7 +325,10 @@ const HospitalDashboard: React.FC = () => {
                     }}
                     style={{ stroke: '#1677ff', lineWidth: 2 }}
                     point={{ shapeField: 'circle', sizeField: 4 }}
-                    tooltip={{ title: 'date', items: [{ channel: 'y', field: 'count' }] }}
+                    tooltip={{
+                      title: 'date',
+                      items: [{ channel: 'y', field: 'count' }],
+                    }}
                   />
                 </Card>
               </Col>
@@ -278,8 +349,15 @@ const HospitalDashboard: React.FC = () => {
                       position: 'inside',
                       text: (d: { value: number }) =>
                         `${
-                          trend.statusBreakdown.viewed + trend.statusBreakdown.unviewed > 0
-                            ? ((d.value / (trend.statusBreakdown.viewed + trend.statusBreakdown.unviewed)) * 100).toFixed(0)
+                          trend.statusBreakdown.viewed +
+                            trend.statusBreakdown.unviewed >
+                          0
+                            ? (
+                                (d.value /
+                                  (trend.statusBreakdown.viewed +
+                                    trend.statusBreakdown.unviewed)) *
+                                100
+                              ).toFixed(0)
                             : 0
                         }%`,
                     }}

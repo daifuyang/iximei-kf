@@ -37,7 +37,10 @@ export class HospitalsService {
   }
 
   static async searchOptions(q: any) {
-    return this.list({ ...q, page: 1, pageSize: 50 })
+    // 2026-08-24：前端 hospital-dashboard 看板页改为键入即搜 + 最多 500 条；
+    // pageSize=50 太小（即使空 keyword 也只返 50 条），统一扩到 500。
+    // dashboard.tsx 仍在前端自己 slice(0, 50) 截断，不受影响。
+    return this.list({ ...q, page: 1, pageSize: 500 })
   }
 
   /**
