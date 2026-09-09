@@ -27,6 +27,7 @@ import {
   listCrmDispatchMobileViewLogs,
   listCrmDispatches,
   listCrmDispatchStatuses,
+  listCrmHospitalDashboardMyRecentViews,
   listCrmHospitals,
   listCrmMembers,
   searchCrmHospitals,
@@ -258,3 +259,12 @@ export const getHospitalDashboardTrend = (params?: {
   startDate?: string;
   endDate?: string;
 }) => request<any>('/api/crm/v1/hospital/dashboard/trend', { params });
+
+/**
+ * 「我最近查看的派单」首页足迹卡片（任务 4）。
+ * operationId: listCrmHospitalDashboardMyRecentViews
+ * - hospital_account：本账号访问过的、本院派单
+ * - super_admin：本账号访问过的、全院派单（按本人 viewer_user_id）
+ */
+export const getHospitalDashboardMyRecentViews = (params?: { limit?: number }) =>
+  listCrmHospitalDashboardMyRecentViews(params || {});

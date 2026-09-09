@@ -51,3 +51,34 @@ export const CrmHospitalDashboardTrendRespSchema = Type.Object(
 export type CrmHospitalDashboardTrendResp = import('@sinclair/typebox').Static<
   typeof CrmHospitalDashboardTrendRespSchema
 >
+
+/**
+ * 「我最近查看的派单」单条 — 医院账号最近访问过的派单足迹卡片用。
+ *
+ * - hospital_account：返回自己医院的派单中、本账号首次访问过的派单
+ *   - 数据来源：crm_dispatch_view_log.viewer_user_id = currentUserId
+ * - super_admin：默认全院、按 hospitalIds 过滤
+ *
+ * 一律按 view_log 首次写入时间倒序。
+ */
+export const CrmHospitalDashboardRecentViewItem = Type.Object(
+  {
+    dispatchId: Type.Integer(),
+    customerName: Type.String(),
+    hospitalName: Type.String(),
+    firstViewedAt: Type.String(),
+  },
+  { $id: 'crmHospitalDashboardRecentViewItem' },
+)
+
+export const CrmHospitalDashboardRecentViewsRespSchema = Type.Object(
+  {
+    generatedAt: Type.String(),
+    items: Type.Array(CrmHospitalDashboardRecentViewItem),
+  },
+  { $id: 'crmHospitalDashboardRecentViewsResp' },
+)
+
+export type CrmHospitalDashboardRecentViewsResp = import('@sinclair/typebox').Static<
+  typeof CrmHospitalDashboardRecentViewsRespSchema
+>

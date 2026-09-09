@@ -30,6 +30,7 @@ import { PERMS } from '../../../permissions.js'
 import { HospitalDashboardService } from '../../../services/hospital-dashboard.service.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import {
+  CrmHospitalDashboardRecentViewsRespSchema,
   CrmHospitalDashboardRespSchema,
   CrmHospitalDashboardTrendRespSchema,
   CrmHospitalUnviewedCountRespSchema,
@@ -42,6 +43,7 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
   app.addSchema(CrmHospitalDashboardRespSchema)
   app.addSchema(CrmHospitalDashboardTrendRespSchema)
   app.addSchema(CrmHospitalUnviewedCountRespSchema)
+  app.addSchema(CrmHospitalDashboardRecentViewsRespSchema)
 
   const uid = (req: any) => req.currentUser.id
   const roleIds = (req: any): number[] => req.currentUser?.roleIds ?? []
@@ -59,6 +61,10 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
 
   const unviewedQuery = Type.Object({
     hospitalId: Type.Optional(Type.Integer({ minimum: 0 })),
+  })
+
+  const myRecentViewsQuery = Type.Object({
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, default: 10 })),
   })
 
   route.get(
@@ -145,6 +151,39 @@ const hospitalDashboard: FastifyPluginAsync = async (app) => {
         startDate,
         endDate,
       })
+      return ResponseUtil.success(reply, result)
+    },
+  )
+
+  /**
+   * 我最近查看的派单（医院后台首页足迹卡片，任务 4）。
+   *
+   * 数据源 crm_dispatch_view_log（hospital_account 首次访问派单详情时写入）。
+   * - hospital_account：限本院、限本人 viewer_user_id
+   * - super_admin：限全院、限本人 viewer_user_id
+   */
+  route.get(
+    '/hospital/dashboard/my-recent-views',
+    {
+      access: { permission: PERMS.HOSPITAL_DASHBOARD_VIEW },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: '医院账号：我最近查看的派单（首页足迹卡片）',
+        operationId: 'listCrmHospitalDashboardMyRecentViews',
+        querystring: myRecentViewsQuery,
+        response: {
+          200: Type.Object({
+            success: Type.Boolean(),
+            code: Type.Integer(),
+            message: Type.String(),
+            data: CrmHospitalDashboardRecentViewsRespSchema,
+          }),
+        },
+      },
+    },
+    async (req: any, reply: any) => {
+      const limit = req.query?.limit ?? 10
+      const result = await HospitalDashboardService.getMyRecentViews(uid(req), roleIds(req), limit)
       return ResponseUtil.success(reply, result)
     },
   )

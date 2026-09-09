@@ -162,4 +162,47 @@ export class HospitalDashboardService {
       query.endDate,
     )
   }
+
+  /**
+   * 「我最近查看的派单」足迹卡片（首页右下角，任务 4）。
+   *
+   * - hospital_account：本账号访问过的、本院派单（与现有 scope 一致）
+   * - super_admin：本账号访问过的、全院派单
+   *
+   * 数据来源 crm_dispatch_view_log（每个 (dispatch_id, hospital_id, viewer_user_id) 唯一），
+   * 因 site 永远有 unique 约束，view_log.created_at 即"首次查看时间"，无需再聚合。
+   *
+   * limit 透传给 repo，1 ≤ limit ≤ 50。
+   */
+  static async getMyRecentViews(
+    userId: number,
+    roleIds: ReadonlyArray<number>,
+    limit: number,
+  ): Promise<{
+    generatedAt: string
+    items: Array<{
+      dispatchId: number
+      customerName: string
+      hospitalName: string
+      firstViewedAt: string
+    }>
+  }> {
+    const { hospitalIds } = await resolveHospitalScope(userId, roleIds, undefined, 'stats')
+    if (hospitalIds.length === 0) {
+      return { generatedAt: new Date().toISOString(), items: [] }
+    }
+    const rows = await HospitalDashboardRepository.getMyRecentViews(hospitalIds, userId, limit)
+    return {
+      generatedAt: new Date().toISOString(),
+      items: rows.map((r) => ({
+        dispatchId: r.dispatchId,
+        customerName: r.customerName,
+        hospitalName: r.hospitalName,
+        firstViewedAt:
+          r.firstViewedAt instanceof Date
+            ? r.firstViewedAt.toISOString()
+            : new Date(r.firstViewedAt).toISOString(),
+      })),
+    }
+  }
 }
