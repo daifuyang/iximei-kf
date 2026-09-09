@@ -331,4 +331,47 @@ export class DashboardRepository {
       }
     })
   }
+
+  /**
+   * 按城市分组的医院分类分布（口腔 / 整形）。
+   *
+   * 聚合维度：province.code / province.name / city.code / city.name。
+   * - oralCount   = category = 'oral' 的医院数
+   * - plasticCount = category = 'plastic' 的医院数
+   * - total       = 该城市所有未软删除医院数（含 category = NULL 的"未分类"医院）
+   *
+   * 排序：total DESC。
+   *
+   * sys_region 是 Core 表。用 `sql` 模板拼 cross-table join
+   * （drizzle-orm/mysql-core 的跨 schema join 较繁琐），并对 city/province
+   * 别名做字段重投影，保持调用方类型稳定。
+   */
+  static async getHospitalDistributionByCity() {
+    const rows: any = await drizzleDb
+      .select({
+        provinceCode: sql<number>`province.code`,
+        provinceName: sql<string>`province.name`,
+        cityCode: sql<number>`city.code`,
+        cityName: sql<string>`city.name`,
+        oralCount: sql<number>`SUM(CASE WHEN ${crmHospital.category} = 'oral' THEN 1 ELSE 0 END)`,
+        plasticCount: sql<number>`SUM(CASE WHEN ${crmHospital.category} = 'plastic' THEN 1 ELSE 0 END)`,
+        total: sql<number>`COUNT(*)`,
+      })
+      .from(crmHospital)
+      .leftJoin(sql`sys_region city`, sql`city.code = ${crmHospital.cityId}`)
+      .leftJoin(sql`sys_region province`, sql`province.code = ${crmHospital.provinceId}`)
+      .where(isNull(crmHospital.deletedAt))
+      .groupBy(sql`city.code`, sql`city.name`, sql`province.code`, sql`province.name`)
+      .orderBy(sql`COUNT(*) DESC`)
+
+    return rows.map((r: any) => ({
+      provinceCode: Number(r.provinceCode ?? 0),
+      provinceName: String(r.provinceName ?? ''),
+      cityCode: Number(r.cityCode ?? 0),
+      cityName: String(r.cityName ?? ''),
+      oralCount: Number(r.oralCount ?? 0),
+      plasticCount: Number(r.plasticCount ?? 0),
+      total: Number(r.total ?? 0),
+    }))
+  }
 }

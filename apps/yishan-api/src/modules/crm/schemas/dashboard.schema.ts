@@ -1,5 +1,28 @@
 import { Type } from '@sinclair/typebox'
 
+/** 单个城市的医院分布项。 */
+export const CrmHospitalDistributionItemSchema = Type.Object(
+  {
+    provinceCode: Type.Integer(),
+    provinceName: Type.String(),
+    cityCode: Type.Integer(),
+    cityName: Type.String(),
+    oralCount: Type.Integer(),
+    plasticCount: Type.Integer(),
+    total: Type.Integer(),
+  },
+  { $id: 'crmHospitalDistributionItem' },
+)
+
+/** 医院分布响应：items + 生成时间戳。 */
+export const CrmHospitalDistributionRespSchema = Type.Object(
+  {
+    generatedAt: Type.String({ format: 'date-time' }),
+    items: Type.Array(CrmHospitalDistributionItemSchema),
+  },
+  { $id: 'crmHospitalDistributionResp' },
+)
+
 /** 单个医院的效率排行项。 */
 export const CrmHospitalRankingsItemSchema = Type.Object(
   {
@@ -74,6 +97,8 @@ export const DashboardStatsSchema = Type.Object(
     }),
     // 医院效率榜（按医院聚合派单/查看/回复指标）。可选保留，便于未来下线时向后兼容。
     hospitalRankings: Type.Optional(CrmHospitalRankingsRespSchema),
+    // 医院分布看板（按城市聚合口腔 / 整形医院数）。可选保留，便于未来下线时向后兼容。
+    hospitalDistribution: Type.Optional(CrmHospitalDistributionRespSchema),
   },
   { $id: 'crmDashboardStats' },
 )

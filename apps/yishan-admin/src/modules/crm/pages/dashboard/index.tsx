@@ -30,6 +30,7 @@ import DashboardError from './components/DashboardError';
 import DashboardSkeleton from './components/DashboardSkeleton';
 import DashboardToolbar from './components/DashboardToolbar';
 import DispatchStatusCard from './components/DispatchStatusCard';
+import HospitalDistributionCard from './components/HospitalDistributionCard';
 import HospitalRankingCard from './components/HospitalRankingCard';
 import MetricCards from './components/MetricCards';
 import RecentActivityCard from './components/RecentActivityCard';
@@ -339,6 +340,28 @@ const DashboardPage: React.FC = () => {
           insights={insights}
           loading={loading && !!stats}
         /> */}
+
+        {/* 4.5 医院分布看板（按城市）。非 super_admin/admin 后端返回空数组，卡片走 Empty。 */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col {...GRID_COL.full}>
+            <HospitalDistributionCard
+              data={
+                (stats as any)?.hospitalDistribution as
+                  | { generatedAt?: string; items?: Array<{
+                    provinceCode: number;
+                    provinceName: string;
+                    cityCode: number;
+                    cityName: string;
+                    oralCount: number;
+                    plasticCount: number;
+                    total: number;
+                  }> }
+                  | undefined
+              }
+              loading={loading && !!stats}
+            />
+          </Col>
+        </Row>
 
         {/* 5. 本期摘要 + 医院效率榜 */}
         <Row gutter={[16, 16]}>

@@ -229,6 +229,14 @@ export class DashboardService {
         items: await DashboardRepository.getHospitalRankings(10),
         generatedAt: new Date().toISOString(),
       },
+      // 医院分布看板（按城市）。super_admin / admin 看全院分布；其他角色
+      // 看到的是空数据（前端按角色决定是否渲染卡片）。
+      hospitalDistribution: {
+        generatedAt: new Date().toISOString(),
+        items: roleIds.includes(ROLE_IDS.SUPER_ADMIN) || roleIds.includes(ROLE_IDS.ADMIN)
+          ? await DashboardRepository.getHospitalDistributionByCity()
+          : [],
+      },
     }
   }
 }

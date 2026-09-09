@@ -130,6 +130,23 @@ export interface HospitalRankingItem {
   trend?: number; // 排名变化，正=上升
 }
 
+/* ---------- 医院分布（按城市） ---------- */
+
+export interface HospitalDistributionItem {
+  provinceCode: number;
+  provinceName: string;
+  cityCode: number;
+  cityName: string;
+  oralCount: number;
+  plasticCount: number;
+  total: number;
+}
+
+export interface HospitalDistributionResp {
+  generatedAt?: string;
+  items?: HospitalDistributionItem[];
+}
+
 /* ---------- 看板页面整体响应（经过适配层） ---------- */
 
 export interface DashboardData {
