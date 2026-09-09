@@ -5712,8 +5712,15 @@
                       "type": "number"
                     },
                     "firstViewedAt": {
-                      "type": ["string", "null"],
-                      "format": "date-time"
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -5729,13 +5736,64 @@
                 }
               },
               "generatedAt": {
-                "type": "string",
-                "format": "date-time"
+                "format": "date-time",
+                "type": "string"
               }
             },
             "required": [
               "items",
               "generatedAt"
+            ]
+          },
+          "hospitalDistribution": {
+            "type": "object",
+            "properties": {
+              "generatedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "provinceCode": {
+                      "type": "integer"
+                    },
+                    "provinceName": {
+                      "type": "string"
+                    },
+                    "cityCode": {
+                      "type": "integer"
+                    },
+                    "cityName": {
+                      "type": "string"
+                    },
+                    "oralCount": {
+                      "type": "integer"
+                    },
+                    "plasticCount": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "provinceCode",
+                    "provinceName",
+                    "cityCode",
+                    "cityName",
+                    "oralCount",
+                    "plasticCount",
+                    "total"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "generatedAt",
+              "items"
             ]
           }
         },
@@ -5746,6 +5804,348 @@
           "customerByStatus",
           "dispatchByStatus",
           "monthlyTrend"
+        ]
+      },
+      "crmHospitalRankingsResp": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hospitalId": {
+                  "type": "number"
+                },
+                "hospitalName": {
+                  "type": "string"
+                },
+                "dispatchCount": {
+                  "type": "number"
+                },
+                "viewedCount": {
+                  "type": "number"
+                },
+                "unviewedCount": {
+                  "type": "number"
+                },
+                "viewedRate": {
+                  "type": "number"
+                },
+                "replyCount": {
+                  "type": "number"
+                },
+                "firstViewedAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "hospitalId",
+                "hospitalName",
+                "dispatchCount",
+                "viewedCount",
+                "unviewedCount",
+                "viewedRate",
+                "replyCount",
+                "firstViewedAt"
+              ]
+            }
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "generatedAt"
+        ]
+      },
+      "crmHospitalRankingsItem": {
+        "type": "object",
+        "properties": {
+          "hospitalId": {
+            "type": "number"
+          },
+          "hospitalName": {
+            "type": "string"
+          },
+          "dispatchCount": {
+            "type": "number"
+          },
+          "viewedCount": {
+            "type": "number"
+          },
+          "unviewedCount": {
+            "type": "number"
+          },
+          "viewedRate": {
+            "type": "number"
+          },
+          "replyCount": {
+            "type": "number"
+          },
+          "firstViewedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "hospitalId",
+          "hospitalName",
+          "dispatchCount",
+          "viewedCount",
+          "unviewedCount",
+          "viewedRate",
+          "replyCount",
+          "firstViewedAt"
+        ]
+      },
+      "crmHospitalDistributionResp": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provinceCode": {
+                  "type": "integer"
+                },
+                "provinceName": {
+                  "type": "string"
+                },
+                "cityCode": {
+                  "type": "integer"
+                },
+                "cityName": {
+                  "type": "string"
+                },
+                "oralCount": {
+                  "type": "integer"
+                },
+                "plasticCount": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "provinceCode",
+                "provinceName",
+                "cityCode",
+                "cityName",
+                "oralCount",
+                "plasticCount",
+                "total"
+              ]
+            }
+          }
+        },
+        "required": [
+          "generatedAt",
+          "items"
+        ]
+      },
+      "crmHospitalDistributionItem": {
+        "type": "object",
+        "properties": {
+          "provinceCode": {
+            "type": "integer"
+          },
+          "provinceName": {
+            "type": "string"
+          },
+          "cityCode": {
+            "type": "integer"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "oralCount": {
+            "type": "integer"
+          },
+          "plasticCount": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provinceCode",
+          "provinceName",
+          "cityCode",
+          "cityName",
+          "oralCount",
+          "plasticCount",
+          "total"
+        ]
+      },
+      "crmHospitalDashboardResp": {
+        "type": "object",
+        "properties": {
+          "todayCount": {
+            "type": "number"
+          },
+          "monthCount": {
+            "type": "number"
+          },
+          "yearCount": {
+            "type": "number"
+          },
+          "totalCount": {
+            "type": "number"
+          },
+          "viewedCount": {
+            "type": "number"
+          },
+          "unviewedCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "todayCount",
+          "monthCount",
+          "yearCount",
+          "totalCount",
+          "viewedCount",
+          "unviewedCount"
+        ]
+      },
+      "crmHospitalDashboardTrendResp": {
+        "type": "object",
+        "properties": {
+          "daily": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "date",
+                "count"
+              ]
+            }
+          },
+          "statusBreakdown": {
+            "type": "object",
+            "properties": {
+              "viewed": {
+                "type": "number"
+              },
+              "unviewed": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "viewed",
+              "unviewed"
+            ]
+          }
+        },
+        "required": [
+          "daily",
+          "statusBreakdown"
+        ]
+      },
+      "crmHospitalUnviewedCountResp": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "crmHospitalDashboardRecentViewsResp": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dispatchId": {
+                  "type": "integer"
+                },
+                "customerName": {
+                  "type": "string"
+                },
+                "hospitalName": {
+                  "type": "string"
+                },
+                "firstViewedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "dispatchId",
+                "customerName",
+                "hospitalName",
+                "firstViewedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "generatedAt",
+          "items"
+        ]
+      },
+      "crmHospitalDashboardRecentViewItem": {
+        "type": "object",
+        "properties": {
+          "dispatchId": {
+            "type": "integer"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "hospitalName": {
+            "type": "string"
+          },
+          "firstViewedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dispatchId",
+          "customerName",
+          "hospitalName",
+          "firstViewedAt"
         ]
       }
     }
@@ -7607,6 +8007,39 @@
         }
       }
     },
+    "/api/crm/v1/dispatches/{id}/hospital-view-logs": {
+      "get": {
+        "operationId": "listCrmDispatchHospitalViewLogs",
+        "summary": "派单医院查看日志（仅 super_admin / admin）",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:dispatches:view-hospital-log",
+        "x-permission-label": "CRM-派单-查看医院查看日志",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/crm/v1/members/overview": {
       "get": {
         "operationId": "getCrmMemberOverview",
@@ -8862,6 +9295,107 @@
         }
       }
     },
+    "/api/crm/v1/customers/selectable": {
+      "get": {
+        "operationId": "listCrmCustomersSelectable",
+        "summary": "可转会员的客户列表",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "minimum": 0,
+              "maximum": 100,
+              "default": 10,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "keyword",
+            "required": false
+          },
+          {
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "startTime",
+            "required": false
+          },
+          {
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "endTime",
+            "required": false
+          },
+          {
+            "schema": {
+              "minimum": 0,
+              "maximum": 1,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "excludeMember",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^1[3-9]\\d{9}$",
+              "maxLength": 11,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "mobile",
+            "required": false
+          },
+          {
+            "schema": {
+              "maxLength": 50,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "name",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:members:create",
+        "x-permission-label": "CRM-会员-新建",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/crm/v1/dashboard/stats": {
       "get": {
         "operationId": "getCrmDashboardStats",
@@ -9123,8 +9657,15 @@
                                     "type": "number"
                                   },
                                   "firstViewedAt": {
-                                    "type": ["string", "null"],
-                                    "format": "date-time"
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -9140,13 +9681,64 @@
                               }
                             },
                             "generatedAt": {
-                              "type": "string",
-                              "format": "date-time"
+                              "format": "date-time",
+                              "type": "string"
                             }
                           },
                           "required": [
                             "items",
                             "generatedAt"
+                          ]
+                        },
+                        "hospitalDistribution": {
+                          "type": "object",
+                          "properties": {
+                            "generatedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "provinceCode": {
+                                    "type": "integer"
+                                  },
+                                  "provinceName": {
+                                    "type": "string"
+                                  },
+                                  "cityCode": {
+                                    "type": "integer"
+                                  },
+                                  "cityName": {
+                                    "type": "string"
+                                  },
+                                  "oralCount": {
+                                    "type": "integer"
+                                  },
+                                  "plasticCount": {
+                                    "type": "integer"
+                                  },
+                                  "total": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "provinceCode",
+                                  "provinceName",
+                                  "cityCode",
+                                  "cityName",
+                                  "oralCount",
+                                  "plasticCount",
+                                  "total"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "generatedAt",
+                            "items"
                           ]
                         }
                       },
@@ -9157,6 +9749,395 @@
                         "customerByStatus",
                         "dispatchByStatus",
                         "monthlyTrend"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital/dashboard/stats": {
+      "get": {
+        "operationId": "getCrmHospitalDashboardStats",
+        "summary": "医院数据看板",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "hospitalId",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "todayCount": {
+                          "type": "number"
+                        },
+                        "monthCount": {
+                          "type": "number"
+                        },
+                        "yearCount": {
+                          "type": "number"
+                        },
+                        "totalCount": {
+                          "type": "number"
+                        },
+                        "viewedCount": {
+                          "type": "number"
+                        },
+                        "unviewedCount": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "todayCount",
+                        "monthCount",
+                        "yearCount",
+                        "totalCount",
+                        "viewedCount",
+                        "unviewedCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital/dispatches/unviewed-count": {
+      "get": {
+        "operationId": "getCrmHospitalUnviewedDispatchCount",
+        "summary": "医院账号未查看派单数量（菜单 Badge 用）",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "hospitalId",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:dispatches:list",
+        "x-permission-label": "CRM-派单-查看",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital/dashboard/trend": {
+      "get": {
+        "operationId": "getCrmHospitalDashboardTrend",
+        "summary": "医院数据看板 - 派单趋势 + 状态分布",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "hospitalId",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "daily": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "count"
+                            ]
+                          }
+                        },
+                        "statusBreakdown": {
+                          "type": "object",
+                          "properties": {
+                            "viewed": {
+                              "type": "number"
+                            },
+                            "unviewed": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "viewed",
+                            "unviewed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "daily",
+                        "statusBreakdown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital/dashboard/my-recent-views": {
+      "get": {
+        "operationId": "listCrmHospitalDashboardMyRecentViews",
+        "summary": "医院账号：我最近查看的派单（首页足迹卡片）",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "generatedAt": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dispatchId": {
+                                "type": "integer"
+                              },
+                              "customerName": {
+                                "type": "string"
+                              },
+                              "hospitalName": {
+                                "type": "string"
+                              },
+                              "firstViewedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "dispatchId",
+                              "customerName",
+                              "hospitalName",
+                              "firstViewedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "generatedAt",
+                        "items"
                       ]
                     }
                   },
@@ -10138,8 +11119,15 @@
                                     "type": "number"
                                   },
                                   "firstViewedAt": {
-                                    "type": ["string", "null"],
-                                    "format": "date-time"
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -10155,13 +11143,64 @@
                               }
                             },
                             "generatedAt": {
-                              "type": "string",
-                              "format": "date-time"
+                              "format": "date-time",
+                              "type": "string"
                             }
                           },
                           "required": [
                             "items",
                             "generatedAt"
+                          ]
+                        },
+                        "hospitalDistribution": {
+                          "type": "object",
+                          "properties": {
+                            "generatedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "provinceCode": {
+                                    "type": "integer"
+                                  },
+                                  "provinceName": {
+                                    "type": "string"
+                                  },
+                                  "cityCode": {
+                                    "type": "integer"
+                                  },
+                                  "cityName": {
+                                    "type": "string"
+                                  },
+                                  "oralCount": {
+                                    "type": "integer"
+                                  },
+                                  "plasticCount": {
+                                    "type": "integer"
+                                  },
+                                  "total": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "provinceCode",
+                                  "provinceName",
+                                  "cityCode",
+                                  "cityName",
+                                  "oralCount",
+                                  "plasticCount",
+                                  "total"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "generatedAt",
+                            "items"
                           ]
                         }
                       },
@@ -10682,6 +11721,428 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/crm/v1/dispatches/dispatches/{id}/hospital-view-logs": {
+      "get": {
+        "operationId": "listCrmDispatchHospitalViewLogs",
+        "summary": "派单医院查看日志（仅 super_admin / admin）",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:dispatches:view-hospital-log",
+        "x-permission-label": "CRM-派单-查看医院查看日志",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital-dashboard/hospital/dashboard/stats": {
+      "get": {
+        "operationId": "getCrmHospitalDashboardStats",
+        "summary": "医院数据看板",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "hospitalId",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "todayCount": {
+                          "type": "number"
+                        },
+                        "monthCount": {
+                          "type": "number"
+                        },
+                        "yearCount": {
+                          "type": "number"
+                        },
+                        "totalCount": {
+                          "type": "number"
+                        },
+                        "viewedCount": {
+                          "type": "number"
+                        },
+                        "unviewedCount": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "todayCount",
+                        "monthCount",
+                        "yearCount",
+                        "totalCount",
+                        "viewedCount",
+                        "unviewedCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital-dashboard/hospital/dispatches/unviewed-count": {
+      "get": {
+        "operationId": "getCrmHospitalUnviewedDispatchCount",
+        "summary": "医院账号未查看派单数量（菜单 Badge 用）",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "hospitalId",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:dispatches:list",
+        "x-permission-label": "CRM-派单-查看",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital-dashboard/hospital/dashboard/trend": {
+      "get": {
+        "operationId": "getCrmHospitalDashboardTrend",
+        "summary": "医院数据看板 - 派单趋势 + 状态分布",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "hospitalId",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": false
+          },
+          {
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "daily": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "count"
+                            ]
+                          }
+                        },
+                        "statusBreakdown": {
+                          "type": "object",
+                          "properties": {
+                            "viewed": {
+                              "type": "number"
+                            },
+                            "unviewed": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "viewed",
+                            "unviewed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "daily",
+                        "statusBreakdown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/v1/hospital-dashboard/hospital/dashboard/my-recent-views": {
+      "get": {
+        "operationId": "listCrmHospitalDashboardMyRecentViews",
+        "summary": "医院账号：我最近查看的派单（首页足迹卡片）",
+        "tags": [
+          "crm"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permission-code": "crm:hospital-dashboard:view",
+        "x-permission-label": "CRM-医院后台-数据看板",
+        "x-permission-group": "crm",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "generatedAt": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dispatchId": {
+                                "type": "integer"
+                              },
+                              "customerName": {
+                                "type": "string"
+                              },
+                              "hospitalName": {
+                                "type": "string"
+                              },
+                              "firstViewedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "dispatchId",
+                              "customerName",
+                              "hospitalName",
+                              "firstViewedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "generatedAt",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "code",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -12723,8 +14184,7 @@
             },
             "in": "query",
             "name": "mobile",
-            "required": false,
-            "description": "按手机号精确搜索（11位中国大陆手机号）"
+            "required": false
           },
           {
             "schema": {
@@ -12733,8 +14193,7 @@
             },
             "in": "query",
             "name": "name",
-            "required": false,
-            "description": "按客户姓名搜索（支持前缀匹配）"
+            "required": false
           }
         ],
         "security": [
@@ -13363,6 +14822,66 @@
         }
       }
     },
+    "/api/build": {
+      "get": {
+        "operationId": "getBuild",
+        "summary": "Build 标识（公开，仅读）",
+        "tags": [
+          "system"
+        ],
+        "description": "返回当前进程实例的 build 标识：YISHAN_API_VERSION（monotonic 部署序号）、GIT_COMMIT_SHA（12 字符 commit 短 SHA）、BUILD_TIME（UTC ISO8601 部署时刻）。无 db query、无副作用、no-cache。部署验证用法：  curl https://crm.iximei.cn/api/build",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string"
+                        },
+                        "commitSha": {
+                          "type": "string"
+                        },
+                        "builtAt": {
+                          "type": "string"
+                        },
+                        "nodeVersion": {
+                          "type": "string"
+                        },
+                        "uptimeSeconds": {
+                          "type": "number"
+                        },
+                        "functionName": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "healthCheck",
@@ -13402,6 +14921,12 @@
                           "type": "string"
                         },
                         "commitSha": {
+                          "type": "string"
+                        },
+                        "builtAt": {
+                          "type": "string"
+                        },
+                        "nodeVersion": {
                           "type": "string"
                         },
                         "uptimeSeconds": {
@@ -18664,105 +20189,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/crm/v1/dispatches/{id}/hospital-view-logs": {
-      "get": {
-        "operationId": "listCrmDispatchHospitalViewLogs",
-        "summary": "派单医院查看日志（仅 super_admin / admin）",
-        "tags": [
-          "crm"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "minimum": 1,
-              "type": "integer"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-permission-code": "crm:dispatches:view-hospital-log",
-        "x-permission-label": "CRM-派单-查看医院查看日志",
-        "x-permission-group": "crm",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/crm/v1/hospital/dashboard/stats": {
-      "get": {
-        "operationId": "getCrmHospitalDashboardStats",
-        "summary": "医院后台数据看板",
-        "tags": [
-          "crm"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-permission-code": "crm:hospital-dashboard:view",
-        "x-permission-label": "CRM-医院后台-数据看板",
-        "x-permission-group": "crm",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/crm/v1/hospital/dispatches/unviewed-count": {
-      "get": {
-        "operationId": "getCrmHospitalUnviewedDispatchCount",
-        "summary": "医院账号未查看派单数量（菜单 Badge 用）",
-        "tags": [
-          "crm"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-permission-code": "crm:dispatches:list",
-        "x-permission-label": "CRM-派单-查看",
-        "x-permission-group": "crm",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/crm/v1/hospital/dashboard/trend": {
-      "get": {
-        "operationId": "getCrmHospitalDashboardTrend",
-        "summary": "医院数据看板 - 30 天趋势 + 状态分布",
-        "tags": [
-          "crm"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-permission-code": "crm:hospital-dashboard:view",
-        "x-permission-label": "CRM-医院后台-数据看板",
-        "x-permission-group": "crm",
-        "responses": {
-          "200": {
-            "description": "Default Response"
           }
         }
       }

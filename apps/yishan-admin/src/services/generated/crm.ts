@@ -348,6 +348,26 @@ export async function listCrmCustomerStatuses2(options?: {
   });
 }
 
+/** 可转会员的客户列表 GET /api/crm/v1/customers/selectable */
+export async function listCrmCustomersSelectable(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmCustomersSelectableParams,
+  options?: { [key: string]: any }
+) {
+  return request<any>("/api/crm/v1/customers/selectable", {
+    method: "GET",
+    params: {
+      // page has a default value: 1
+      page: "1",
+      // pageSize has a default value: 10
+      pageSize: "10",
+
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
 /** 客户状态字典 GET /api/crm/v1/customers/statuses */
 export async function listCrmCustomerStatuses(options?: {
   [key: string]: any;
@@ -407,9 +427,21 @@ export async function getCrmDashboardStats2(
           unviewedCount: number;
           viewedRate: number;
           replyCount: number;
-          firstViewedAt: any;
+          firstViewedAt: string | null;
         }[];
         generatedAt: string;
+      };
+      hospitalDistribution: {
+        generatedAt: string;
+        items: {
+          provinceCode: number;
+          provinceName: string;
+          cityCode: number;
+          cityName: string;
+          oralCount: number;
+          plasticCount: number;
+          total: number;
+        }[];
       };
     };
   }>("/api/crm/v1/dashboard/dashboard/stats", {
@@ -470,9 +502,21 @@ export async function getCrmDashboardStats(
           unviewedCount: number;
           viewedRate: number;
           replyCount: number;
-          firstViewedAt: any;
+          firstViewedAt: string | null;
         }[];
         generatedAt: string;
+      };
+      hospitalDistribution: {
+        generatedAt: string;
+        items: {
+          provinceCode: number;
+          provinceName: string;
+          cityCode: number;
+          cityName: string;
+          oralCount: number;
+          plasticCount: number;
+          total: number;
+        }[];
       };
     };
   }>("/api/crm/v1/dashboard/stats", {
@@ -740,6 +784,23 @@ export async function updateCrmDispatch2(
   });
 }
 
+/** 派单医院查看日志（仅 super_admin / admin） GET /api/crm/v1/dispatches/dispatches/${param0}/hospital-view-logs */
+export async function listCrmDispatchHospitalViewLogs2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmDispatchHospitalViewLogsParams,
+  options?: { [key: string]: any }
+) {
+  const { id: param0, ...queryParams } = params;
+  return request<any>(
+    `/api/crm/v1/dispatches/dispatches/${param0}/hospital-view-logs`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
 /** 派单跟进 POST /api/crm/v1/dispatches/dispatches/${param0}/logs */
 export async function createCrmDispatchLog2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -840,32 +901,202 @@ export async function listCrmDispatchStatuses(options?: {
   });
 }
 
-/** 医院后台数据看板 GET /api/crm/v1/hospital/dashboard/stats */
-export async function getCrmHospitalDashboardStats(options?: {
-  [key: string]: any;
-}) {
-  return request<any>("/api/crm/v1/hospital/dashboard/stats", {
+/** 医院账号：我最近查看的派单（首页足迹卡片） GET /api/crm/v1/hospital-dashboard/hospital/dashboard/my-recent-views */
+export async function listCrmHospitalDashboardMyRecentViews2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmHospitalDashboardMyRecentViewsParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: {
+      generatedAt: string;
+      items: {
+        dispatchId: number;
+        customerName: string;
+        hospitalName: string;
+        firstViewedAt: string;
+      }[];
+    };
+  }>("/api/crm/v1/hospital-dashboard/hospital/dashboard/my-recent-views", {
     method: "GET",
+    params: {
+      // limit has a default value: 10
+      limit: "10",
+      ...params,
+    },
     ...(options || {}),
   });
 }
 
-/** 医院数据看板 - 30 天趋势 + 状态分布 GET /api/crm/v1/hospital/dashboard/trend */
-export async function getCrmHospitalDashboardTrend(options?: {
-  [key: string]: any;
-}) {
-  return request<any>("/api/crm/v1/hospital/dashboard/trend", {
+/** 医院数据看板 GET /api/crm/v1/hospital-dashboard/hospital/dashboard/stats */
+export async function getCrmHospitalDashboardStats2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmHospitalDashboardStatsParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: {
+      todayCount: number;
+      monthCount: number;
+      yearCount: number;
+      totalCount: number;
+      viewedCount: number;
+      unviewedCount: number;
+    };
+  }>("/api/crm/v1/hospital-dashboard/hospital/dashboard/stats", {
     method: "GET",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 医院数据看板 - 派单趋势 + 状态分布 GET /api/crm/v1/hospital-dashboard/hospital/dashboard/trend */
+export async function getCrmHospitalDashboardTrend2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmHospitalDashboardTrendParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: {
+      daily: { date: string; count: number }[];
+      statusBreakdown: { viewed: number; unviewed: number };
+    };
+  }>("/api/crm/v1/hospital-dashboard/hospital/dashboard/trend", {
+    method: "GET",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 医院账号未查看派单数量（菜单 Badge 用） GET /api/crm/v1/hospital-dashboard/hospital/dispatches/unviewed-count */
+export async function getCrmHospitalUnviewedDispatchCount2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmHospitalUnviewedDispatchCountParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: { count: number };
+  }>("/api/crm/v1/hospital-dashboard/hospital/dispatches/unviewed-count", {
+    method: "GET",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 医院账号：我最近查看的派单（首页足迹卡片） GET /api/crm/v1/hospital/dashboard/my-recent-views */
+export async function listCrmHospitalDashboardMyRecentViews(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.listCrmHospitalDashboardMyRecentViewsParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: {
+      generatedAt: string;
+      items: {
+        dispatchId: number;
+        customerName: string;
+        hospitalName: string;
+        firstViewedAt: string;
+      }[];
+    };
+  }>("/api/crm/v1/hospital/dashboard/my-recent-views", {
+    method: "GET",
+    params: {
+      // limit has a default value: 10
+      limit: "10",
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 医院数据看板 GET /api/crm/v1/hospital/dashboard/stats */
+export async function getCrmHospitalDashboardStats(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmHospitalDashboardStatsParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: {
+      todayCount: number;
+      monthCount: number;
+      yearCount: number;
+      totalCount: number;
+      viewedCount: number;
+      unviewedCount: number;
+    };
+  }>("/api/crm/v1/hospital/dashboard/stats", {
+    method: "GET",
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
+/** 医院数据看板 - 派单趋势 + 状态分布 GET /api/crm/v1/hospital/dashboard/trend */
+export async function getCrmHospitalDashboardTrend(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmHospitalDashboardTrendParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: {
+      daily: { date: string; count: number }[];
+      statusBreakdown: { viewed: number; unviewed: number };
+    };
+  }>("/api/crm/v1/hospital/dashboard/trend", {
+    method: "GET",
+    params: {
+      ...params,
+    },
     ...(options || {}),
   });
 }
 
 /** 医院账号未查看派单数量（菜单 Badge 用） GET /api/crm/v1/hospital/dispatches/unviewed-count */
-export async function getCrmHospitalUnviewedDispatchCount(options?: {
-  [key: string]: any;
-}) {
-  return request<any>("/api/crm/v1/hospital/dispatches/unviewed-count", {
+export async function getCrmHospitalUnviewedDispatchCount(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getCrmHospitalUnviewedDispatchCountParams,
+  options?: { [key: string]: any }
+) {
+  return request<{
+    success: boolean;
+    code: number;
+    message: string;
+    data: { count: number };
+  }>("/api/crm/v1/hospital/dispatches/unviewed-count", {
     method: "GET",
+    params: {
+      ...params,
+    },
     ...(options || {}),
   });
 }
@@ -1666,7 +1897,7 @@ export async function batchTagCrmMembers(
 }
 
 /** 可转会员的客户列表 GET /api/crm/v1/members/customers/selectable */
-export async function listCrmCustomersSelectable(
+export async function listCrmCustomersSelectable2(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.listCrmCustomersSelectableParams,
   options?: { [key: string]: any }

@@ -430,10 +430,105 @@ declare namespace API {
         unviewedCount: number;
         viewedRate: number;
         replyCount: number;
-        firstViewedAt: any;
+        firstViewedAt: string | null;
       }[];
       generatedAt: string;
     };
+    hospitalDistribution?: {
+      generatedAt: string;
+      items: {
+        provinceCode: number;
+        provinceName: string;
+        cityCode: number;
+        cityName: string;
+        oralCount: number;
+        plasticCount: number;
+        total: number;
+      }[];
+    };
+  };
+
+  type crmHospitalDashboardRecentViewItem = {
+    dispatchId: number;
+    customerName: string;
+    hospitalName: string;
+    firstViewedAt: string;
+  };
+
+  type crmHospitalDashboardRecentViewsResp = {
+    generatedAt: string;
+    items: {
+      dispatchId: number;
+      customerName: string;
+      hospitalName: string;
+      firstViewedAt: string;
+    }[];
+  };
+
+  type crmHospitalDashboardResp = {
+    todayCount: number;
+    monthCount: number;
+    yearCount: number;
+    totalCount: number;
+    viewedCount: number;
+    unviewedCount: number;
+  };
+
+  type crmHospitalDashboardTrendResp = {
+    daily: { date: string; count: number }[];
+    statusBreakdown: { viewed: number; unviewed: number };
+  };
+
+  type crmHospitalDistributionItem = {
+    provinceCode: number;
+    provinceName: string;
+    cityCode: number;
+    cityName: string;
+    oralCount: number;
+    plasticCount: number;
+    total: number;
+  };
+
+  type crmHospitalDistributionResp = {
+    generatedAt: string;
+    items: {
+      provinceCode: number;
+      provinceName: string;
+      cityCode: number;
+      cityName: string;
+      oralCount: number;
+      plasticCount: number;
+      total: number;
+    }[];
+  };
+
+  type crmHospitalRankingsItem = {
+    hospitalId: number;
+    hospitalName: string;
+    dispatchCount: number;
+    viewedCount: number;
+    unviewedCount: number;
+    viewedRate: number;
+    replyCount: number;
+    firstViewedAt: string | null;
+  };
+
+  type crmHospitalRankingsResp = {
+    items: {
+      hospitalId: number;
+      hospitalName: string;
+      dispatchCount: number;
+      viewedCount: number;
+      unviewedCount: number;
+      viewedRate: number;
+      replyCount: number;
+      firstViewedAt: string | null;
+    }[];
+    generatedAt: string;
+  };
+
+  type crmHospitalUnviewedCountResp = {
+    count: number;
   };
 
   type currentUser = {
@@ -852,12 +947,44 @@ declare namespace API {
     id: number;
   };
 
+  type getCrmHospitalDashboardStatsParams = {
+    hospitalId?: number;
+    startDate?: string;
+    endDate?: string;
+  };
+
+  type getCrmHospitalDashboardStatsParams = {
+    hospitalId?: number;
+    startDate?: string;
+    endDate?: string;
+  };
+
+  type getCrmHospitalDashboardTrendParams = {
+    hospitalId?: number;
+    startDate?: string;
+    endDate?: string;
+  };
+
+  type getCrmHospitalDashboardTrendParams = {
+    hospitalId?: number;
+    startDate?: string;
+    endDate?: string;
+  };
+
   type getCrmHospitalParams = {
     id: number;
   };
 
   type getCrmHospitalParams = {
     id: number;
+  };
+
+  type getCrmHospitalUnviewedDispatchCountParams = {
+    hospitalId?: number;
+  };
+
+  type getCrmHospitalUnviewedDispatchCountParams = {
+    hospitalId?: number;
   };
 
   type getCrmMemberBriefParams = {
@@ -1128,9 +1255,18 @@ declare namespace API {
     startTime?: string;
     endTime?: string;
     excludeMember?: number;
-    /** 按手机号精确搜索（11位中国大陆手机号） */
     mobile?: string;
-    /** 按客户姓名搜索（支持前缀匹配） */
+    name?: string;
+  };
+
+  type listCrmCustomersSelectableParams = {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    excludeMember?: number;
+    mobile?: string;
     name?: string;
   };
 
@@ -1156,12 +1292,24 @@ declare namespace API {
     id: number;
   };
 
+  type listCrmDispatchHospitalViewLogsParams = {
+    id: number;
+  };
+
   type listCrmDispatchMobileViewLogsParams = {
     id: number;
   };
 
   type listCrmDispatchMobileViewLogsParams = {
     id: number;
+  };
+
+  type listCrmHospitalDashboardMyRecentViewsParams = {
+    limit?: number;
+  };
+
+  type listCrmHospitalDashboardMyRecentViewsParams = {
+    limit?: number;
   };
 
   type listCrmHospitalsParams = {
