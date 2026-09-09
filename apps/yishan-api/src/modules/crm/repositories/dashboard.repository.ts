@@ -35,6 +35,29 @@ export interface DateRange {
 type WhereExtra = (table: any) => any[]
 
 export class DashboardRepository {
+  /**
+   * 从 drizzleDb.execute(sql\`...\`) 的返回值里提取 row 数组。
+   *
+   * drizzle 的 execute 在 mysql2 driver 下返回 `Promise<[rows, fields]>`
+   * 形态（mysql2 原生 tuple）；少数情况下（Drizzle 包装层 + prepared
+   * statement）也可能返回 `{ rows: [...] }`。本 helper 兼容两种形态：
+   * - tuple `[rows, fields]` —— rows 是数组
+   * - `{ rows: [...] }` —— 用 .rows
+   * - 其它 —— 回退到空数组
+   */
+  private static extractRows(result: any): any[] {
+    if (Array.isArray(result)) {
+      // 形态 1: [rows, fields] —— rows 是 result[0]
+      if (Array.isArray(result[0])) return result[0]
+      // 形态 2: 直接 rows 数组（部分 Drizzle 配置下）
+      return result
+    }
+    if (result && typeof result === 'object' && Array.isArray(result.rows)) {
+      return result.rows
+    }
+    return []
+  }
+
   /** 总数（不含软删除）。始终返回全量总数，不受 dateRange 影响。 */
   static async total(
     table: any,
@@ -345,32 +368,93 @@ export class DashboardRepository {
    * sys_region 是 Core 表。用 `sql` 模板拼 cross-table join
    * （drizzle-orm/mysql-core 的跨 schema join 较繁琐），并对 city/province
    * 别名做字段重投影，保持调用方类型稳定。
+   *
+   * **重要**：本方法走纯 raw SQL（`drizzleDb.execute(sql\`...\`)`），**不**通过
+   * Drizzle column 引用 crmHospital.category —— 因为 crmHospital 在 db/schema.ts
+   * 里**没有**声明 category 字段（避免所有 crmHospital 查询触发 Unknown column）。
+   * category 物理列由 drizzle 0003 迁移添加；等运维 db:migrate 后再把 schema 字段
+   * 加回来即可让本 raw SQL 命中分类数据。
+   *
+   * 兼容策略：
+   * - 若 crm_hospital.category 不存在（运维未跑 0003），降级 SQL 改用
+   *   `0 AS oral_count, 0 AS plastic_count, COUNT(*) AS total`，
+   *   让接口仍然返回城市分布但分类计数全 0，前端 Empty 占位。
    */
-  static async getHospitalDistributionByCity() {
-    const rows: any = await drizzleDb
-      .select({
-        provinceCode: sql<number>`province.code`,
-        provinceName: sql<string>`province.name`,
-        cityCode: sql<number>`city.code`,
-        cityName: sql<string>`city.name`,
-        oralCount: sql<number>`SUM(CASE WHEN ${crmHospital.category} = 'oral' THEN 1 ELSE 0 END)`,
-        plasticCount: sql<number>`SUM(CASE WHEN ${crmHospital.category} = 'plastic' THEN 1 ELSE 0 END)`,
-        total: sql<number>`COUNT(*)`,
-      })
-      .from(crmHospital)
-      .leftJoin(sql`sys_region city`, sql`city.code = ${crmHospital.cityId}`)
-      .leftJoin(sql`sys_region province`, sql`province.code = ${crmHospital.provinceId}`)
-      .where(isNull(crmHospital.deletedAt))
-      .groupBy(sql`city.code`, sql`city.name`, sql`province.code`, sql`province.name`)
-      .orderBy(sql`COUNT(*) DESC`)
+  static async getHospitalDistributionByCity(): Promise<Array<{
+    provinceCode: number
+    provinceName: string
+    cityCode: number
+    cityName: string
+    oralCount: number
+    plasticCount: number
+    total: number
+  }>> {
+    // 主 SQL：引用 category 列
+    const primarySql = sql`
+      SELECT
+        province.code AS province_code,
+        province.name AS province_name,
+        city.code AS city_code,
+        city.name AS city_name,
+        SUM(CASE WHEN h.category = 'oral' THEN 1 ELSE 0 END) AS oral_count,
+        SUM(CASE WHEN h.category = 'plastic' THEN 1 ELSE 0 END) AS plastic_count,
+        COUNT(*) AS total
+      FROM crm_hospital h
+      LEFT JOIN sys_region city ON city.code = h.city_id
+      LEFT JOIN sys_region province ON province.code = h.province_id
+      WHERE h.deleted_at IS NULL
+      GROUP BY city.code, city.name, province.code, province.name
+      ORDER BY COUNT(*) DESC
+    `
 
-    return rows.map((r: any) => ({
-      provinceCode: Number(r.provinceCode ?? 0),
-      provinceName: String(r.provinceName ?? ''),
-      cityCode: Number(r.cityCode ?? 0),
-      cityName: String(r.cityName ?? ''),
-      oralCount: Number(r.oralCount ?? 0),
-      plasticCount: Number(r.plasticCount ?? 0),
+    // 降级 SQL：category 不存在时不引用它，全部分类计数为 0
+    const fallbackSql = sql`
+      SELECT
+        province.code AS province_code,
+        province.name AS province_name,
+        city.code AS city_code,
+        city.name AS city_name,
+        0 AS oral_count,
+        0 AS plastic_count,
+        COUNT(*) AS total
+      FROM crm_hospital h
+      LEFT JOIN sys_region city ON city.code = h.city_id
+      LEFT JOIN sys_region province ON province.code = h.province_id
+      WHERE h.deleted_at IS NULL
+      GROUP BY city.code, city.name, province.code, province.name
+      ORDER BY COUNT(*) DESC
+    `
+
+    let rows: any[]
+    try {
+      const result: any = await drizzleDb.execute(primarySql)
+      rows = DashboardRepository.extractRows(result)
+    } catch (err: any) {
+      // ER_BAD_FIELD_ERROR 1054 = Unknown column 'h.category' in 'field list'
+      // drizzle 0003 还没跑时降级。MySQL 错误码在 err.cause.code 里（Drizzle
+      // 把 mysql2 抛出的原始错误包装了一层）。
+      const cause = err?.cause ?? err
+      const code = cause?.code ?? err?.code ?? err?.errno
+      const sqlMsg = String(cause?.sqlMessage ?? err?.sqlMessage ?? err?.message ?? '')
+      const isUnknownColumn = code === 'ER_BAD_FIELD_ERROR' ||
+        code === 1054 ||
+        /Unknown column.*category/i.test(sqlMsg) ||
+        /Failed query.*category/i.test(sqlMsg)
+      if (isUnknownColumn) {
+        const result: any = await drizzleDb.execute(fallbackSql)
+        rows = DashboardRepository.extractRows(result)
+      } else {
+        throw err
+      }
+    }
+
+    return (rows as any[]).map((r) => ({
+      provinceCode: Number(r.province_code ?? 0),
+      provinceName: String(r.province_name ?? ''),
+      cityCode: Number(r.city_code ?? 0),
+      cityName: String(r.city_name ?? ''),
+      oralCount: Number(r.oral_count ?? 0),
+      plasticCount: Number(r.plastic_count ?? 0),
       total: Number(r.total ?? 0),
     }))
   }
