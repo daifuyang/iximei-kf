@@ -55,6 +55,7 @@ import {
   meRevokeApiToken,
 } from '@/services/generated/meApiTokens';
 import { logout } from '@/utils/auth';
+import { useIsHospitalAccount } from '@/utils/role';
 
 const DATE_FMT = 'YYYY-MM-DD HH:mm';
 
@@ -729,6 +730,13 @@ const Center: React.FC = () => {
   const permissions = initialState?.currentUser?.permissions ?? [];
   const canManageApiTokens =
     permissions.includes('__super_admin__') || permissions.includes('system:api-token:manage');
+  // 医院账号不显示「安全设置/修改密码」tab —— 密码由运维在总后台统一管理。
+  const isHospitalAccount = useIsHospitalAccount();
+
+  // 防深链：hospital_account 用户在 URL 上手动带 ?tab=security 时强制回到 profile
+  React.useEffect(() => {
+    if (isHospitalAccount && tab === 'security') setTab('profile');
+  }, [isHospitalAccount, tab]);
 
   useEffect(() => {
     let alive = true;
@@ -759,13 +767,18 @@ const Center: React.FC = () => {
           defaultMessage: '个人资料',
         }),
       },
-      {
-        value: 'security' as TabKey,
-        label: intl.formatMessage({
-          id: 'account.center.tab.security',
-          defaultMessage: '安全设置',
-        }),
-      },
+      // 安全设置/修改密码 tab：医院账号不显示（密码由运维在总后台统一管理）
+      ...(isHospitalAccount
+        ? []
+        : [
+            {
+              value: 'security' as TabKey,
+              label: intl.formatMessage({
+                id: 'account.center.tab.security',
+                defaultMessage: '安全设置',
+              }),
+            },
+          ]),
       ...(canManageApiTokens
         ? [
             {
@@ -778,7 +791,7 @@ const Center: React.FC = () => {
           ]
         : []),
     ],
-    [canManageApiTokens, intl],
+    [canManageApiTokens, isHospitalAccount, intl],
   );
 
   return (
@@ -884,7 +897,7 @@ const Center: React.FC = () => {
                 </div>
               ) : tab === 'profile' ? (
                 <ProfilePanel intl={intl} user={user} onSaved={onSaved} />
-              ) : tab === 'security' ? (
+              ) : tab === 'security' && !isHospitalAccount ? (
                 <SecurityPanel intl={intl} />
               ) : canManageApiTokens ? (
                 <ApiTokenPanel intl={intl} />
