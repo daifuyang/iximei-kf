@@ -22,11 +22,53 @@
  * 注 2：hospitalIds 入参由 service 层负责校验（hospitalAccount 越权检查）。
  */
 
-import { and, count, eq, gte, isNull, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
-import { crmDispatch, crmDispatchViewLog } from '../db/schema.js'
+import {
+  crmCustomer,
+  crmDispatch,
+  crmDispatchStatus,
+  crmDispatchViewLog,
+  crmHospital,
+} from '../db/schema.js'
 
 const active = (t: any) => isNull(t.deletedAt)
+
+// 视为「已完成 / 已处理」的派单状态 name 集合。
+// 当前 crm_dispatch_status 种子里的 6 个状态（待回复 / 已联系 / 已到院 / 已成交 / 未成交 / 重单）
+// 都不匹配下面的 name，因此本过滤在现有种子下是 no-op；后续若运维调整状态字典、加入
+// 「已完成」类状态，未查看派单数会自动排除这些状态。
+const COMPLETED_STATUS_NAMES = new Set(['已完成', '已处理', '完成', '已完结'])
+
+let completedStatusIdsCache: number[] | null = null
+let completedStatusIdsCacheAt = 0
+const COMPLETED_STATUS_CACHE_TTL_MS = 60_000
+
+/** 查 crm_dispatch_status 中视为「已完成 / 已处理」的 status id 列表，带 60s 缓存。 */
+async function getCompletedStatusIds(): Promise<number[]> {
+  const now = Date.now()
+  if (completedStatusIdsCache && now - completedStatusIdsCacheAt < COMPLETED_STATUS_CACHE_TTL_MS) {
+    return completedStatusIdsCache
+  }
+  const rows = await drizzleDb
+    .select({ id: crmDispatchStatus.id, name: crmDispatchStatus.name })
+    .from(crmDispatchStatus)
+  const ids = rows
+    .filter((r) => COMPLETED_STATUS_NAMES.has(String(r.name)))
+    .map((r) => Number(r.id))
+  completedStatusIdsCache = ids
+  completedStatusIdsCacheAt = now
+  return ids
+}
+
+/** 若有已完成 status id，构造 `crm_dispatch.status_id NOT IN (...)` SQL 片段；否则返回 undefined。 */
+function notInCompletedStatusSql(completedIds: number[]) {
+  if (completedIds.length === 0) return undefined
+  return sql`${crmDispatch.statusId} NOT IN (${sql.join(
+    completedIds.map((id) => sql`${id}`),
+    sql`, `,
+  )})`
+}
 
 /** 在 Asia/Shanghai 时区下构造当日/当月/当年起点。 */
 function getTimeBucketStarts(now: Date = new Date()): { todayStart: Date; monthStart: Date; yearStart: Date } {
@@ -76,6 +118,8 @@ export class HospitalDashboardRepository {
     const { todayStart, monthStart, yearStart } = getTimeBucketStarts()
     const sd = parseDateOpt(startDate)
     const ed = parseDateOpt(endDate)
+    const completedIds = await getCompletedStatusIds()
+    const notInCompleted = notInCompletedStatusSql(completedIds)
 
     const dateFilter =
       ed !== null
@@ -84,6 +128,13 @@ export class HospitalDashboardRepository {
           ? gte(crmDispatch.createdAt, sd)
           : undefined
 
+    // unviewedCount 的语义：派单未被查看 **且** 状态不属于"已完成/已处理"。
+    // 当 COMPLETED_STATUS_NAMES 在当前状态字典里没有命中时（空数组），不附加 NOT IN，过滤等价于
+    // 只看 `view_log.id IS NULL`；若未来状态字典加了"已完成"，会自动排除。
+    const unviewedCase = completedIds.length > 0
+      ? sql`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL AND ${notInCompleted} THEN 1 ELSE 0 END)`
+      : sql`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL THEN 1 ELSE 0 END)`
+
     const [row] = await drizzleDb
       .select({
         todayCount: sql<number>`SUM(CASE WHEN ${crmDispatch.createdAt} >= ${todayStart} THEN 1 ELSE 0 END)`,
@@ -91,7 +142,7 @@ export class HospitalDashboardRepository {
         yearCount: sql<number>`SUM(CASE WHEN ${crmDispatch.createdAt} >= ${yearStart} THEN 1 ELSE 0 END)`,
         totalCount: count(),
         viewedCount: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NOT NULL THEN 1 ELSE 0 END)`,
-        unviewedCount: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL THEN 1 ELSE 0 END)`,
+        unviewedCount: unviewedCase,
       })
       .from(crmDispatch)
       .leftJoin(
@@ -125,6 +176,14 @@ export class HospitalDashboardRepository {
    */
   static async getUnviewedCount(hospitalIds: number[]) {
     if (hospitalIds.length === 0) return 0
+    const completedIds = await getCompletedStatusIds()
+    const notInCompleted = notInCompletedStatusSql(completedIds)
+    const conditions: any[] = [
+      sql`${crmDispatch.hospitalId} IN (${sql.join(hospitalIds.map((h) => sql`${h}`), sql`, `)})`,
+      active(crmDispatch),
+      sql`${crmDispatchViewLog.id} IS NULL`,
+    ]
+    if (notInCompleted) conditions.push(notInCompleted)
     const [row] = await drizzleDb
       .select({ count: count() })
       .from(crmDispatch)
@@ -132,13 +191,7 @@ export class HospitalDashboardRepository {
         crmDispatchViewLog,
         eq(crmDispatchViewLog.dispatchId, crmDispatch.id),
       )
-      .where(
-        and(
-          sql`${crmDispatch.hospitalId} IN (${sql.join(hospitalIds.map((h) => sql`${h}`), sql`, `)})`,
-          active(crmDispatch),
-          sql`${crmDispatchViewLog.id} IS NULL`,
-        ),
-      )
+      .where(and(...conditions))
     return Number(row?.count ?? 0)
   }
 
@@ -230,10 +283,18 @@ export class HospitalDashboardRepository {
     // 4) statusBreakdown 复用 LEFT JOIN view_log 模式
     //    与 daily 保持同一日期窗口（periodStart..periodEndExclusive），
     //    否则日期筛选下饼图会显示全量而折线是窗口内，两者不一致。
+    //
+    // unviewed 同 getStats：派单未被查看 **且** 状态不属于"已完成/已处理"。
+    const completedIds = await getCompletedStatusIds()
+    const notInCompleted = notInCompletedStatusSql(completedIds)
+    const unviewedCase = completedIds.length > 0
+      ? sql`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL AND ${notInCompleted} THEN 1 ELSE 0 END)`
+      : sql`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL THEN 1 ELSE 0 END)`
+
     const [row] = await drizzleDb
       .select({
         viewed: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NOT NULL THEN 1 ELSE 0 END)`,
-        unviewed: sql<number>`SUM(CASE WHEN ${crmDispatchViewLog.id} IS NULL THEN 1 ELSE 0 END)`,
+        unviewed: unviewedCase,
       })
       .from(crmDispatch)
       .leftJoin(
@@ -256,5 +317,64 @@ export class HospitalDashboardRepository {
         unviewed: Number(row?.unviewed ?? 0),
       },
     }
+  }
+
+  /**
+   * 「我最近查看的派单」列表 — 医院后台首页足迹卡片（任务 4）。
+   *
+   * 数据来源：crm_dispatch_view_log
+   * - 过滤条件：viewer_user_id = 当前登录用户（hospital_account / super_admin 都按本人）
+   * - 关联维度：派单所属医院 (hospitalIds) — hospital_account 限定本院、super_admin 限定全院
+   * - 关联维度：派单客户名 (LEFT JOIN crm_customer)、派单所属医院名 (LEFT JOIN crm_hospital)
+   *
+   * 唯一索引 (dispatch_id, hospital_id, viewer_user_id) 保证每个用户对每个派单只有 1 条日志，
+   * 所以无需再聚合取首次。这里直接用 view_log.created_at 作为"首次查看时间"。
+   *
+   * 返回结构：
+   *   [{ dispatchId, customerName, hospitalName, firstViewedAt }]
+   * 按 firstViewedAt DESC, LIMIT N。
+   */
+  static async getMyRecentViews(
+    hospitalIds: number[],
+    viewerUserId: number,
+    limit: number,
+  ): Promise<
+    Array<{
+      dispatchId: number
+      customerName: string
+      hospitalName: string
+      firstViewedAt: Date
+    }>
+  > {
+    if (hospitalIds.length === 0) return [];
+    const rows = await drizzleDb
+      .select({
+        dispatchId: crmDispatch.id,
+        customerName: crmCustomer.name,
+        hospitalName: crmHospital.hospitalName,
+        firstViewedAt: crmDispatchViewLog.createdAt,
+      })
+      .from(crmDispatchViewLog)
+      .innerJoin(crmDispatch, eq(crmDispatch.id, crmDispatchViewLog.dispatchId))
+      .leftJoin(crmCustomer, eq(crmCustomer.id, crmDispatch.customerId))
+      .leftJoin(crmHospital, eq(crmHospital.id, crmDispatch.hospitalId))
+      .where(
+        and(
+          eq(crmDispatchViewLog.viewerUserId, viewerUserId),
+          sql`${crmDispatch.hospitalId} IN (${sql.join(
+            hospitalIds.map((h) => sql`${h}`),
+            sql`, `,
+          )})`,
+          active(crmDispatch),
+        ),
+      )
+      .orderBy(desc(crmDispatchViewLog.createdAt))
+      .limit(limit);
+    return rows.map((r) => ({
+      dispatchId: r.dispatchId,
+      customerName: r.customerName ?? '-',
+      hospitalName: r.hospitalName ?? '-',
+      firstViewedAt: r.firstViewedAt,
+    }));
   }
 }
