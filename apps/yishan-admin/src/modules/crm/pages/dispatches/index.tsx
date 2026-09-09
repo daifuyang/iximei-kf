@@ -291,7 +291,10 @@ const DispatchPage: React.FC = () => {
   );
 
   const columns: ProColumns<any>[] = [
-    { title: 'ID', dataIndex: 'id', search: false, width: 72 },
+    // 医院账号隐藏派单 ID 列
+    ...(isHospitalAccount
+      ? []
+      : [{ title: 'ID', dataIndex: 'id', search: false, width: 72 }]),
     {
       title: '关键词',
       dataIndex: 'keyword',

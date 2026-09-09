@@ -41,6 +41,7 @@ import {
   PASSWORD_MIN,
   PASSWORD_MAX,
 } from '@/utils/password';
+import { useIsHospitalAccount } from '@/utils/role';
 import {
   createHospital,
   deleteHospital,
@@ -108,6 +109,8 @@ const HospitalPage: React.FC = () => {
   // 故意不复用 :update —— 医院账号持有 :update 是为了能改自己医院资料，
   // 但不能顺带拿到"管账号"能力。前端可见性与后端权限严格对齐。
   const canManageHospitalAccount = hasPerm('crm:hospitals:manage-account');
+  // 医院账号：UI 上隐藏医院 ID、医院状态切换、账号启停；权限码为最终 gate，这里只是可见性收敛。
+  const isHospitalAccount = useIsHospitalAccount();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>();
   const [form] = Form.useForm();
@@ -291,7 +294,10 @@ const HospitalPage: React.FC = () => {
   };
 
   const columns: ProColumns<any>[] = [
-    { title: 'ID', dataIndex: 'id', search: false, width: 72 },
+    // 医院账号隐藏医院 ID 列
+    ...(isHospitalAccount
+      ? []
+      : [{ title: 'ID', dataIndex: 'id', search: false, width: 72 }]),
     {
       title: '医院名称',
       dataIndex: 'hospitalName',
@@ -442,17 +448,19 @@ const HospitalPage: React.FC = () => {
                 </Form.Item>
               </Col>
             )}
-            <Col {...thirdCol}>
-              <Form.Item name="status" label="医院状态">
-                <Select
-                  placeholder="请选择状态"
-                  options={[
-                    { label: '启用', value: 1 },
-                    { label: '停用', value: 0 },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
+            {!isHospitalAccount && (
+              <Col {...thirdCol}>
+                <Form.Item name="status" label="医院状态">
+                  <Select
+                    placeholder="请选择状态"
+                    options={[
+                      { label: '启用', value: 1 },
+                      { label: '停用', value: 0 },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            )}
             <Col {...thirdCol}>
               <Form.Item name="hospitalNature" label="经营性质">
                 <Select
@@ -721,6 +729,7 @@ const HospitalPage: React.FC = () => {
               </Form.Item>
               <Form.Item name="status" label="账号启停">
                 <Select
+                  disabled={isHospitalAccount}
                   options={[
                     { label: '启用', value: 1 },
                     { label: '停用', value: 0 },
@@ -734,16 +743,19 @@ const HospitalPage: React.FC = () => {
               {canRenameHospital && (
                 <Button onClick={openRenameModal}>改名</Button>
               )}
-              <Popconfirm
-                title={
-                  account.status === 1 ? '确定停用该账号？' : '确定启用该账号？'
-                }
-                onConfirm={toggleAccountStatus}
-              >
-                <Button danger={account.status === 1}>
-                  {account.status === 1 ? '停用账号' : '启用账号'}
-                </Button>
-              </Popconfirm>
+              {/* 医院账号不展示启停按钮（启停权限仅超管持有） */}
+              {!isHospitalAccount && (
+                <Popconfirm
+                  title={
+                    account.status === 1 ? '确定停用该账号？' : '确定启用该账号？'
+                  }
+                  onConfirm={toggleAccountStatus}
+                >
+                  <Button danger={account.status === 1}>
+                    {account.status === 1 ? '停用账号' : '启用账号'}
+                  </Button>
+                </Popconfirm>
+              )}
             </Space>
           </>
         )}
