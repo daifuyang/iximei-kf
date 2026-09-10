@@ -65,6 +65,17 @@
   },
   {
     "type": 1,
+    "name": "派单查看日志",
+    "path": "/crm/admin/dispatch-view-logs",
+    "sortOrder": 321,
+    "icon": "eye",
+    "component": "./modules/crm/admin-dispatch-view-logs",
+    "children": [
+      { "type": 2, "name": "查看", "permissionCodes": ["crm:dispatches:view-hospital-log"], "sortOrder": 1, "hideInMenu": 1, "isDefaultAction": 1 }
+    ]
+  },
+  {
+    "type": 1,
     "name": "会员管理",
     "path": "/crm/members",
     "sortOrder": 33,

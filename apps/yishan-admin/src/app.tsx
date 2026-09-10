@@ -1,5 +1,5 @@
 import React, { type JSX, lazy } from "react";
-import { BarChart3, Bell, BookOpen, ClipboardList, ContactRound, ExternalLink, FileText, FlaskConical, Folder, Home, Hospital, Inbox, Key, LayoutDashboard, MapPin, Megaphone, Package, Send, Settings, ShoppingBag, Smile, type LucideIcon, User, UsersRound } from "lucide-react";
+import { BarChart3, Bell, BookOpen, ClipboardList, ContactRound, ExternalLink, Eye, FileText, FlaskConical, Folder, Home, Hospital, Inbox, Key, LayoutDashboard, MapPin, Megaphone, Package, Send, Settings, ShoppingBag, Smile, type LucideIcon, User, UsersRound } from "lucide-react";
 import type { Settings as LayoutSettings, MenuDataItem } from "@ant-design/pro-components";
 import { PageLoading, SettingDrawer } from "@ant-design/pro-components";
 import type { RequestConfig, RunTimeLayoutConfig } from "@umijs/max";
@@ -72,6 +72,8 @@ const IconMap: Record<string, LucideIcon> = {
   flaskoutlined: FlaskConical,
   home: Home,
   homeoutlined: Home,
+  eye: Eye,
+  eyeoutlined: Eye,
   key: Key,
   notification: Bell,
   bell: Bell,

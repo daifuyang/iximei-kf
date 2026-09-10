@@ -24,8 +24,9 @@ import {
   getCrmMember,
   listCrmCustomerStatuses,
   listCrmCustomers,
-  listCrmDispatchMobileViewLogs,
   listCrmDispatches,
+  listCrmDispatchHospitalViewLogs,
+  listCrmDispatchMobileViewLogs,
   listCrmDispatchStatuses,
   listCrmHospitalDashboardMyRecentViews,
   listCrmHospitals,
@@ -49,7 +50,9 @@ export const getUsers = (params: object) => getUserList(params as never);
 
 /** 「归属客服」下拉专用：只取 customer_service 角色、启用状态的用户。
  *  避免医院账号误选到客户/会员的归属客服。 */
-export const getCustomerServiceUsers = (params: { keyword?: string; pageSize?: number } = {}) =>
+export const getCustomerServiceUsers = (
+  params: { keyword?: string; pageSize?: number } = {},
+) =>
   getUserList({
     pageSize: params.pageSize ?? 100,
     status: '1',
@@ -85,8 +88,7 @@ export const addDispatchLog = (id: number, body: object) =>
   createCrmDispatchLog({ id }, body as never);
 
 /** 医院账号点眼睛 → 后端记日志 + 返回明文（operationId: viewCrmDispatchMobile） */
-export const viewDispatchMobile = (id: number) =>
-  viewCrmDispatchMobile({ id });
+export const viewDispatchMobile = (id: number) => viewCrmDispatchMobile({ id });
 
 /** super_admin：拉取某派单的手机号查看日志（operationId: listCrmDispatchMobileViewLogs） */
 export const getDispatchMobileViewLogs = (id: number) =>
@@ -96,7 +98,7 @@ export const getDispatchMobileViewLogs = (id: number) =>
  *  手写 wrapper：T5 落了路由 + schema，但 OpenAPI 尚未重生（生成的 services/crm.ts 里没有 listCrmDispatchHospitalViewLogs），
  *  走 request 直接命中后端契约。等下次 `pnpm --filter yishan-admin openapi` 之后可替换为生成的函数。 */
 export const getDispatchHospitalViewLogs = (id: number) =>
-  request<any>(`/api/crm/v1/dispatches/${id}/hospital-view-logs`);
+  listCrmDispatchHospitalViewLogs({ id });
 
 /* ---------- 医院 ---------- */
 
@@ -266,5 +268,6 @@ export const getHospitalDashboardTrend = (params?: {
  * - hospital_account：本账号访问过的、本院派单
  * - super_admin：本账号访问过的、全院派单（按本人 viewer_user_id）
  */
-export const getHospitalDashboardMyRecentViews = (params?: { limit?: number }) =>
-  listCrmHospitalDashboardMyRecentViews(params || {});
+export const getHospitalDashboardMyRecentViews = (params?: {
+  limit?: number;
+}) => listCrmHospitalDashboardMyRecentViews(params || {});
