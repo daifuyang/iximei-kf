@@ -211,6 +211,7 @@ const DispatchPage: React.FC = () => {
   const permissions: string[] = initialState?.currentUser?.permissions ?? []
   const accessPath: string[] = initialState?.currentUser?.accessPath ?? []
   const isSuperAdmin = permissions.includes('__super_admin__')
+  const hasAdminRole = permissions.includes('__super_admin__') || accessPath.includes('/crm/members')
   // /auth/me 当前不返回 roleIds；hospital 角色的可访问路由只有 4 个（/account 两条 + /crm/hospitals + /crm/dispatches），
   // 用 accessPath 长度作为简单启发式，且必须含 /crm/dispatches（医院账号可访问派单列表）。
   // 这里再叠加显式检查：新加的 crm:dispatches:view-mobile 仅医院角色持有。
@@ -488,6 +489,8 @@ const DispatchPage: React.FC = () => {
                   {detail?.status?.name || '-'}
                 </Descriptions.Item>
               </Descriptions>
+              {hasAdminRole && (
+                <>
               <Divider>医院查看状态</Divider>
               <ProTable
                 rowKey="id"
@@ -530,6 +533,8 @@ const DispatchPage: React.FC = () => {
                   { title: 'IP', dataIndex: 'ipAddress' },
                 ]}
               />
+                </>
+              )}
             </div>
           </Col>
           <Col xs={24} lg={13} style={{ height: '100%' }}>
