@@ -2,6 +2,27 @@
 /* eslint-disable */
 import { request } from "@umijs/max";
 
+/** Build 标识（公开，仅读） 返回当前进程实例的 build 标识：YISHAN_API_VERSION（monotonic 部署序号）、GIT_COMMIT_SHA（12 字符 commit 短 SHA）、BUILD_TIME（UTC ISO8601 部署时刻）。无 db query、无副作用、no-cache。部署验证用法：  curl https://crm.iximei.cn/api/build GET /api/build */
+export async function getBuild(options?: { [key: string]: any }) {
+  return request<{
+    success?: boolean;
+    code?: number;
+    message?: string;
+    data?: {
+      version?: string;
+      commitSha?: string;
+      builtAt?: string;
+      nodeVersion?: string;
+      uptimeSeconds?: number;
+      functionName?: string;
+    };
+    timestamp?: string;
+  }>("/api/build", {
+    method: "GET",
+    ...(options || {}),
+  });
+}
+
 /** 服务健康检查 返回服务的健康状态、版本号、当前时间和数据库连通性（Section 7）。 GET /api/health */
 export async function healthCheck(options?: { [key: string]: any }) {
   return request<{
@@ -12,6 +33,8 @@ export async function healthCheck(options?: { [key: string]: any }) {
       status?: string;
       version?: string;
       commitSha?: string;
+      builtAt?: string;
+      nodeVersion?: string;
       uptimeSeconds?: number;
       timestamp?: string;
       db?: { ok?: boolean; latencyMs?: number; error?: string };
