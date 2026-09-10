@@ -41,7 +41,8 @@ import {
   PASSWORD_MIN,
   PASSWORD_MAX,
 } from '@/utils/password';
-import { useIsHospitalAccount } from '@/utils/role';
+// 注：本页原先用 useIsHospitalAccount() 判断角色，但 /auth/me 不返回 roleIds（hook 永远 false），
+// 改用页内 perm + accessPath 启发式，详见下方 isHospitalAccount 定义。
 import {
   createHospital,
   deleteHospital,
@@ -110,7 +111,19 @@ const HospitalPage: React.FC = () => {
   // 但不能顺带拿到"管账号"能力。前端可见性与后端权限严格对齐。
   const canManageHospitalAccount = hasPerm('crm:hospitals:manage-account');
   // 医院账号：UI 上隐藏医院 ID、医院状态切换、账号启停；权限码为最终 gate，这里只是可见性收敛。
-  const isHospitalAccount = useIsHospitalAccount();
+  // 注意：/auth/me 不返回 roleIds（useIsHospitalAccount 依赖此字段 → 永远 false），
+  // 用 perm + accessPath 启发式兜底（与 dispatches/index.tsx 现有 isHospitalAccount 判定一致）：
+  //   - 持有 crm:dispatches:view-mobile（医院独有）
+  //   - accessPath 含 /crm/hospitals 且不含 /crm/members
+  const permissionsLocal: string[] =
+    initialState?.currentUser?.permissions ?? [];
+  const accessPathLocal: string[] =
+    initialState?.currentUser?.accessPath ?? [];
+  const isHospitalAccount =
+    !permissionsLocal.includes('__super_admin__') &&
+    permissionsLocal.includes('crm:dispatches:view-mobile') &&
+    accessPathLocal.includes('/crm/hospitals') &&
+    !accessPathLocal.includes('/crm/members');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>();
   const [form] = Form.useForm();
