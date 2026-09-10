@@ -55,7 +55,7 @@ import {
   meRevokeApiToken,
 } from '@/services/generated/meApiTokens';
 import { logout } from '@/utils/auth';
-import { useIsHospitalAccount } from '@/utils/role';
+// 注：原 import { useIsHospitalAccount } from '@/utils/role' 因 /auth/me 不返回 roleIds → 永远 false 已移除，改用页内启发式（见下方）。
 
 const DATE_FMT = 'YYYY-MM-DD HH:mm';
 
@@ -728,10 +728,18 @@ const Center: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('profile');
   // 与 /me/api-tokens 后端接口使用同一权限码，不能只按菜单路径判断。
   const permissions = initialState?.currentUser?.permissions ?? [];
+  const accessPath = initialState?.currentUser?.accessPath ?? [];
   const canManageApiTokens =
     permissions.includes('__super_admin__') || permissions.includes('system:api-token:manage');
   // 医院账号不显示「安全设置/修改密码」tab —— 密码由运维在总后台统一管理。
-  const isHospitalAccount = useIsHospitalAccount();
+  // /auth/me 不返回 roleIds，useIsHospitalAccount() 永远 false（详见 hospitals 页同款修复 commit 16a5b74）。
+  // 用 perm + accessPath 启发式兜底：持有 crm:dispatches:view-mobile + accessPath 含 /crm/hospitals
+  // 但不含 /crm/members（admin/客服独有）。
+  const isHospitalAccount =
+    !permissions.includes('__super_admin__') &&
+    permissions.includes('crm:dispatches:view-mobile') &&
+    accessPath.includes('/crm/hospitals') &&
+    !accessPath.includes('/crm/members');
 
   // 防深链：hospital_account 用户在 URL 上手动带 ?tab=security 时强制回到 profile
   React.useEffect(() => {
