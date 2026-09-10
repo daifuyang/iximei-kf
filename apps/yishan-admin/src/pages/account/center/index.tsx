@@ -853,16 +853,21 @@ const Center: React.FC = () => {
                 colon={false}
                 style={{ marginTop: 16 }}
                 items={[
-                  {
-                    key: 'createdAt',
-                    label: intl.formatMessage({
-                      id: 'account.center.createdAt',
-                      defaultMessage: '注册时间',
-                    }),
-                    children: user?.createdAt
-                      ? dayjs(user.createdAt).format('YYYY-MM-DD')
-                      : '—',
-                  },
+                  // 注册时间：医院账号隐藏（账号由总后台统一管理，无需向其展示注册时间）。
+                  ...(isHospitalAccount
+                    ? []
+                    : [
+                        {
+                          key: 'createdAt',
+                          label: intl.formatMessage({
+                            id: 'account.center.createdAt',
+                            defaultMessage: '注册时间',
+                          }),
+                          children: user?.createdAt
+                            ? dayjs(user.createdAt).format('YYYY-MM-DD')
+                            : '—',
+                        },
+                      ]),
                   {
                     key: 'lastLoginIp',
                     label: intl.formatMessage({
