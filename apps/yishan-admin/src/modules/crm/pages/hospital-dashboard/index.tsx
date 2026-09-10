@@ -5,16 +5,15 @@
  *   返回字段：todayCount / monthCount / yearCount / totalCount / viewedCount / unviewedCount
  * - 由后端提供 /api/crm/v1/hospital/dashboard/trend
  *   返回字段：daily[]（date/count）+ statusBreakdown{viewed, unviewed}
- * - 由后端提供 /api/crm/v1/hospital/dashboard/my-recent-views
- *   返回字段：items[]（dispatchId / customerName / hospitalName / firstViewedAt）
- *   用于首页底部"我最近查看的派单"卡片。
  * - 角色差异：
  *   - hospital_account：固定看本院，无筛选工具栏。
  *   - super_admin：可切换全院/单院 + 日期区间（startDate/endDate）。
  * - 顶部 4 张统计卡（今日/本月/本年/累计派单）
  * - 中部 3 张统计卡（已查看/未查看/查看率%）
  * - 底部 1 个 Row：折线图（派单趋势）+ 饼图（查看状态分布）
- * - 末尾新增 1 个 Row：「我最近查看的派单」卡片（RecentViewedDispatchesCard）
+ *
+ * 2026-09 改动：「我最近查看的派单」卡片从本页移除，迁移到 admin-only 菜单
+ *   /crm/admin/dispatch-view-logs（审计信息归审计方，符合第一性原理）。
  *
  * 2026-08-24 改动：super_admin 的医院筛选下拉改为 search-only 异步搜索模式
  * （与 dashboard 页保持一致），不再同步分页拉全部；下拉顶部"全部医院"项由前端
@@ -43,7 +42,10 @@ import {
   getHospitalDashboardTrend,
   searchHospitals,
 } from '../../api';
-import RecentViewedDispatchesCard from './components/RecentViewedDispatchesCard';
+
+// 「我最近查看的派单」2026-09 已迁到 admin-only 菜单
+// /crm/admin/dispatch-view-logs（首页路径下），医院后台不再显示。
+// import RecentViewedDispatchesCard from './components/RecentViewedDispatchesCard';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -391,12 +393,8 @@ const HospitalDashboard: React.FC = () => {
               </Col>
             </Row>
           )}
-          {/* 我最近查看的派单（医院后台首页足迹卡片） */}
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-            <Col span={24}>
-              <RecentViewedDispatchesCard />
-            </Col>
-          </Row>
+          {/* 我最近查看的派单：2026-09 迁到 admin-only 菜单 /crm/admin/dispatch-view-logs。
+              医院后台首页不再显示该卡片 —— 审计信息归审计方（admin），符合第一性原理。 */}
         </>
       )}
     </PageContainer>
