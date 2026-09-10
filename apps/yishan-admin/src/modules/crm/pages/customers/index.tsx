@@ -5,6 +5,7 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
+import { useModel } from '@umijs/max';
 import {
   App,
   Button,
@@ -18,9 +19,16 @@ import {
   Row,
   Select,
   Space,
+  Tag,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  mobileRules,
+  nameRules,
+  qqRules,
+  wechatRules,
+} from '@/utils/validators';
 import {
   createCustomer,
   dispatchCustomer,
@@ -31,12 +39,6 @@ import {
   searchHospitals,
   updateCustomer,
 } from '../../api';
-import {
-  nameRules,
-  mobileRules,
-  qqRules,
-  wechatRules,
-} from '@/utils/validators';
 
 const toRegionOptions = (nodes: any[] = []): any[] =>
   nodes.map((node) => ({
@@ -51,6 +53,18 @@ const toRegionOptions = (nodes: any[] = []): any[] =>
 const CustomerPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const { message } = App.useApp();
+  const { initialState } = useModel('@@initialState');
+  const permissions: string[] = initialState?.currentUser?.permissions ?? [];
+  // 仅持有 crm:customers:update 的角色（admin/super_admin/客服）才能 inline 切换状态
+  const canUpdateCustomer =
+    permissions.includes('__super_admin__') ||
+    permissions.includes('crm:customers:update');
+  // 切换状态行内的本地存储：<customerId, statusId>，让 Select 立即反映新值
+  const [statusOverride, setStatusOverride] = useState<
+    Record<number, { id: number; name: string }>
+  >({});
+  const statusOverrideRef = useRef(statusOverride);
+  statusOverrideRef.current = statusOverride;
   const [open, setOpen] = useState(false);
   const [dispatchOpen, setDispatchOpen] = useState(false);
   const [editing, setEditing] = useState<any>();
@@ -211,7 +225,70 @@ const CustomerPage: React.FC = () => {
     { title: '客户姓名', dataIndex: 'name' },
     { title: '手机', dataIndex: 'mobile', search: false },
     { title: '整形项目', dataIndex: 'plastic', search: false },
-    { title: '客户状态', dataIndex: ['status', 'name'], search: false },
+    {
+      title: '客户状态',
+      dataIndex: ['status', 'name'],
+      search: false,
+      // 有 perm：内嵌 Select，下拉直接改 → 触发 PATCH，成功后 reload 列表 + 同步本地状态覆写
+      // 无 perm：保留只读 Tag（保持向后兼容，避免无权限角色误操作）
+      render: (_, record) => {
+        const overridden = statusOverride[record.id];
+        const currentStatusId =
+          overridden?.id ?? record.status?.id ?? record.statusId;
+        const currentStatusName =
+          overridden?.name ?? record.status?.name ?? '-';
+        if (!canUpdateCustomer) {
+          return <Tag color="blue">{currentStatusName}</Tag>;
+        }
+        return (
+          <Select
+            size="small"
+            value={currentStatusId}
+            style={{ minWidth: 110 }}
+            options={customerStatusOptions}
+            onChange={async (newStatusId) => {
+              const newStatus = customerStatusOptions.find(
+                (opt) => opt.value === newStatusId,
+              );
+              const prev = statusOverrideRef.current[record.id] ?? {
+                id: record.status?.id ?? record.statusId,
+                name: record.status?.name,
+              };
+              // 乐观更新：先把本地状态覆写，避免连续切换时短暂闪烁
+              setStatusOverride((prevMap) => ({
+                ...prevMap,
+                [record.id]: {
+                  id: newStatusId,
+                  name: newStatus?.label ?? '-',
+                },
+              }));
+              try {
+                const res: any = await updateCustomer(record.id, {
+                  statusId: newStatusId,
+                });
+                if (res?.success) {
+                  message.success(res.message || '客户状态已更新');
+                  actionRef.current?.reload();
+                } else {
+                  // 回滚
+                  setStatusOverride((prevMap) => ({
+                    ...prevMap,
+                    [record.id]: prev,
+                  }));
+                  message.error(res?.message || '客户状态更新失败');
+                }
+              } catch (e: any) {
+                setStatusOverride((prevMap) => ({
+                  ...prevMap,
+                  [record.id]: prev,
+                }));
+                message.error(e?.message || '客户状态更新失败');
+              }
+            }}
+          />
+        );
+      },
+    },
     { title: '所属客服', dataIndex: ['owner', 'username'], search: false },
     {
       title: '创建时间',
