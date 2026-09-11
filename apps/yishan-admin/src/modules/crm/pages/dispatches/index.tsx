@@ -1,3 +1,4 @@
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import {
   type ActionType,
   PageContainer,
@@ -22,7 +23,6 @@ import {
   Timeline,
   Typography,
 } from 'antd';
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import React, {
   useCallback,
@@ -33,20 +33,21 @@ import React, {
 } from 'react';
 import { FormEditor, type ImageUploadAdapter } from 'yishan-tiptap';
 import {
-  addDispatchReply,
-  getDispatch,
-  getDispatches,
-  getDispatchHospitalViewLogs,
-  getDispatchStatuses,
-  getRegionTree,
-  viewDispatchMobile,
-  getDispatchMobileViewLogs,
-} from '../../api';
-import {
   fetchCloudStorageConfig,
   resolveAttachmentPublicUrl,
   uploadAttachmentFile,
 } from '@/utils/attachmentUpload';
+import {
+  addDispatchReply,
+  getDispatch,
+  getDispatches,
+  getDispatchHospitalViewLogs,
+  getDispatchMobileViewLogs,
+  getDispatchStatuses,
+  getRegionTree,
+  updateDispatch,
+  viewDispatchMobile,
+} from '../../api';
 
 const formatUser = (user: any) => user?.realName || user?.username || '系统';
 
@@ -92,10 +93,10 @@ const findRegionName = (regions: any[], code?: number): string | undefined => {
 // 医院账号派单列表手机号渲染：默认脱敏，点击眼睛查看（透明审计）
 // ──────────────────────────────────────────────
 
-const DispatchMobileCell: React.FC<{ record: any; isHospitalAccount: boolean }> = ({
-  record,
-  isHospitalAccount,
-}) => {
+const DispatchMobileCell: React.FC<{
+  record: any;
+  isHospitalAccount: boolean;
+}> = ({ record, isHospitalAccount }) => {
   const { message } = App.useApp();
   const [revealed, setRevealed] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -150,7 +151,9 @@ const DispatchMobileCell: React.FC<{ record: any; isHospitalAccount: boolean }> 
 // super_admin：派单详情底部展示「手机号查看日志」
 // ──────────────────────────────────────────────
 
-const MobileViewLogsPanel: React.FC<{ dispatchId: number }> = ({ dispatchId }) => {
+const MobileViewLogsPanel: React.FC<{ dispatchId: number }> = ({
+  dispatchId,
+}) => {
   const [list, setList] = React.useState<any[] | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -172,7 +175,8 @@ const MobileViewLogsPanel: React.FC<{ dispatchId: number }> = ({ dispatchId }) =
     };
   }, [dispatchId]);
 
-  if (loading && !list) return <Typography.Text type="secondary">加载中…</Typography.Text>;
+  if (loading && !list)
+    return <Typography.Text type="secondary">加载中…</Typography.Text>;
   if (!list || list.length === 0) {
     return (
       <Typography.Text type="secondary">暂无手机号查看记录</Typography.Text>
@@ -207,11 +211,13 @@ const DispatchPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const { message } = App.useApp();
   // 导出 CSV 仅 super_admin 可见（导出整张派单表，敏感操作）
-  const { initialState } = useModel('@@initialState')
-  const permissions: string[] = initialState?.currentUser?.permissions ?? []
-  const accessPath: string[] = initialState?.currentUser?.accessPath ?? []
-  const isSuperAdmin = permissions.includes('__super_admin__')
-  const hasAdminRole = permissions.includes('__super_admin__') || accessPath.includes('/crm/members')
+  const { initialState } = useModel('@@initialState');
+  const permissions: string[] = initialState?.currentUser?.permissions ?? [];
+  const accessPath: string[] = initialState?.currentUser?.accessPath ?? [];
+  const isSuperAdmin = permissions.includes('__super_admin__');
+  const hasAdminRole =
+    permissions.includes('__super_admin__') ||
+    accessPath.includes('/crm/members');
   // /auth/me 当前不返回 roleIds；hospital 角色的可访问路由只有 4 个（/account 两条 + /crm/hospitals + /crm/dispatches），
   // 用 accessPath 长度作为简单启发式，且必须含 /crm/dispatches（医院账号可访问派单列表）。
   // 这里再叠加显式检查：新加的 crm:dispatches:view-mobile 仅医院角色持有。
@@ -219,7 +225,14 @@ const DispatchPage: React.FC = () => {
     !isSuperAdmin &&
     permissions.includes('crm:dispatches:view-mobile') &&
     accessPath.includes('/crm/dispatches') &&
-    !accessPath.includes('/crm/members')
+    !accessPath.includes('/crm/members');
+  // 持有 crm:dispatches:update 才能 inline 切换状态（admin/super_admin/客服）。
+  // 医院账号只能跟随回复一起提交（不暴露 inline 编辑）。
+  const canUpdateDispatch =
+    permissions.includes('__super_admin__') ||
+    permissions.includes('crm:dispatches:update');
+  // 状态保存中的 dispatch id 集合，防止快速连点触发重复 PATCH。
+  const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [detail, setDetail] = useState<any>();
   const [open, setOpen] = useState(false);
   const [statusOptions, setStatusOptions] = useState<
@@ -309,7 +322,10 @@ const DispatchPage: React.FC = () => {
       dataIndex: ['customer', 'mobile'],
       search: false,
       render: (_, record: any) => (
-        <DispatchMobileCell record={record} isHospitalAccount={isHospitalAccount} />
+        <DispatchMobileCell
+          record={record}
+          isHospitalAccount={isHospitalAccount}
+        />
       ),
     },
     { title: '整形项目', dataIndex: ['customer', 'plastic'], search: false },
@@ -424,7 +440,6 @@ const DispatchPage: React.FC = () => {
                 padding: '16px 24px 0 0',
               }}
             >
-
               <Descriptions
                 bordered
                 colon={false}
@@ -457,7 +472,10 @@ const DispatchPage: React.FC = () => {
                   {detail?.hospital?.hospitalName || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="客户手机">
-                  <DispatchMobileCell record={detail} isHospitalAccount={isHospitalAccount} />
+                  <DispatchMobileCell
+                    record={detail}
+                    isHospitalAccount={isHospitalAccount}
+                  />
                 </Descriptions.Item>
                 <Descriptions.Item label="QQ">
                   {detail?.customer?.qq || '-'}
@@ -491,48 +509,50 @@ const DispatchPage: React.FC = () => {
               </Descriptions>
               {hasAdminRole && (
                 <>
-              <Divider>医院查看状态</Divider>
-              <ProTable
-                rowKey="id"
-                size="small"
-                dataSource={hospitalViewLogs}
-                search={false}
-                options={false}
-                pagination={false}
-                request={async () => {
-                  if (!detail?.id) {
-                    return { success: false, data: [], total: 0 };
-                  }
-                  const res: any = await getDispatchHospitalViewLogs(detail.id);
-                  const list = (res?.data as any)?.list || [];
-                  setHospitalViewLogs(list);
-                  return {
-                    success: !!res?.success,
-                    data: list,
-                    total: list.length,
-                  };
-                }}
-                columns={[
-                  { title: '医院名称', dataIndex: 'hospitalName' },
-                  {
-                    title: '查看状态',
-                    dataIndex: 'viewerUsername',
-                    render: (v: any) =>
-                      v ? (
-                        <Tag color="success">已查看</Tag>
-                      ) : (
-                        <Tag>未查看</Tag>
-                      ),
-                  },
-                  {
-                    title: '首次查看时间',
-                    dataIndex: 'createdAt',
-                    valueType: 'dateTime',
-                  },
-                  { title: '查看账号', dataIndex: 'viewerUsername' },
-                  { title: 'IP', dataIndex: 'ipAddress' },
-                ]}
-              />
+                  <Divider>医院查看状态</Divider>
+                  <ProTable
+                    rowKey="id"
+                    size="small"
+                    dataSource={hospitalViewLogs}
+                    search={false}
+                    options={false}
+                    pagination={false}
+                    request={async () => {
+                      if (!detail?.id) {
+                        return { success: false, data: [], total: 0 };
+                      }
+                      const res: any = await getDispatchHospitalViewLogs(
+                        detail.id,
+                      );
+                      const list = (res?.data as any)?.list || [];
+                      setHospitalViewLogs(list);
+                      return {
+                        success: !!res?.success,
+                        data: list,
+                        total: list.length,
+                      };
+                    }}
+                    columns={[
+                      { title: '医院名称', dataIndex: 'hospitalName' },
+                      {
+                        title: '查看状态',
+                        dataIndex: 'viewerUsername',
+                        render: (v: any) =>
+                          v ? (
+                            <Tag color="success">已查看</Tag>
+                          ) : (
+                            <Tag>未查看</Tag>
+                          ),
+                      },
+                      {
+                        title: '首次查看时间',
+                        dataIndex: 'createdAt',
+                        valueType: 'dateTime',
+                      },
+                      { title: '查看账号', dataIndex: 'viewerUsername' },
+                      { title: 'IP', dataIndex: 'ipAddress' },
+                    ]}
+                  />
                 </>
               )}
             </div>
@@ -582,7 +602,44 @@ const DispatchPage: React.FC = () => {
                       label="客户状态"
                       rules={[{ required: true, message: '请选择客户状态' }]}
                     >
-                      <Select disabled={processing} options={statusOptions} />
+                      <Select
+                        disabled={processing || savingStatusId === detail?.id}
+                        loading={savingStatusId === detail?.id}
+                        options={statusOptions}
+                        onChange={async (newStatusId: number) => {
+                          // 医院账号不允许 inline 编辑；状态会在回复提交时一起带过去
+                          if (!canUpdateDispatch || !detail?.id) return;
+                          const prevStatusId = detail.statusId;
+                          // 乐观更新：先改本地 detail
+                          setDetail((d: any) =>
+                            d ? { ...d, statusId: newStatusId } : d,
+                          );
+                          setSavingStatusId(detail.id);
+                          try {
+                            const res: any = await updateDispatch(detail.id, {
+                              statusId: newStatusId,
+                            });
+                            if (res?.success) {
+                              message.success(res.message || '客户状态已更新');
+                            } else {
+                              // 回滚
+                              setDetail((d: any) =>
+                                d ? { ...d, statusId: prevStatusId } : d,
+                              );
+                              replyForm.setFieldValue('statusId', prevStatusId);
+                              message.error(res?.message || '客户状态更新失败');
+                            }
+                          } catch (e: any) {
+                            setDetail((d: any) =>
+                              d ? { ...d, statusId: prevStatusId } : d,
+                            );
+                            replyForm.setFieldValue('statusId', prevStatusId);
+                            message.error(e?.message || '客户状态更新失败');
+                          } finally {
+                            setSavingStatusId(null);
+                          }
+                        }}
+                      />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -638,7 +695,7 @@ const DispatchPage: React.FC = () => {
                             </Typography.Text>
                           </Space>
                           <div
-                            className='dispatch-reply-content'
+                            className="dispatch-reply-content"
                             // biome-ignore lint/security/noDangerouslySetInnerHtml: reply HTML is sanitized at the CRM API boundary before it is returned.
                             dangerouslySetInnerHTML={{ __html: item.content }}
                           />
