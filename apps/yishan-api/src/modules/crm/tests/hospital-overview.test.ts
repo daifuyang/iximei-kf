@@ -119,7 +119,7 @@ describe('DashboardRepository.getHospitalOverview', () => {
     expect(statements[4]).toContain('2026-01-31T16:00:00.000Z')
   })
 
-  it('reconciles aggregate and detail totals from the same filtered hospital fixture', async () => {
+  it('reconciles aggregate and detail totals from the generated SQL predicates', async () => {
     const filters = {
       startDate: new Date('2025-12-31T16:00:00.000Z'),
       endDate: new Date('2026-01-30T16:00:00.000Z'),
@@ -129,50 +129,145 @@ describe('DashboardRepository.getHospitalOverview', () => {
       status: 1,
     }
     const hospitals = [
-      { id: 1, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1 },
-      { id: 2, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1 },
-      { id: 3, category: 'plastic', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1 },
-      { id: 4, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 0 },
-      { id: 5, category: 'oral', provinceCode: 31, provinceName: 'Shanghai', cityCode: 3101, cityName: 'Shanghai', status: 1 },
+      { id: 1, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1, createdAt: '2026-01-03T00:00:00.000Z', deletedAt: null },
+      { id: 2, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1, createdAt: '2026-01-20T00:00:00.000Z', deletedAt: null },
+      { id: 3, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1, createdAt: '2026-01-09T00:00:00.000Z', deletedAt: '2026-01-10T00:00:00.000Z' },
+      { id: 4, category: 'plastic', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1, createdAt: '2026-01-11T00:00:00.000Z', deletedAt: null },
+      { id: 5, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 0, createdAt: '2026-01-12T00:00:00.000Z', deletedAt: null },
+      { id: 6, category: 'oral', provinceCode: 31, provinceName: 'Shanghai', cityCode: 3101, cityName: 'Shanghai', status: 1, createdAt: '2026-01-13T00:00:00.000Z', deletedAt: null },
+      { id: 7, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1102, cityName: 'Xicheng', status: 1, createdAt: '2026-01-14T00:00:00.000Z', deletedAt: null },
+      { id: 8, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1, createdAt: '2026-02-01T00:00:00.000Z', deletedAt: null },
     ]
-    const matchingHospitals = hospitals.filter((hospital) => (
-      hospital.category === filters.category
-      && hospital.provinceCode === filters.provinceCode
-      && hospital.cityCode === filters.cityCode
-      && hospital.status === filters.status
-    ))
-    const countBy = (key: 'category' | 'provinceCode' | 'cityCode') => Array.from(
-      matchingHospitals.reduce((groups, hospital) => {
-        const value = String(hospital[key])
-        groups.set(value, (groups.get(value) ?? 0) + 1)
-        return groups
-      }, new Map<string, number>()),
+    const dispatches = [
+      { id: 1, hospitalId: 1, status: 3, createdAt: '2026-01-10T00:00:00.000Z', deletedAt: null },
+      { id: 2, hospitalId: 1, status: 4, createdAt: '2026-02-02T00:00:00.000Z', deletedAt: null },
+      { id: 3, hospitalId: 1, status: 4, createdAt: '2026-01-15T00:00:00.000Z', deletedAt: '2026-01-16T00:00:00.000Z' },
+      { id: 4, hospitalId: 2, status: 3, createdAt: '2025-12-20T00:00:00.000Z', deletedAt: null },
+      { id: 5, hospitalId: 2, status: 4, createdAt: '2026-01-20T00:00:00.000Z', deletedAt: null },
+      { id: 6, hospitalId: 8, status: 3, createdAt: '2026-01-25T00:00:00.000Z', deletedAt: null },
+    ]
+    const predicateNumber = (statement: string, column: string) => Number(
+      statement.match(new RegExp(`${column.replace('.', '\\.')} = (-?\\d+)`))?.[1],
     )
-    let calls = 0
-    const execute = vi.fn(async () => {
-      calls += 1
-      if (calls === 1) return result([{
-        total: String(matchingHospitals.length), oral_count: String(matchingHospitals.length), plastic_count: '0', unknown_count: '0', period_new: String(matchingHospitals.length),
-      }])
-      if (calls === 2) return result(countBy('category').map(([category, hospitalCount]) => ({ category, hospital_count: hospitalCount })))
-      if (calls === 3) return result(countBy('provinceCode').map(([provinceCode, hospitalCount]) => ({ province_code: provinceCode, province_name: 'Beijing', hospital_count: hospitalCount })))
-      if (calls === 4) return result(countBy('cityCode').map(([cityCode, hospitalCount]) => ({ province_code: 11, province_name: 'Beijing', city_code: cityCode, city_name: 'Beijing', hospital_count: hospitalCount })))
-      if (calls === 5) return result([])
-      if (calls === 6) return result(matchingHospitals.map((hospital) => ({
-        id: hospital.id, hospital_name: `Hospital ${hospital.id}`, category: hospital.category,
-        province_name: hospital.provinceName, city_name: hospital.cityName, status: hospital.status,
-        dispatch_count: 0, arrived_count: 0, deal_count: 0, latest_dispatch_at: null,
-      })))
-      return result([{ total: String(matchingHospitals.length) }])
+    const dateRange = (statement: string, column: string) => {
+      const escapedColumn = column.replace('.', '\\.')
+      const isoDate = '\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z'
+      const match = statement.match(new RegExp(`${escapedColumn} >= (${isoDate}).*?${escapedColumn} < (${isoDate})`))
+      return match ? [new Date(match[1]), new Date(match[2])] : undefined
+    }
+    const categoryFor = (hospital: (typeof hospitals)[number]) => (
+      hospital.category === 'oral' || hospital.category === 'plastic' ? hospital.category : 'unknown'
+    )
+    const matchingHospitals = (statement: string, includeCreatedDate = false) => {
+      const category = statement.match(/END = '?(oral|plastic|unknown)'?/)?.[1]
+      const createdRange = includeCreatedDate ? dateRange(statement, 'h.created_at') : undefined
+      return hospitals.filter((hospital) => (
+        (!statement.includes('h.deleted_at IS NULL') || hospital.deletedAt == null)
+        && (!category || categoryFor(hospital) === category)
+        && (!statement.includes('h.province_id =') || hospital.provinceCode === predicateNumber(statement, 'h.province_id'))
+        && (!statement.includes('h.city_id =') || hospital.cityCode === predicateNumber(statement, 'h.city_id'))
+        && (!statement.includes('h.status =') || hospital.status === predicateNumber(statement, 'h.status'))
+        && (!createdRange || (new Date(hospital.createdAt) >= createdRange[0] && new Date(hospital.createdAt) < createdRange[1]))
+      ))
+    }
+    const matchingDispatches = (statement: string, hospitalId: number) => {
+      const range = dateRange(statement, 'd.created_at')
+      return dispatches.filter((dispatch) => (
+        dispatch.hospitalId === hospitalId
+        && (!statement.includes('d.deleted_at IS NULL') || dispatch.deletedAt == null)
+        && (!range || (new Date(dispatch.createdAt) >= range[0] && new Date(dispatch.createdAt) < range[1]))
+      ))
+    }
+    const execute = vi.fn(async (query: unknown) => {
+      const statement = dumpSql(query)
+      const matchedHospitals = matchingHospitals(statement)
+      const countBy = (key: 'category' | 'provinceCode' | 'cityCode') => Array.from(
+        matchedHospitals.reduce((groups, hospital) => {
+          const value = String(hospital[key])
+          groups.set(value, (groups.get(value) ?? 0) + 1)
+          return groups
+        }, new Map<string, number>()),
+      )
+
+      if (statement.includes('AS period_new')) {
+        const periodNew = matchingHospitals(statement, true).length
+        return result([{
+          total: String(matchedHospitals.length),
+          oral_count: String(matchedHospitals.filter((hospital) => categoryFor(hospital) === 'oral').length),
+          plastic_count: String(matchedHospitals.filter((hospital) => categoryFor(hospital) === 'plastic').length),
+          unknown_count: String(matchedHospitals.filter((hospital) => categoryFor(hospital) === 'unknown').length),
+          period_new: String(periodNew),
+        }])
+      }
+      if (statement.includes('SELECT h.id, h.hospital_name')) {
+        return result(matchedHospitals
+          .slice()
+          .sort((left, right) => right.id - left.id)
+          .map((hospital) => {
+            const rows = matchingDispatches(statement, hospital.id)
+            return {
+              id: hospital.id,
+              hospital_name: `Hospital ${hospital.id}`,
+              category: categoryFor(hospital),
+              province_name: hospital.provinceName,
+              city_name: hospital.cityName,
+              status: hospital.status,
+              dispatch_count: rows.length,
+              arrived_count: rows.filter((dispatch) => dispatch.status === 3).length,
+              deal_count: rows.filter((dispatch) => dispatch.status === 4).length,
+              latest_dispatch_at: rows.at(-1)?.createdAt ?? null,
+            }
+          }))
+      }
+      if (statement.includes('SELECT COUNT(*) AS total FROM crm_hospital h')) {
+        return result([{ total: String(matchedHospitals.length) }])
+      }
+      if (statement.includes('GROUP BY h.province_id, province.name, h.city_id, city.name')) {
+        return result(countBy('cityCode').map(([cityCode, hospitalCount]) => {
+          const hospital = matchedHospitals.find((row) => String(row.cityCode) === cityCode)!
+          return { province_code: hospital.provinceCode, province_name: hospital.provinceName, city_code: cityCode, city_name: hospital.cityName, hospital_count: hospitalCount }
+        }))
+      }
+      if (statement.includes('GROUP BY h.province_id, province.name')) {
+        return result(countBy('provinceCode').map(([provinceCode, hospitalCount]) => {
+          const hospital = matchedHospitals.find((row) => String(row.provinceCode) === provinceCode)!
+          return { province_code: provinceCode, province_name: hospital.provinceName, hospital_count: hospitalCount }
+        }))
+      }
+      if (statement.includes('COUNT(d.id) AS dispatch_count')) {
+        return result(Array.from(new Set(matchedHospitals.map(categoryFor))).map((category) => {
+          const rows = matchedHospitals
+            .filter((hospital) => categoryFor(hospital) === category)
+            .flatMap((hospital) => matchingDispatches(statement, hospital.id))
+          return {
+            category,
+            dispatch_count: rows.length,
+            arrived_count: rows.filter((dispatch) => dispatch.status === 3).length,
+            deal_count: rows.filter((dispatch) => dispatch.status === 4).length,
+          }
+        }))
+      }
+      if (statement.includes('AS hospital_count')) {
+        return result(countBy('category').map(([category, hospitalCount]) => ({ category, hospital_count: hospitalCount })))
+      }
+      throw new Error(`Unexpected overview query: ${statement}`)
     })
 
     const overview = await (DashboardRepository as any).getHospitalOverview(filters, { execute })
     const details = await (DashboardRepository as any).getHospitalOverviewDetails({ ...filters, page: 1, pageSize: 10 }, { execute })
 
-    expect(overview.summary.total).toBe(2)
+    expect(overview.summary.total).toBe(3)
+    expect(overview.summary.periodNew).toBe(2)
     expect(overview.byCategory.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
     expect(overview.byProvince.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
+    expect(overview.byCity.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
     expect(details.total).toBe(overview.summary.total)
+    expect(overview.businessByCategory.find((row: any) => row.category === 'oral')).toMatchObject({
+      dispatchCount: 3,
+      arrivedCount: 2,
+      dealCount: 1,
+    })
+    expect(details.list.reduce((total: number, row: any) => total + row.dispatchCount, 0)).toBe(3)
   })
 
   it('falls back to unknown when the deferred category column is unavailable', async () => {
