@@ -119,6 +119,38 @@ describe('DashboardRepository.getHospitalOverview', () => {
     expect(statements[4]).toContain('2026-01-31T16:00:00.000Z')
   })
 
+  it('reconciles category and regional rollups for a filtered hospital set', async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce(result([{
+        total: '2', oral_count: '2', plastic_count: '0', unknown_count: '0', period_new: '1',
+      }]))
+      .mockResolvedValueOnce(result([{ category: 'oral', hospital_count: '2' }]))
+      .mockResolvedValueOnce(result([
+        { province_code: 11, province_name: 'Beijing', hospital_count: '1' },
+        { province_code: 31, province_name: 'Shanghai', hospital_count: '1' },
+      ]))
+      .mockResolvedValueOnce(result([
+        { province_code: 11, province_name: 'Beijing', city_code: 1101, city_name: 'Beijing', hospital_count: '1' },
+        { province_code: 31, province_name: 'Shanghai', city_code: 3101, city_name: 'Shanghai', hospital_count: '1' },
+      ]))
+      .mockResolvedValueOnce(result([]))
+
+    const overview = await (DashboardRepository as any).getHospitalOverview({
+      category: 'oral',
+      status: 1,
+    }, { execute })
+
+    expect(overview.summary).toEqual({ total: 2, oral: 2, plastic: 0, unknown: 0, periodNew: 1 })
+    expect(overview.byCategory).toEqual([
+      { category: 'oral', hospitalCount: 2 },
+      { category: 'plastic', hospitalCount: 0 },
+      { category: 'unknown', hospitalCount: 0 },
+    ])
+    expect(overview.byCategory.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(2)
+    expect(overview.byProvince.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(2)
+    expect(overview.byCity.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(2)
+  })
+
   it('falls back to unknown when the deferred category column is unavailable', async () => {
     const unknownColumn = Object.assign(new Error('Unknown column category'), {
       cause: { code: 'ER_BAD_FIELD_ERROR' },
@@ -237,6 +269,23 @@ describe('DashboardService.getHospitalOverview', () => {
     )).rejects.toMatchObject({ code: AuthErrorCode.FORBIDDEN })
 
     expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('allows a regular backend role with the all-data scope', async () => {
+    const overview = {
+      summary: { total: 0, oral: 0, plastic: 0, unknown: 0, periodNew: 0 },
+      byCategory: [], byProvince: [], byCity: [], businessByCategory: [],
+    }
+    const spy = vi.spyOn(DashboardRepository as any, 'getHospitalOverview').mockResolvedValue(overview)
+
+    await expect((DashboardService as any).getHospitalOverview(
+      2,
+      [ROLE_IDS.CUSTOMER_SERVICE],
+      1,
+      {},
+    )).resolves.toMatchObject({ summary: { total: 0 } })
+
+    expect(spy).toHaveBeenCalledOnce()
   })
 
   it('lets super admins access the overview even when they also have the hospital role', async () => {
