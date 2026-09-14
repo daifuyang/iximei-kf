@@ -10,6 +10,15 @@ import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
+function isCalendarDate(date: string) {
+  if (!DATE_REGEX.test(date)) return false
+  const [year, month, day] = date.split('-').map(Number)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day
+}
+
 const dashboard: FastifyPluginAsync = async (app) => {
   const route = createRouteRegistrar(app)
 
@@ -65,7 +74,7 @@ const dashboard: FastifyPluginAsync = async (app) => {
         })
       }
       if (query.startDate && query.endDate) {
-        if (!DATE_REGEX.test(query.startDate) || !DATE_REGEX.test(query.endDate)) {
+        if (!isCalendarDate(query.startDate) || !isCalendarDate(query.endDate)) {
           return reply.status(400).send({
             success: false,
             message: '日期格式无效，必须为 YYYY-MM-DD',
@@ -125,7 +134,7 @@ const dashboard: FastifyPluginAsync = async (app) => {
 
       // 参数校验：日期格式必须为 YYYY-MM-DD
       if (startDate && endDate) {
-        if (!DATE_REGEX.test(startDate) || !DATE_REGEX.test(endDate)) {
+        if (!isCalendarDate(startDate) || !isCalendarDate(endDate)) {
           return reply.status(400).send({
             success: false,
             message: '日期格式无效，必须为 YYYY-MM-DD',

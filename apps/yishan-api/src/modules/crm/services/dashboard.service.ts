@@ -133,9 +133,20 @@ function toShanghaiDate(dateStr: string): Date {
   return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 8 * 3600000)
 }
 
+function isCalendarDate(dateStr: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
+  if (!match) return false
+  const [, year, month, day] = match
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
+  return date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day)
+}
+
 /** 校验并构建 DateRange（Asia/Shanghai 时区，半开区间 [start, end+1day)） */
 function buildDateRange(startDate?: string, endDate?: string): DateRange | undefined {
   if (!startDate || !endDate) return undefined
+  if (!isCalendarDate(startDate) || !isCalendarDate(endDate)) return undefined
   const start = toShanghaiDate(startDate)
   const end = toShanghaiDate(endDate)
   // 校验：日期字符串必须格式正确（toShanghaiDate 不会返回 Invalid Date）
@@ -151,25 +162,35 @@ export class DashboardService {
     scope: DataScopeCode,
     query: DashboardQuery = {},
   ) {
-    if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
+    const isSuperAdmin = roleIds.includes(ROLE_IDS.SUPER_ADMIN)
+    if (!isSuperAdmin && roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
       throw new BusinessError(AuthErrorCode.FORBIDDEN, '医院账号不能访问运营总览')
     }
-    if (scope !== DATA_SCOPE.ALL) {
+    if (!isSuperAdmin && scope !== DATA_SCOPE.ALL) {
       throw new BusinessError(AuthErrorCode.FORBIDDEN, '当前数据范围不能访问运营总览')
     }
 
     const dateRange = buildDateRange(query.startDate, query.endDate)
+    const filters = {
+      ...(query.startDate ? { startDate: query.startDate } : {}),
+      ...(query.endDate ? { endDate: query.endDate } : {}),
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.provinceCode === undefined ? {} : { provinceCode: Number(query.provinceCode) }),
+      ...(query.cityCode === undefined ? {} : { cityCode: Number(query.cityCode) }),
+      ...(query.status === undefined ? {} : { status: Number(query.status) }),
+    }
     const overview = await DashboardRepository.getHospitalOverview({
       startDate: dateRange?.startDate,
       endDate: dateRange?.endDate,
-      category: query.category,
-      provinceCode: query.provinceCode === undefined ? undefined : Number(query.provinceCode),
-      cityCode: query.cityCode === undefined ? undefined : Number(query.cityCode),
-      status: query.status === undefined ? undefined : Number(query.status),
+      category: filters.category,
+      provinceCode: filters.provinceCode,
+      cityCode: filters.cityCode,
+      status: filters.status,
     })
 
     return {
       generatedAt: new Date().toISOString(),
+      filters,
       ...overview,
     }
   }

@@ -10,6 +10,23 @@ function result(rows: unknown[]) {
   return [rows, []]
 }
 
+function dumpSql(node: any, seen = new WeakSet()): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') return String(node)
+  if (node instanceof Date) return node.toISOString()
+  if (typeof node !== 'object' || seen.has(node)) return ''
+  seen.add(node)
+  if (Array.isArray(node.value) && node.value.every((value: unknown) => typeof value === 'string')) {
+    return node.value.join('')
+  }
+  if (Array.isArray(node.queryChunks)) return node.queryChunks.map((chunk: any) => dumpSql(chunk, seen)).join('')
+  if (node.constructor?.name === 'Param' || node.constructor?.name === 'Placeholder') {
+    return dumpSql(node.value, seen)
+  }
+  if (node.sql) return dumpSql(node.sql, seen)
+  return ''
+}
+
 describe('DashboardRepository.getHospitalOverview', () => {
   it('normalizes oral, plastic, and unknown groups with numeric zero-rate metrics', async () => {
     const execute = vi.fn()
@@ -36,7 +53,6 @@ describe('DashboardRepository.getHospitalOverview', () => {
     const overview = await (DashboardRepository as any).getHospitalOverview({
       startDate: new Date('2026-01-01T00:00:00.000Z'),
       endDate: new Date('2026-01-31T00:00:00.000Z'),
-      category: 'unknown',
       provinceCode: 11,
       cityCode: 1101,
       status: 1,
@@ -65,7 +81,42 @@ describe('DashboardRepository.getHospitalOverview', () => {
     expect(overview.byCity).toEqual([
       { provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', hospitalCount: 4 },
     ])
+    expect(overview.byCategory.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
+    expect(overview.byProvince.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
+    expect(overview.byCity.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
     expect(execute).toHaveBeenCalledTimes(5)
+  })
+
+  it('binds soft-delete, date, category, region, and status filters to every aggregate query', async () => {
+    const execute = vi.fn().mockResolvedValue(result([]))
+    await (DashboardRepository as any).getHospitalOverview({
+      startDate: new Date('2025-12-31T16:00:00.000Z'),
+      endDate: new Date('2026-01-30T16:00:00.000Z'),
+      category: 'unknown',
+      provinceCode: 11,
+      cityCode: 1101,
+      status: 1,
+    }, { execute })
+
+    const statements = execute.mock.calls.map(([query]: any[]) => dumpSql(query))
+    expect(execute).toHaveBeenCalledTimes(5)
+    for (const statement of statements) {
+      expect(statement).toContain('h.deleted_at IS NULL')
+      expect(statement).toContain('h.category')
+      expect(statement).toContain('unknown')
+      expect(statement).toContain('h.province_id')
+      expect(statement).toContain('11')
+      expect(statement).toContain('h.city_id')
+      expect(statement).toContain('1101')
+      expect(statement).toContain('h.status')
+    }
+    expect(statements[0]).toContain('h.created_at')
+    expect(statements[0]).toContain('2025-12-31T16:00:00.000Z')
+    expect(statements[0]).toContain('2026-01-31T16:00:00.000Z')
+    expect(statements[4]).toContain('d.deleted_at IS NULL')
+    expect(statements[4]).toContain('d.created_at')
+    expect(statements[4]).toContain('2025-12-31T16:00:00.000Z')
+    expect(statements[4]).toContain('2026-01-31T16:00:00.000Z')
   })
 
   it('falls back to unknown when the deferred category column is unavailable', async () => {
@@ -112,6 +163,7 @@ describe('DashboardService.getHospitalOverview', () => {
     )
 
     expect(response.summary.total).toBe(0)
+    expect(response.filters).toEqual({ startDate: '2026-01-01', endDate: '2026-01-31' })
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({
       startDate: new Date('2025-12-31T16:00:00.000Z'),
       endDate: new Date('2026-01-30T16:00:00.000Z'),
@@ -129,6 +181,23 @@ describe('DashboardService.getHospitalOverview', () => {
     )).rejects.toMatchObject({ code: AuthErrorCode.FORBIDDEN })
 
     expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('lets super admins access the overview even when they also have the hospital role', async () => {
+    const overview = {
+      summary: { total: 0, oral: 0, plastic: 0, unknown: 0, periodNew: 0 },
+      byCategory: [], byProvince: [], byCity: [], businessByCategory: [],
+    }
+    const spy = vi.spyOn(DashboardRepository as any, 'getHospitalOverview').mockResolvedValue(overview)
+
+    await expect((DashboardService as any).getHospitalOverview(
+      1,
+      [ROLE_IDS.HOSPITAL_ACCOUNT, ROLE_IDS.SUPER_ADMIN],
+      5,
+      {},
+    )).resolves.toMatchObject({ summary: { total: 0 } })
+
+    expect(spy).toHaveBeenCalledOnce()
   })
 
   it('rejects restricted data scopes until a hospital scope mapping exists', async () => {
@@ -151,6 +220,9 @@ describe('hospital overview route', () => {
   it('serves the aggregate contract with all supported filters', async () => {
     vi.spyOn(DashboardService as any, 'getHospitalOverview').mockResolvedValue({
       generatedAt: '2026-01-31T00:00:00.000Z',
+      filters: {
+        startDate: '2026-01-01', endDate: '2026-01-31', category: 'oral', provinceCode: 11, cityCode: 1101, status: 1,
+      },
       summary: { total: 0, oral: 0, plastic: 0, unknown: 0, periodNew: 0 },
       byCategory: [], byProvince: [], byCity: [], businessByCategory: [],
     })
@@ -169,9 +241,31 @@ describe('hospital overview route', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json().data).toMatchObject({
       generatedAt: '2026-01-31T00:00:00.000Z',
+      filters: {
+        startDate: '2026-01-01', endDate: '2026-01-31', category: 'oral', provinceCode: 11, cityCode: 1101, status: 1,
+      },
       summary: { total: 0, oral: 0, plastic: 0, unknown: 0, periodNew: 0 },
       byCategory: [], byProvince: [], byCity: [], businessByCategory: [],
     })
+    await app.close()
+  })
+
+  it('rejects impossible calendar dates with 400 before invoking the service', async () => {
+    const service = vi.spyOn(DashboardService as any, 'getHospitalOverview')
+    const app = Fastify()
+    app.decorate('authenticate', async (request: any) => {
+      request.currentUser = { id: 1, roleIds: [ROLE_IDS.SUPER_ADMIN], dataScope: 1 }
+    })
+    app.decorate('requirePermission', () => async () => {})
+    await app.register(dashboardRoutes, { prefix: '/api/crm/v1' })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/crm/v1/dashboard/hospital-overview?startDate=2026-02-31&endDate=2026-03-01',
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(service).not.toHaveBeenCalled()
     await app.close()
   })
 })

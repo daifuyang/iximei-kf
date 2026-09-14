@@ -9,6 +9,14 @@ export const CrmHospitalOverviewCategorySchema = Type.Union([
 export const CrmHospitalOverviewSchema = Type.Object(
   {
     generatedAt: Type.String({ format: 'date-time' }),
+    filters: Type.Object({
+      startDate: Type.Optional(Type.String()),
+      endDate: Type.Optional(Type.String()),
+      category: Type.Optional(CrmHospitalOverviewCategorySchema),
+      provinceCode: Type.Optional(Type.Integer()),
+      cityCode: Type.Optional(Type.Integer()),
+      status: Type.Optional(Type.Integer()),
+    }),
     summary: Type.Object({
       total: Type.Integer(),
       oral: Type.Integer(),
