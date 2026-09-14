@@ -147,6 +147,84 @@ export interface HospitalDistributionResp {
   items?: HospitalDistributionItem[];
 }
 
+/* ---------- Hospital overview ---------- */
+
+export type HospitalOverviewCategory = 'oral' | 'plastic' | 'unknown';
+
+export interface HospitalOverviewFilters {
+  startDate?: string;
+  endDate?: string;
+  category?: HospitalOverviewCategory;
+  provinceCode?: number;
+  cityCode?: number;
+  status?: number;
+}
+
+export interface HospitalOverviewSummary {
+  total: number;
+  oral: number;
+  plastic: number;
+  unknown: number;
+  periodNew: number;
+}
+
+export interface HospitalOverviewProvince {
+  provinceCode: number;
+  provinceName: string;
+  hospitalCount: number;
+}
+
+export interface HospitalOverviewCity extends HospitalOverviewProvince {
+  cityCode: number;
+  cityName: string;
+}
+
+export interface HospitalOverviewCategoryCount {
+  category: HospitalOverviewCategory;
+  hospitalCount: number;
+}
+
+export interface HospitalOverviewBusiness extends HospitalOverviewCategoryCount {
+  dispatchCount: number;
+  arrivedCount: number;
+  dealCount: number;
+  arrivedRate: number;
+  dealRate: number;
+}
+
+export interface HospitalOverview {
+  generatedAt: string;
+  filters: HospitalOverviewFilters;
+  summary: HospitalOverviewSummary;
+  byCategory: HospitalOverviewCategoryCount[];
+  byProvince: HospitalOverviewProvince[];
+  byCity: HospitalOverviewCity[];
+  businessByCategory: HospitalOverviewBusiness[];
+}
+
+export type HospitalDistributionSelection = Pick<
+  HospitalOverviewFilters,
+  'provinceCode' | 'cityCode' | 'category'
+>;
+
+export const normalizeHospitalOverview = (
+  value: Partial<HospitalOverview> | null | undefined,
+): HospitalOverview => ({
+  generatedAt: value?.generatedAt ?? '',
+  filters: value?.filters ?? {},
+  summary: {
+    total: value?.summary?.total ?? 0,
+    oral: value?.summary?.oral ?? 0,
+    plastic: value?.summary?.plastic ?? 0,
+    unknown: value?.summary?.unknown ?? 0,
+    periodNew: value?.summary?.periodNew ?? 0,
+  },
+  byCategory: value?.byCategory ?? [],
+  byProvince: value?.byProvince ?? [],
+  byCity: value?.byCity ?? [],
+  businessByCategory: value?.businessByCategory ?? [],
+});
+
 /* ---------- 看板页面整体响应（经过适配层） ---------- */
 
 export interface DashboardData {

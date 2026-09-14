@@ -1,384 +1,228 @@
-/**
- * 数据看板 — CRM 经营分析总览页
- *
- * 负责：
- * 1. 数据获取与状态管理
- * 2. 数据适配（原始 API → UI 数据）
- * 3. 组件编排与栅格布局
- *
- * 各子组件独立处理自身的 loading/empty/error 状态，
- * 单个卡片失败不影响其他卡片。
- */
-
 import { PageContainer } from '@ant-design/pro-components';
-import { App, Col, Row } from 'antd';
+import { history, useLocation } from '@umijs/max';
+import { Alert, Button, Card, DatePicker, Select, Space, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { getDashboardStats, searchHospitals } from '../../api';
-// TODO: 接入真实 AI 分析后恢复
-// import BusinessInsightsCard from './components/BusinessInsightsCard';
-import ConversionFunnelCard from './components/ConversionFunnelCard';
-import CustomerStatusCard from './components/CustomerStatusCard';
-import CustomerTrendCard from './components/CustomerTrendCard';
-import DashboardError from './components/DashboardError';
-import DashboardSkeleton from './components/DashboardSkeleton';
-import DashboardToolbar from './components/DashboardToolbar';
-import DispatchStatusCard from './components/DispatchStatusCard';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getHospitalOverview } from '../../api';
 import HospitalDistributionCard from './components/HospitalDistributionCard';
-import HospitalRankingCard from './components/HospitalRankingCard';
-import MetricCards from './components/MetricCards';
-import RecentActivityCard from './components/RecentActivityCard';
-import { GRID_COL } from './constants';
+import HospitalDrilldownDrawer from './components/HospitalDrilldownDrawer';
+import HospitalOverviewKpis from './components/HospitalOverviewKpis';
 import styles from './index.module.less';
-import type { DashboardFilters, DashboardStats } from './types';
-import {
-  buildFunnelStages,
-  buildHospitalRankings,
-  buildMetrics,
-  buildRecentActivities,
-  // generateInsights, // 见上方 BusinessInsightsCard 注释
-} from './utils';
+import type {
+  HospitalDistributionSelection,
+  HospitalOverview,
+  HospitalOverviewCategory,
+  HospitalOverviewFilters,
+} from './types';
+import { normalizeHospitalOverview } from './types';
 
-/* ──────── 主组件 ──────── */
+const { RangePicker } = DatePicker;
+
+const categories: Array<{ label: string; value: HospitalOverviewCategory }> = [
+  { label: '口腔医院', value: 'oral' },
+  { label: '整形医院', value: 'plastic' },
+  { label: '未分类医院', value: 'unknown' },
+];
+
+const numberParam = (value: string | null): number | undefined => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+};
+
+const readFilters = (search: string): HospitalOverviewFilters => {
+  const params = new URLSearchParams(search);
+  const category = params.get('category');
+  return {
+    startDate: params.get('startDate') || undefined,
+    endDate: params.get('endDate') || undefined,
+    category: category === 'oral' || category === 'plastic' || category === 'unknown' ? category : undefined,
+    provinceCode: numberParam(params.get('provinceCode')),
+    cityCode: numberParam(params.get('cityCode')),
+    status: numberParam(params.get('status')),
+  };
+};
+
+const writeFilters = (filters: HospitalOverviewFilters) => {
+  const params = new URLSearchParams();
+  (Object.entries(filters) as Array<[keyof HospitalOverviewFilters, string | number | undefined]>).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  });
+  return params.toString();
+};
 
 const DashboardPage: React.FC = () => {
-  const { message } = App.useApp();
-
-  /* ---------- 状态 ---------- */
+  const location = useLocation();
+  const filters = useMemo(() => readFilters(location.search), [location.search]);
+  const [overview, setOverview] = useState<HospitalOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [hospitalOptions, setHospitalOptions] = useState<
-    { label: string; value: number }[]
-  >([]);
-  const [selectedHospitalOption, setSelectedHospitalOption] = useState<{
-    label: string;
-    value: number;
-  } | null>(null);
-  const [hospitalOptionsLoading, setHospitalOptionsLoading] = useState(false);
-  const [filters, setFilters] = useState<DashboardFilters>({
-    timeRange: '12m',
-    startDate: dayjs().subtract(12, 'month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD'),
-  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const requestRef = useRef(0);
 
-  // 用于取消过期请求
-  const requestSeqRef = useRef(0);
-  const hospitalSearchSeqRef = useRef(0);
-  const hospitalSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const updateFilters = useCallback((next: HospitalOverviewFilters) => {
+    const query = writeFilters(next);
+    history.replace(`${location.pathname}${query ? `?${query}` : ''}`);
+  }, [location.pathname]);
 
-  /* ---------- 医院列表 ---------- */
-
-  const handleHospitalSearch = useCallback((keyword: string) => {
-    if (hospitalSearchTimerRef.current) {
-      clearTimeout(hospitalSearchTimerRef.current);
-    }
-
-    const seq = ++hospitalSearchSeqRef.current;
-    const normalizedKeyword = keyword.trim();
-    setHospitalOptionsLoading(true);
-    hospitalSearchTimerRef.current = setTimeout(() => {
-      searchHospitals(normalizedKeyword ? { keyword: normalizedKeyword } : {})
-        .then((res: any) => {
-          if (seq !== hospitalSearchSeqRef.current) return;
-          const list = res?.data ?? [];
-          if (Array.isArray(list)) {
-            setHospitalOptions(
-              list.slice(0, 50).map((hospital: any) => ({
-                label: hospital.hospitalName,
-                value: hospital.id,
-              })),
-            );
-          }
-        })
-        .catch(() => {
-          if (seq === hospitalSearchSeqRef.current) {
-            setHospitalOptions([]);
-          }
-        })
-        .finally(() => {
-          if (seq === hospitalSearchSeqRef.current) {
-            setHospitalOptionsLoading(false);
-          }
-        });
-    }, 300);
-  }, []);
-
-  useEffect(
-    () => () => {
-      hospitalSearchSeqRef.current += 1;
-      if (hospitalSearchTimerRef.current) {
-        clearTimeout(hospitalSearchTimerRef.current);
-      }
-    },
-    [],
-  );
-
-  const handleHospitalChange = useCallback(
-    (hospitalId: number | undefined) => {
-      if (hospitalId == null) {
-        setSelectedHospitalOption(null);
-      } else {
-        const option = hospitalOptions.find(
-          (item) => item.value === hospitalId,
-        );
-        if (option) setSelectedHospitalOption(option);
-      }
-      setFilters((current) => ({ ...current, hospitalId }));
-    },
-    [hospitalOptions],
-  );
-
-  /* ---------- 数据获取 ---------- */
-
-  const fetchData = useCallback(async () => {
-    const seq = ++requestSeqRef.current;
+  const fetchOverview = useCallback(async () => {
+    const request = ++requestRef.current;
     setLoading(true);
     setError(null);
     try {
-      const res = (await getDashboardStats({
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        hospitalId: filters.hospitalId,
-      })) as {
-        success: boolean;
-        data: DashboardStats;
-        message?: string;
-      };
-      // 忽略过期请求的响应
-      if (seq !== requestSeqRef.current) return;
-      if (res.success && res.data) {
-        setStats(res.data);
-      } else {
-        throw new Error(res.message || '获取看板数据失败');
-      }
-    } catch (err) {
-      if (seq !== requestSeqRef.current) return;
-      const e = err instanceof Error ? err : new Error('网络异常');
-      setError(e);
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('[Dashboard] 数据加载失败:', e);
-      }
+      const response = await getHospitalOverview(filters);
+      if (request !== requestRef.current) return;
+      if (!response?.success) throw new Error(response?.message || '获取医院总览失败');
+      setOverview(normalizeHospitalOverview(response.data));
+    } catch (cause) {
+      if (request !== requestRef.current) return;
+      setError(cause instanceof Error ? cause : new Error('获取医院总览失败'));
     } finally {
-      if (seq === requestSeqRef.current) {
-        setLoading(false);
-      }
+      if (request === requestRef.current) setLoading(false);
     }
-  }, [filters.startDate, filters.endDate, filters.hospitalId]);
+  }, [filters]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchOverview();
+  }, [fetchOverview]);
 
-  /* ---------- 数据适配 ---------- */
+  const applySelection = useCallback((selection: HospitalDistributionSelection, openDrawer = true) => {
+    const next: HospitalOverviewFilters = { ...filters };
+    if (selection.category !== undefined || Object.keys(selection).length === 0) {
+      next.category = selection.category;
+    }
+    if (selection.provinceCode !== undefined) {
+      next.provinceCode = selection.provinceCode;
+      next.cityCode = selection.cityCode;
+    } else if (selection.cityCode !== undefined) {
+      next.cityCode = selection.cityCode;
+    }
+    updateFilters(next);
+    if (openDrawer) setDrawerOpen(true);
+  }, [filters, updateFilters]);
 
-  // 看板默认也会带近 12 月的起止日期请求；只要存在完整日期范围，
-  // 卡片即展示该统计期的数据，而不是容易造成误解的累计存量。
-  const hasPeriodFilter = Boolean(filters.startDate && filters.endDate);
+  const cities = useMemo(() => {
+    const source = overview?.byCity ?? [];
+    return source.filter((item) => !filters.provinceCode || item.provinceCode === filters.provinceCode);
+  }, [filters.provinceCode, overview?.byCity]);
 
-  const lastUpdated = useMemo(
-    () => stats?.generatedAt ?? dayjs().format('YYYY-MM-DD HH:mm'),
-    [stats?.generatedAt],
-  );
+  const setDateRange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    updateFilters({
+      ...filters,
+      startDate: dates?.[0]?.format('YYYY-MM-DD'),
+      endDate: dates?.[1]?.format('YYYY-MM-DD'),
+    });
+  };
 
-  const metrics = useMemo(
-    () => (stats ? buildMetrics(stats, hasPeriodFilter) : []),
-    [stats, hasPeriodFilter],
-  );
-
-  const funnelStages = useMemo(
-    () => (stats ? buildFunnelStages(stats) : []),
-    [stats],
-  );
-
-  // 经营分析与建议暂时隐藏，等接入真实 AI 分析后恢复
-  // const insights = useMemo(
-  //   () => (stats ? generateInsights(stats) : []),
-  //   [stats],
-  // );
-
-  const activities = useMemo(
-    () => (stats ? buildRecentActivities(stats, hasPeriodFilter) : []),
-    [stats, hasPeriodFilter],
-  );
-
-  const hospitalRankings = useMemo(
-    () => (stats ? buildHospitalRankings(stats) : []),
-    [stats],
-  );
-
-  /* ---------- 事件处理 ---------- */
-
-  const handleRefresh = useCallback(() => {
-    message.loading({ content: '正在刷新...', key: 'refresh', duration: 0 });
-    // 保留旧数据，重新请求
-    const seq = ++requestSeqRef.current;
-    setLoading(true);
-    setError(null);
-    getDashboardStats({
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      hospitalId: filters.hospitalId,
-    })
-      .then((res: any) => {
-        if (seq !== requestSeqRef.current) return;
-        if (res.success && res.data) {
-          setStats(res.data);
-          message.success({ content: '数据已刷新', key: 'refresh' });
-        } else {
-          message.error({ content: res.message || '刷新失败', key: 'refresh' });
-        }
-      })
-      .catch((err: any) => {
-        if (seq !== requestSeqRef.current) return;
-        message.error({ content: '刷新失败', key: 'refresh' });
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn('[Dashboard] 刷新失败:', err);
-        }
-      })
-      .finally(() => {
-        if (seq === requestSeqRef.current) {
-          setLoading(false);
-        }
-      });
-  }, [message, filters.startDate, filters.endDate, filters.hospitalId]);
-
-  /* ---------- 状态渲染 ---------- */
-
-  // 首次加载 → 骨架屏
-  if (loading && !stats) {
-    return (
-      <PageContainer>
-        <DashboardSkeleton />
-      </PageContainer>
-    );
-  }
-
-  // 加载失败 → 错误页
-  if (error && !stats) {
-    return (
-      <PageContainer>
-        <DashboardError error={error} onRetry={fetchData} />
-      </PageContainer>
-    );
-  }
-
-  /* ---------- 正常渲染（无数据时各卡片自行渲染 0 高度的图，不显示 Empty）---------- */
+  const categoryRows = overview?.businessByCategory ?? [];
 
   return (
     <PageContainer
       header={{
-        title: '数据看板',
-        subTitle: '展示医院、客户、派单及经营转化的核心数据',
+        title: '医院资源总览',
+        subTitle: '统一筛选医院规模、分布与经营表现',
       }}
     >
       <div className={styles.pageContent}>
-        {/* 全局筛选工具栏 */}
-        <DashboardToolbar
-          filters={filters}
-          onChange={setFilters}
-          onRefresh={handleRefresh}
-          loading={loading}
-          lastUpdated={lastUpdated}
-          hospitalOptions={hospitalOptions}
-          selectedHospitalOption={selectedHospitalOption}
-          hospitalOptionsLoading={hospitalOptionsLoading}
-          onHospitalSearch={handleHospitalSearch}
-          onHospitalChange={handleHospitalChange}
+        <div className={styles.toolbar}>
+          <div className={styles.toolbarLeft}>
+            <RangePicker
+              value={filters.startDate && filters.endDate ? [dayjs(filters.startDate), dayjs(filters.endDate)] : null}
+              onChange={setDateRange}
+              aria-label="统计时间范围"
+            />
+            <Select
+              allowClear
+              placeholder="全部类型"
+              value={filters.category}
+              options={categories}
+              onChange={(category) => updateFilters({ ...filters, category })}
+              style={{ width: 132 }}
+              aria-label="医院类型"
+            />
+            <Select
+              allowClear
+              placeholder="全部省份"
+              value={filters.provinceCode}
+              options={(overview?.byProvince ?? []).map((item) => ({ label: item.provinceName, value: item.provinceCode }))}
+              onChange={(provinceCode) => updateFilters({ ...filters, provinceCode, cityCode: undefined })}
+              style={{ width: 132 }}
+              aria-label="省份"
+            />
+            <Select
+              allowClear
+              placeholder="全部城市"
+              value={filters.cityCode}
+              options={cities.map((item) => ({ label: item.cityName, value: item.cityCode }))}
+              onChange={(cityCode) => updateFilters({ ...filters, cityCode })}
+              style={{ width: 132 }}
+              aria-label="城市"
+            />
+            <Select
+              allowClear
+              placeholder="全部状态"
+              value={filters.status}
+              options={[{ label: '启用', value: 1 }, { label: '停用', value: 0 }]}
+              onChange={(status) => updateFilters({ ...filters, status })}
+              style={{ width: 112 }}
+              aria-label="医院状态"
+            />
+            {overview?.generatedAt && <span className={styles.updateTime}>生成时间：{overview.generatedAt}</span>}
+          </div>
+          <div className={styles.toolbarRight}>
+            <Button type="primary" loading={loading} onClick={fetchOverview}>刷新</Button>
+          </div>
+        </div>
+
+        {error && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="error"
+            showIcon
+            message="医院总览加载失败"
+            description={error.message}
+            action={<Button size="small" onClick={fetchOverview}>重试</Button>}
+          />
+        )}
+
+        <HospitalOverviewKpis
+          summary={overview?.summary ?? { total: 0, oral: 0, plastic: 0, unknown: 0, periodNew: 0 }}
+          loading={loading && !overview}
+          onSelect={(selection) => applySelection(selection)}
         />
 
-        {/* 1. 核心指标卡 */}
-        <MetricCards metrics={metrics} loading={loading && !!stats} />
+        <HospitalDistributionCard
+          byProvince={overview?.byProvince}
+          byCity={overview?.byCity}
+          byCategory={overview?.byCategory}
+          loading={loading && !!overview}
+          error={error}
+          onSelect={(selection) => applySelection(selection)}
+        />
 
-        {/* 2. 客户趋势 + 状态分布 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col {...GRID_COL.wider}>
-            <CustomerTrendCard
-              data={stats?.monthlyTrend?.customers ?? []}
-              loading={loading && !!stats}
-            />
-          </Col>
-          <Col {...GRID_COL.narrower}>
-            <CustomerStatusCard
-              data={stats?.customerByStatus ?? []}
-              total={
-                hasPeriodFilter
-                  ? (stats?.customers?.periodNew ?? 0)
-                  : (stats?.customers?.total ?? 0)
-              }
-              loading={loading && !!stats}
-            />
-          </Col>
-        </Row>
-
-        {/* 3. 派单状态 + 客户状态结构 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col {...GRID_COL.wider}>
-            <DispatchStatusCard
-              data={stats?.dispatchByStatus ?? []}
-              loading={loading && !!stats}
-            />
-          </Col>
-          <Col {...GRID_COL.narrower}>
-            <ConversionFunnelCard
-              stages={funnelStages}
-              loading={loading && !!stats}
-            />
-          </Col>
-        </Row>
-
-        {/* 4. 经营分析与建议 — 暂时隐藏，等接入真实 AI 分析后再放出 */}
-        {/* <BusinessInsightsCard
-          insights={insights}
-          loading={loading && !!stats}
-        /> */}
-
-        {/* 4.5 医院分布看板（按城市）。非 super_admin/admin 后端返回空数组，卡片走 Empty。 */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col {...GRID_COL.full}>
-            <HospitalDistributionCard
-              data={
-                (stats as any)?.hospitalDistribution as
-                  | { generatedAt?: string; items?: Array<{
-                    provinceCode: number;
-                    provinceName: string;
-                    cityCode: number;
-                    cityName: string;
-                    oralCount: number;
-                    plasticCount: number;
-                    total: number;
-                  }> }
-                  | undefined
-              }
-              loading={loading && !!stats}
-            />
-          </Col>
-        </Row>
-
-        {/* 5. 本期摘要 + 医院效率榜 */}
-        <Row gutter={[16, 16]}>
-          <Col {...GRID_COL.half}>
-            <RecentActivityCard
-              activities={activities}
-              loading={loading && !!stats}
-            />
-          </Col>
-          <Col {...GRID_COL.half}>
-            <HospitalRankingCard
-              rankings={hospitalRankings}
-              loading={loading && !!stats}
-            />
-          </Col>
-        </Row>
+        <Card title="类型经营表现" style={{ marginTop: 16 }}>
+          <Table
+            size="small"
+            rowKey="category"
+            dataSource={categoryRows}
+            pagination={false}
+            locale={{ emptyText: '暂无经营数据' }}
+            columns={[
+              { title: '类型', dataIndex: 'category', render: (value: HospitalOverviewCategory) => categories.find((item) => item.value === value)?.label ?? value },
+              { title: '派单数', dataIndex: 'dispatchCount' },
+              { title: '到院数', dataIndex: 'arrivedCount' },
+              { title: '成交数', dataIndex: 'dealCount' },
+              { title: '到院率', dataIndex: 'arrivedRate', render: (value: number) => `${(value * 100).toFixed(1)}%` },
+              { title: '成交率', dataIndex: 'dealRate', render: (value: number) => `${(value * 100).toFixed(1)}%` },
+            ]}
+          />
+          <Space style={{ marginTop: 12 }}>
+            <Tag color="gold">未分类医院</Tag>
+            <a href="/crm/hospitals?category=unknown">进入医院管理补齐类型</a>
+          </Space>
+        </Card>
       </div>
+
+      <HospitalDrilldownDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} filters={filters} />
     </PageContainer>
   );
 };

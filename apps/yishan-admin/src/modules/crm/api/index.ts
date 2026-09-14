@@ -237,6 +237,16 @@ export const getDashboardStats = (params?: {
   hospitalId?: number;
 }) => getCrmDashboardStats(params || {});
 
+/** Hospital resource and operating overview. The OpenAPI client is regenerated separately. */
+export const getHospitalOverview = (params: {
+  startDate?: string;
+  endDate?: string;
+  category?: 'oral' | 'plastic' | 'unknown';
+  provinceCode?: number;
+  cityCode?: number;
+  status?: number;
+} = {}) => request<any>('/api/crm/v1/dashboard/hospital-overview', { params });
+
 /**
  * 医院数据看板。
  *
