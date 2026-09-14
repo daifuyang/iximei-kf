@@ -144,7 +144,28 @@ describe('DashboardRepository.getHospitalOverview', () => {
       { id: 3, hospitalId: 1, status: 4, createdAt: '2026-01-15T00:00:00.000Z', deletedAt: '2026-01-16T00:00:00.000Z' },
       { id: 4, hospitalId: 2, status: 3, createdAt: '2025-12-20T00:00:00.000Z', deletedAt: null },
       { id: 5, hospitalId: 2, status: 4, createdAt: '2026-01-20T00:00:00.000Z', deletedAt: null },
-      { id: 6, hospitalId: 8, status: 3, createdAt: '2026-01-25T00:00:00.000Z', deletedAt: null },
+      // Every hospital excluded by one overview predicate has a unique metric tuple.
+      { id: 6, hospitalId: 3, status: 3, createdAt: '2026-01-11T00:00:00.000Z', deletedAt: null },
+      { id: 7, hospitalId: 4, status: 4, createdAt: '2026-01-12T00:00:00.000Z', deletedAt: null },
+      { id: 8, hospitalId: 4, status: 4, createdAt: '2026-01-13T00:00:00.000Z', deletedAt: null },
+      { id: 9, hospitalId: 5, status: 3, createdAt: '2026-01-14T00:00:00.000Z', deletedAt: null },
+      { id: 10, hospitalId: 5, status: 4, createdAt: '2026-01-15T00:00:00.000Z', deletedAt: null },
+      { id: 11, hospitalId: 5, status: 4, createdAt: '2026-01-16T00:00:00.000Z', deletedAt: null },
+      { id: 12, hospitalId: 6, status: 3, createdAt: '2026-01-17T00:00:00.000Z', deletedAt: null },
+      { id: 13, hospitalId: 6, status: 3, createdAt: '2026-01-18T00:00:00.000Z', deletedAt: null },
+      { id: 14, hospitalId: 6, status: 4, createdAt: '2026-01-19T00:00:00.000Z', deletedAt: null },
+      { id: 15, hospitalId: 6, status: 4, createdAt: '2026-01-20T00:00:00.000Z', deletedAt: null },
+      { id: 16, hospitalId: 7, status: 3, createdAt: '2026-01-21T00:00:00.000Z', deletedAt: null },
+      { id: 17, hospitalId: 7, status: 3, createdAt: '2026-01-22T00:00:00.000Z', deletedAt: null },
+      { id: 18, hospitalId: 7, status: 3, createdAt: '2026-01-23T00:00:00.000Z', deletedAt: null },
+      { id: 19, hospitalId: 7, status: 4, createdAt: '2026-01-24T00:00:00.000Z', deletedAt: null },
+      { id: 20, hospitalId: 7, status: 4, createdAt: '2026-01-25T00:00:00.000Z', deletedAt: null },
+      { id: 21, hospitalId: 8, status: 3, createdAt: '2026-01-23T00:00:00.000Z', deletedAt: null },
+      { id: 22, hospitalId: 8, status: 3, createdAt: '2026-01-24T00:00:00.000Z', deletedAt: null },
+      { id: 23, hospitalId: 8, status: 3, createdAt: '2026-01-25T00:00:00.000Z', deletedAt: null },
+      { id: 24, hospitalId: 8, status: 4, createdAt: '2026-01-26T00:00:00.000Z', deletedAt: null },
+      { id: 25, hospitalId: 8, status: 4, createdAt: '2026-01-27T00:00:00.000Z', deletedAt: null },
+      { id: 26, hospitalId: 8, status: 4, createdAt: '2026-01-28T00:00:00.000Z', deletedAt: null },
     ]
     const predicateNumber = (statement: string, column: string) => Number(
       statement.match(new RegExp(`${column.replace('.', '\\.')} = (-?\\d+)`))?.[1],
@@ -178,6 +199,10 @@ describe('DashboardRepository.getHospitalOverview', () => {
         && (!range || (new Date(dispatch.createdAt) >= range[0] && new Date(dispatch.createdAt) < range[1]))
       ))
     }
+    const isDetailRowsQuery = (statement: string) => (
+      /FROM crm_hospital h[\s\S]*GROUP BY h\.id\b/.test(statement)
+      && statement.includes('COUNT(d.id) AS dispatch_count')
+    )
     const execute = vi.fn(async (query: unknown) => {
       const statement = dumpSql(query)
       const matchedHospitals = matchingHospitals(statement)
@@ -199,7 +224,7 @@ describe('DashboardRepository.getHospitalOverview', () => {
           period_new: String(periodNew),
         }])
       }
-      if (statement.includes('SELECT h.id, h.hospital_name')) {
+      if (isDetailRowsQuery(statement)) {
         return result(matchedHospitals
           .slice()
           .sort((left, right) => right.id - left.id)
@@ -256,18 +281,38 @@ describe('DashboardRepository.getHospitalOverview', () => {
     const overview = await (DashboardRepository as any).getHospitalOverview(filters, { execute })
     const details = await (DashboardRepository as any).getHospitalOverviewDetails({ ...filters, page: 1, pageSize: 10 }, { execute })
 
-    expect(overview.summary.total).toBe(3)
-    expect(overview.summary.periodNew).toBe(2)
-    expect(overview.byCategory.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
-    expect(overview.byProvince.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
-    expect(overview.byCity.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
-    expect(details.total).toBe(overview.summary.total)
-    expect(overview.businessByCategory.find((row: any) => row.category === 'oral')).toMatchObject({
-      dispatchCount: 3,
-      arrivedCount: 2,
-      dealCount: 1,
+    expect(overview.summary).toEqual({ total: 3, oral: 3, plastic: 0, unknown: 0, periodNew: 2 })
+    expect(overview.byCategory).toEqual([
+      { category: 'oral', hospitalCount: 3 },
+      { category: 'plastic', hospitalCount: 0 },
+      { category: 'unknown', hospitalCount: 0 },
+    ])
+    expect(overview.byProvince).toEqual([{ provinceCode: 11, provinceName: 'Beijing', hospitalCount: 3 }])
+    expect(overview.byCity).toEqual([{
+      provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', hospitalCount: 3,
+    }])
+    expect(overview.businessByCategory).toEqual([
+      { category: 'oral', dispatchCount: 8, arrivedCount: 4, dealCount: 4, arrivedRate: 50, dealRate: 50 },
+      { category: 'plastic', dispatchCount: 0, arrivedCount: 0, dealCount: 0, arrivedRate: 0, dealRate: 0 },
+      { category: 'unknown', dispatchCount: 0, arrivedCount: 0, dealCount: 0, arrivedRate: 0, dealRate: 0 },
+    ])
+    expect(details).toEqual({
+      total: 3,
+      list: [
+        {
+          id: 8, hospitalName: 'Hospital 8', category: 'oral', provinceName: 'Beijing', cityName: 'Beijing', status: 1,
+          dispatchCount: 6, arrivedCount: 3, dealCount: 3, latestDispatchAt: '2026-01-28T00:00:00.000Z',
+        },
+        {
+          id: 2, hospitalName: 'Hospital 2', category: 'oral', provinceName: 'Beijing', cityName: 'Beijing', status: 1,
+          dispatchCount: 1, arrivedCount: 0, dealCount: 1, latestDispatchAt: '2026-01-20T00:00:00.000Z',
+        },
+        {
+          id: 1, hospitalName: 'Hospital 1', category: 'oral', provinceName: 'Beijing', cityName: 'Beijing', status: 1,
+          dispatchCount: 1, arrivedCount: 1, dealCount: 0, latestDispatchAt: '2026-01-10T00:00:00.000Z',
+        },
+      ],
     })
-    expect(details.list.reduce((total: number, row: any) => total + row.dispatchCount, 0)).toBe(3)
   })
 
   it('falls back to unknown when the deferred category column is unavailable', async () => {
