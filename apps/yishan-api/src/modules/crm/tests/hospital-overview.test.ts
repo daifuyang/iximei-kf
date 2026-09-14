@@ -181,7 +181,7 @@ describe('DashboardRepository.getHospitalOverview', () => {
     )
     const matchingHospitals = (statement: string, includeCreatedDate = false) => {
       const category = statement.match(/END = '?(oral|plastic|unknown)'?/)?.[1]
-      const createdRange = includeCreatedDate ? dateRange(statement, 'h.created_at') : undefined
+      const createdRange = dateRange(includeCreatedDate ? statement : statement.slice(statement.lastIndexOf('WHERE')), 'h.created_at')
       return hospitals.filter((hospital) => (
         (!statement.includes('h.deleted_at IS NULL') || hospital.deletedAt == null)
         && (!category || categoryFor(hospital) === category)
@@ -313,6 +313,16 @@ describe('DashboardRepository.getHospitalOverview', () => {
         },
       ],
     })
+    const newFilters = { ...filters, hospitalScope: 'period-new' as const }
+    const newOverview = await DashboardRepository.getHospitalOverview(newFilters, { execute })
+    const newDetails = await DashboardRepository.getHospitalOverviewDetails({ ...newFilters, page: 1, pageSize: 10 }, { execute })
+    expect(newOverview.summary).toEqual({ total: 2, oral: 2, plastic: 0, unknown: 0, periodNew: 2 })
+    expect(newOverview.byCategory[0].hospitalCount).toBe(2)
+    expect(newOverview.byProvince[0].hospitalCount).toBe(2)
+    expect(newOverview.byCity[0].hospitalCount).toBe(2)
+    expect(newOverview.businessByCategory[0]).toMatchObject({ dispatchCount: 2, arrivedCount: 1, dealCount: 1 })
+    expect(newDetails.total).toBe(2)
+    expect(newDetails.list.map((row) => row.id)).toEqual([2, 1])
   })
 
   it('falls back to unknown when the deferred category column is unavailable', async () => {
@@ -344,6 +354,31 @@ describe('DashboardRepository.getHospitalOverview', () => {
 })
 
 describe('DashboardRepository.getHospitalOverviewDetails', () => {
+  it('applies creation dates and missing-region predicates to every aggregate and detail query', async () => {
+    const execute = vi.fn(async () => result([]))
+    const filters = { hospitalScope: 'period-new', provinceCode: 'missing', cityCode: 'missing', category: 'oral',
+      startDate: new Date('2025-12-31T16:00:00.000Z'), endDate: new Date('2026-01-30T16:00:00.000Z') }
+    await (DashboardRepository as any).getHospitalOverview(filters, { execute })
+    await (DashboardRepository as any).getHospitalOverviewDetails({ ...filters, page: 1, pageSize: 10 }, { execute })
+    const statements = execute.mock.calls.map(([query]: any[]) => dumpSql(query))
+    expect(statements).toHaveLength(7)
+    for (const statement of statements) {
+      expect(statement).toContain('h.province_id IS NULL')
+      expect(statement).toContain('h.city_id IS NULL')
+      expect(statement).toContain('h.created_at >= 2025-12-31T16:00:00.000Z')
+      expect(statement).toContain('h.created_at < 2026-01-31T16:00:00.000Z')
+    }
+  })
+
+  it('returns named missing-region buckets instead of zero codes', async () => {
+    const execute = vi.fn().mockResolvedValueOnce(result([])).mockResolvedValueOnce(result([]))
+      .mockResolvedValueOnce(result([{ province_code: null, province_name: '', hospital_count: 1 }]))
+      .mockResolvedValueOnce(result([{ province_code: 11, province_name: 'Beijing', city_code: null, city_name: '', hospital_count: 1 }]))
+      .mockResolvedValueOnce(result([]))
+    const data = await DashboardRepository.getHospitalOverview({}, { execute })
+    expect(data.byProvince[0]).toMatchObject({ provinceCode: 'missing', provinceName: '未填写省份' })
+    expect(data.byCity[0]).toMatchObject({ cityCode: 'missing', cityName: '未填写城市' })
+  })
   it('uses the overview filters and returns per-hospital operating metrics', async () => {
     const execute = vi.fn()
       .mockResolvedValueOnce(result([{
@@ -485,6 +520,38 @@ describe('DashboardService.getHospitalOverview', () => {
 
 describe('hospital overview route', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it.each([['hospital-overview', 'getHospitalOverview'], ['hospital-overview/details', 'getHospitalOverviewDetails']])(
+    'accepts and forwards missing regions and creation scope for %s', async (path, method) => {
+      const service = vi.spyOn(DashboardService as any, method).mockResolvedValue({
+        generatedAt: '2026-01-31T00:00:00.000Z', filters: { provinceCode: 'missing', cityCode: 'missing', hospitalScope: 'period-new' },
+        summary: { total: 0, oral: 0, plastic: 0, unknown: 0, periodNew: 0 },
+        byCategory: [], byProvince: [], byCity: [], businessByCategory: [], list: [], total: 0,
+      })
+      const app = Fastify()
+      app.decorate('authenticate', async (request: any) => { request.currentUser = { id: 1, roleIds: [1], dataScope: 1 } })
+      app.decorate('requirePermission', () => async () => {})
+      await app.register(dashboardRoutes, { prefix: '/api/crm/v1' })
+      const response = await app.inject({ method: 'GET', url: `/api/crm/v1/dashboard/${path}?provinceCode=missing&cityCode=missing&hospitalScope=period-new` })
+      expect(response.statusCode).toBe(200)
+      expect(service).toHaveBeenCalledWith(1, [1], 1, expect.objectContaining({ provinceCode: 'missing', cityCode: 'missing', hospitalScope: 'period-new' }))
+      if (path === 'hospital-overview') expect(response.json().data.filters.hospitalScope).toBe('period-new')
+      await app.close()
+    },
+  )
+
+  it.each([[1, [1], true], [5, [4], false], [1, [4], true], [1, [3], false]])(
+    'advertises overview capability for scope %s and roles %s', async (dataScope, roleIds, allowed) => {
+      const app = Fastify()
+      app.decorate('authenticate', async (request: any) => { request.currentUser = { id: 1, roleIds, dataScope } })
+      app.decorate('requirePermission', () => async () => {})
+      await app.register(dashboardRoutes, { prefix: '/api/crm/v1' })
+      const response = await app.inject({ method: 'GET', url: '/api/crm/v1/dashboard/capabilities' })
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.hospitalOverview).toBe(allowed)
+      await app.close()
+    },
+  )
 
   it('serves the aggregate contract with all supported filters', async () => {
     vi.spyOn(DashboardService as any, 'getHospitalOverview').mockResolvedValue({

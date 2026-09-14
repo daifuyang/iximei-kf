@@ -17,8 +17,9 @@ export const readFilters = (search: string): HospitalOverviewFilters => {
     category: category === 'oral' || category === 'plastic' || category === 'unknown'
       ? category as HospitalOverviewCategory
       : undefined,
-    provinceCode: numberParam(params.get('provinceCode'), 1),
-    cityCode: numberParam(params.get('cityCode'), 1),
+    provinceCode: params.get('provinceCode') === 'missing' ? 'missing' : numberParam(params.get('provinceCode'), 1),
+    cityCode: params.get('cityCode') === 'missing' ? 'missing' : numberParam(params.get('cityCode'), 1),
+    hospitalScope: params.get('hospitalScope') === 'period-new' ? 'period-new' : undefined,
     status: numberParam(params.get('status'), 0, 1),
   };
 };

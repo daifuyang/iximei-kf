@@ -13,6 +13,7 @@ import {
   Cascader,
   Col,
   Divider,
+  Descriptions,
   Drawer,
   Form,
   Input,
@@ -47,6 +48,7 @@ import {
   createHospital,
   deleteHospital,
   getHospitalAccount,
+  getHospital,
   getHospitals,
   getRegionTree,
   renameHospital,
@@ -97,6 +99,25 @@ const toRegionOptions = (nodes: any[] = []): any[] =>
 const HospitalPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const location = useLocation();
+  const requestedHospitalId = Number(new URLSearchParams(location.search).get('hospitalId'));
+  const [linkedHospital, setLinkedHospital] = useState<any>();
+  const [linkedDetailOpen, setLinkedDetailOpen] = useState(false);
+  const [linkedDetailError, setLinkedDetailError] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    setLinkedHospital(undefined);
+    setLinkedDetailError(undefined);
+    const valid = Number.isSafeInteger(requestedHospitalId) && requestedHospitalId > 0;
+    setLinkedDetailOpen(valid);
+    if (valid) {
+      getHospital(requestedHospitalId).then((response) => {
+        if (!active) return;
+        if (response.success && response.data) setLinkedHospital(response.data);
+        else setLinkedDetailError(response.message || '医院不存在或无权访问');
+      }).catch(() => { if (active) setLinkedDetailError('医院详情加载失败'); });
+    }
+    return () => { active = false; };
+  }, [requestedHospitalId]);
   const requestedCategory = new URLSearchParams(location.search).get('category');
   const category = requestedCategory === 'oral' || requestedCategory === 'plastic' || requestedCategory === 'unknown'
     ? requestedCategory
@@ -392,6 +413,17 @@ const HospitalPage: React.FC = () => {
 
   return (
     <PageContainer>
+      <Drawer title="医院详情" open={linkedDetailOpen} onClose={() => setLinkedDetailOpen(false)} loading={!linkedHospital && !linkedDetailError}>
+        {linkedDetailError && <Alert type="error" message={linkedDetailError} />}
+        {linkedHospital && <Descriptions column={1} items={[
+          { key: 'name', label: '医院', children: linkedHospital.hospitalName },
+          { key: 'id', label: '医院 ID', children: linkedHospital.id },
+          { key: 'nature', label: '性质', children: natureMap[linkedHospital.hospitalNature] ?? '未填写' },
+          { key: 'status', label: '状态', children: linkedHospital.status === 1 ? '启用' : '停用' },
+          { key: 'address', label: '地址', children: linkedHospital.hospitalAddress || '未填写' },
+          { key: 'phone', label: '电话', children: linkedHospital.hospitalPhone || '未填写' },
+        ]} />}
+      </Drawer>
       <ProTable
         actionRef={actionRef}
         rowKey="id"

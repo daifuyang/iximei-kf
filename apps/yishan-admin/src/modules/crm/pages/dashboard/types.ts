@@ -155,8 +155,9 @@ export interface HospitalOverviewFilters {
   startDate?: string;
   endDate?: string;
   category?: HospitalOverviewCategory;
-  provinceCode?: number;
-  cityCode?: number;
+  provinceCode?: number | 'missing';
+  cityCode?: number | 'missing';
+  hospitalScope?: 'period-new';
   status?: number;
 }
 
@@ -169,13 +170,13 @@ export interface HospitalOverviewSummary {
 }
 
 export interface HospitalOverviewProvince {
-  provinceCode: number;
+  provinceCode: number | 'missing';
   provinceName: string;
   hospitalCount: number;
 }
 
 export interface HospitalOverviewCity extends HospitalOverviewProvince {
-  cityCode: number;
+  cityCode: number | 'missing';
   cityName: string;
 }
 
@@ -204,7 +205,7 @@ export interface HospitalOverview {
 
 export type HospitalDistributionSelection = Pick<
   HospitalOverviewFilters,
-  'provinceCode' | 'cityCode' | 'category'
+  'provinceCode' | 'cityCode' | 'category' | 'hospitalScope'
 >;
 
 export const normalizeHospitalOverview = (

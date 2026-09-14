@@ -238,12 +238,15 @@ export const getDashboardStats = (params?: {
 }) => getCrmDashboardStats(params || {});
 
 /** Hospital resource and operating overview. The OpenAPI client is regenerated separately. */
+export const getDashboardCapabilities = () => request<{ success: boolean; data: { hospitalOverview: boolean } }>('/api/crm/v1/dashboard/capabilities');
+
 export const getHospitalOverview = (params: {
   startDate?: string;
   endDate?: string;
   category?: 'oral' | 'plastic' | 'unknown';
-  provinceCode?: number;
-  cityCode?: number;
+  provinceCode?: number | 'missing';
+  cityCode?: number | 'missing';
+  hospitalScope?: 'period-new';
   status?: number;
 } = {}) => request<any>('/api/crm/v1/dashboard/hospital-overview', { params });
 
@@ -253,8 +256,9 @@ export const getHospitalOverviewDetails = (params: {
   startDate?: string;
   endDate?: string;
   category?: 'oral' | 'plastic' | 'unknown';
-  provinceCode?: number;
-  cityCode?: number;
+  provinceCode?: number | 'missing';
+  cityCode?: number | 'missing';
+  hospitalScope?: 'period-new';
   status?: number;
 } = {}) => request<any>('/api/crm/v1/dashboard/hospital-overview/details', { params });
 

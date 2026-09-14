@@ -12,7 +12,7 @@ interface Props {
 const HospitalCityDrilldownDrawer: React.FC<Props> = ({ open, onClose, cities, onSelectCity }) => (
   <Drawer title="城市明细" placement="right" width={520} open={open} onClose={onClose}>
     <Table
-      rowKey="cityCode"
+      rowKey={(row) => `${row.provinceCode}-${row.cityCode}`}
       size="small"
       dataSource={cities}
       pagination={false}

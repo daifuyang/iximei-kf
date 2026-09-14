@@ -40,8 +40,9 @@ export interface HospitalOverviewFilters {
   startDate?: Date
   endDate?: Date
   category?: HospitalOverviewCategory
-  provinceCode?: number
-  cityCode?: number
+  provinceCode?: number | 'missing'
+  cityCode?: number | 'missing'
+  hospitalScope?: 'period-new'
   status?: number
 }
 
@@ -77,10 +78,10 @@ function overviewWhere(
   if (filters.category) {
     conditions.push(sql`${overviewCategoryExpression(categoryAvailable)} = ${filters.category}`)
   }
-  if (filters.provinceCode !== undefined) conditions.push(sql`h.province_id = ${filters.provinceCode}`)
-  if (filters.cityCode !== undefined) conditions.push(sql`h.city_id = ${filters.cityCode}`)
+  if (filters.provinceCode !== undefined) conditions.push(filters.provinceCode === 'missing' ? sql`h.province_id IS NULL` : sql`h.province_id = ${filters.provinceCode}`)
+  if (filters.cityCode !== undefined) conditions.push(filters.cityCode === 'missing' ? sql`h.city_id IS NULL` : sql`h.city_id = ${filters.cityCode}`)
   if (filters.status !== undefined) conditions.push(sql`h.status = ${filters.status}`)
-  if (includeCreatedDate && filters.startDate && filters.endDate) {
+  if ((includeCreatedDate || filters.hospitalScope === 'period-new') && filters.startDate && filters.endDate) {
     conditions.push(sql`h.created_at >= ${filters.startDate}`)
     conditions.push(sql`h.created_at < ${endOfOverviewDate(filters.endDate)}`)
   }
@@ -683,15 +684,15 @@ export class DashboardRepository {
         hospitalCount: categoryCounts.get(category) ?? 0,
       })),
       byProvince: DashboardRepository.extractRows(provinceResult).map((row) => ({
-        provinceCode: Number(row.province_code ?? 0),
-        provinceName: String(row.province_name ?? ''),
+        provinceCode: row.province_code == null ? 'missing' as const : Number(row.province_code),
+        provinceName: String(row.province_name || (row.province_code == null ? '未填写省份' : `省份 ${row.province_code}`)),
         hospitalCount: Number(row.hospital_count ?? 0),
       })),
       byCity: DashboardRepository.extractRows(cityResult).map((row) => ({
-        provinceCode: Number(row.province_code ?? 0),
-        provinceName: String(row.province_name ?? ''),
-        cityCode: Number(row.city_code ?? 0),
-        cityName: String(row.city_name ?? ''),
+        provinceCode: row.province_code == null ? 'missing' as const : Number(row.province_code),
+        provinceName: String(row.province_name || (row.province_code == null ? '未填写省份' : `省份 ${row.province_code}`)),
+        cityCode: row.city_code == null ? 'missing' as const : Number(row.city_code),
+        cityName: String(row.city_name || (row.city_code == null ? '未填写城市' : `城市 ${row.city_code}`)),
         hospitalCount: Number(row.hospital_count ?? 0),
       })),
       businessByCategory: overviewCategories.map((category) => {

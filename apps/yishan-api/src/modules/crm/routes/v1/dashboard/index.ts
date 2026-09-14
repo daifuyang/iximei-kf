@@ -28,6 +28,16 @@ const dashboard: FastifyPluginAsync = async (app) => {
   app.addSchema(DashboardStatsSchema)
   app.addSchema(CrmHospitalOverviewSchema)
 
+  route.get('/dashboard/capabilities', {
+    access: { permission: PERMS.DASHBOARD_VIEW },
+    schema: {
+      tags: [ROUTE_TAG], summary: '当前用户可用的 CRM 看板', operationId: 'getCrmDashboardCapabilities',
+      response: { 200: Type.Object({ success: Type.Boolean(), code: Type.Integer(), message: Type.String(),
+        data: Type.Object({ hospitalOverview: Type.Boolean() }) }) },
+    },
+  }, async (req: any, reply: any) => ResponseUtil.success(reply,
+    DashboardService.getCapabilities(req.currentUser.roleIds ?? [], req.currentUser.dataScope ?? 5)))
+
   route.get(
     '/dashboard/hospital-overview',
     {
@@ -44,8 +54,9 @@ const dashboard: FastifyPluginAsync = async (app) => {
             Type.Literal('plastic'),
             Type.Literal('unknown'),
           ])),
-          provinceCode: Type.Optional(Type.Integer({ minimum: 1 })),
-          cityCode: Type.Optional(Type.Integer({ minimum: 1 })),
+          provinceCode: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Literal('missing')])),
+          cityCode: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Literal('missing')])),
+          hospitalScope: Type.Optional(Type.Literal('period-new')),
           status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
         }),
         response: {
@@ -63,8 +74,9 @@ const dashboard: FastifyPluginAsync = async (app) => {
         startDate?: string
         endDate?: string
         category?: 'oral' | 'plastic' | 'unknown'
-        provinceCode?: number
-        cityCode?: number
+        provinceCode?: number | 'missing'
+        cityCode?: number | 'missing'
+        hospitalScope?: 'period-new'
         status?: number
       }
       if ((query.startDate && !query.endDate) || (!query.startDate && query.endDate)) {
@@ -116,8 +128,9 @@ const dashboard: FastifyPluginAsync = async (app) => {
             Type.Literal('plastic'),
             Type.Literal('unknown'),
           ])),
-          provinceCode: Type.Optional(Type.Integer({ minimum: 1 })),
-          cityCode: Type.Optional(Type.Integer({ minimum: 1 })),
+          provinceCode: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Literal('missing')])),
+          cityCode: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Literal('missing')])),
+          hospitalScope: Type.Optional(Type.Literal('period-new')),
           status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
         }),
         response: {

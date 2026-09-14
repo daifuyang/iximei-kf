@@ -53,7 +53,7 @@ const HospitalDistributionCard: React.FC<Props> = ({
     }
     if (dimension === 'city') {
       return byCity.map((item) => ({
-        key: `city-${item.cityCode}`,
+        key: `city-${item.provinceCode}-${item.cityCode}`,
         label: `${item.provinceName} ${item.cityName}`,
         count: item.hospitalCount,
         selection: { provinceCode: item.provinceCode, cityCode: item.cityCode },

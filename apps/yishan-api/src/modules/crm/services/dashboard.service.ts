@@ -15,8 +15,9 @@ export interface DashboardQuery {
   endDate?: string
   hospitalId?: number
   category?: 'oral' | 'plastic' | 'unknown'
-  provinceCode?: number
-  cityCode?: number
+  provinceCode?: number | 'missing'
+  cityCode?: number | 'missing'
+  hospitalScope?: 'period-new'
   status?: number
 }
 
@@ -166,6 +167,11 @@ function assertHospitalOverviewAccess(roleIds: ReadonlyArray<number>, scope: Dat
 }
 
 export class DashboardService {
+  static getCapabilities(roleIds: ReadonlyArray<number>, scope: DataScopeCode) {
+    return { hospitalOverview: roleIds.includes(ROLE_IDS.SUPER_ADMIN)
+      || (!roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT) && scope === DATA_SCOPE.ALL) }
+  }
+
   static async getHospitalOverview(
     _userId: number,
     roleIds: ReadonlyArray<number>,
@@ -179,8 +185,9 @@ export class DashboardService {
       ...(query.startDate ? { startDate: query.startDate } : {}),
       ...(query.endDate ? { endDate: query.endDate } : {}),
       ...(query.category ? { category: query.category } : {}),
-      ...(query.provinceCode === undefined ? {} : { provinceCode: Number(query.provinceCode) }),
-      ...(query.cityCode === undefined ? {} : { cityCode: Number(query.cityCode) }),
+      ...(query.provinceCode === undefined ? {} : { provinceCode: query.provinceCode }),
+      ...(query.cityCode === undefined ? {} : { cityCode: query.cityCode }),
+      ...(query.hospitalScope ? { hospitalScope: query.hospitalScope } : {}),
       ...(query.status === undefined ? {} : { status: Number(query.status) }),
     }
     const overview = await DashboardRepository.getHospitalOverview({
@@ -189,6 +196,7 @@ export class DashboardService {
       category: filters.category,
       provinceCode: filters.provinceCode,
       cityCode: filters.cityCode,
+      hospitalScope: filters.hospitalScope,
       status: filters.status,
     })
 
@@ -214,6 +222,7 @@ export class DashboardService {
       category: query.category,
       provinceCode: query.provinceCode,
       cityCode: query.cityCode,
+      hospitalScope: query.hospitalScope,
       status: query.status,
       page: Math.max(1, Number(query.page ?? 1)),
       pageSize: Math.min(100, Math.max(1, Number(query.pageSize ?? 10))),

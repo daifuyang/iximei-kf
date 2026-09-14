@@ -8,6 +8,7 @@ import type {
 interface Props {
   summary: HospitalOverviewSummary;
   loading?: boolean;
+  disabled?: boolean;
   onSelect: (selection: HospitalDistributionSelection) => void;
 }
 
@@ -20,15 +21,16 @@ const kpis: Array<{
   { key: 'oral', label: '口腔医院', selection: { category: 'oral' } },
   { key: 'plastic', label: '整形医院', selection: { category: 'plastic' } },
   { key: 'unknown', label: '未分类医院', selection: { category: 'unknown' } },
-  { key: 'periodNew', label: '本期新增医院', selection: {} },
+  { key: 'periodNew', label: '本期新增医院', selection: { hospitalScope: 'period-new' } },
 ];
 
-const HospitalOverviewKpis: React.FC<Props> = ({ summary, loading, onSelect }) => (
+const HospitalOverviewKpis: React.FC<Props> = ({ summary, loading, disabled, onSelect }) => (
   <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
     {kpis.map((item) => (
       <Col key={item.key} xs={24} sm={12} lg={item.key === 'periodNew' ? 8 : 4}>
         <button
           type="button"
+          disabled={disabled}
           aria-label={item.label}
           onClick={() => onSelect(item.selection)}
           style={{
