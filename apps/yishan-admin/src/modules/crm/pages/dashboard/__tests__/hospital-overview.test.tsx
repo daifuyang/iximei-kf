@@ -9,7 +9,9 @@ const mockLocationListeners = new Set<() => void>();
 const mockHistoryReplace = jest.fn((url: string) => {
   const [pathname, query = ''] = url.split('?');
   mockLocation = { pathname, search: query ? `?${query}` : '' };
-  mockLocationListeners.forEach((listener) => listener());
+  mockLocationListeners.forEach((listener) => {
+    listener();
+  });
 });
 
 Object.defineProperty(global, 'ResizeObserver', {
