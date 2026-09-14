@@ -1,4 +1,4 @@
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined } from '@ant-design/icons';
 import {
   type ActionType,
   PageContainer,
@@ -48,6 +48,7 @@ import {
   updateDispatch,
   viewDispatchMobile,
 } from '../../api';
+import { persistDispatchStatusChange } from './statusUpdate';
 
 const formatUser = (user: any) => user?.realName || user?.username || '系统';
 
@@ -372,6 +373,35 @@ const DispatchPage: React.FC = () => {
     actionRef.current?.reload();
   };
 
+  const handleStatusChange = async (statusId: number) => {
+    if (!canUpdateDispatch || !detail?.id || savingStatusId === detail.id) return;
+    const previousStatusId = detail.statusId;
+    setSavingStatusId(detail.id);
+    try {
+      await persistDispatchStatusChange({
+        id: detail.id,
+        previousStatusId,
+        statusId,
+        update: updateDispatch,
+        refresh: async (updated) => {
+          if (updated) {
+            setDetail(updated);
+          } else {
+            await loadDetail(detail.id);
+          }
+          actionRef.current?.reload();
+        },
+      });
+      replyForm.setFieldValue('statusId', statusId);
+      message.success('客户状态已更新');
+    } catch (error: any) {
+      replyForm.setFieldValue('statusId', previousStatusId);
+      message.error(error?.message || '客户状态更新失败');
+    } finally {
+      setSavingStatusId(null);
+    }
+  };
+
   return (
     <PageContainer>
       <ProTable
@@ -606,39 +636,7 @@ const DispatchPage: React.FC = () => {
                         disabled={processing || savingStatusId === detail?.id}
                         loading={savingStatusId === detail?.id}
                         options={statusOptions}
-                        onChange={async (newStatusId: number) => {
-                          // 医院账号不允许 inline 编辑；状态会在回复提交时一起带过去
-                          if (!canUpdateDispatch || !detail?.id) return;
-                          const prevStatusId = detail.statusId;
-                          // 乐观更新：先改本地 detail
-                          setDetail((d: any) =>
-                            d ? { ...d, statusId: newStatusId } : d,
-                          );
-                          setSavingStatusId(detail.id);
-                          try {
-                            const res: any = await updateDispatch(detail.id, {
-                              statusId: newStatusId,
-                            });
-                            if (res?.success) {
-                              message.success(res.message || '客户状态已更新');
-                            } else {
-                              // 回滚
-                              setDetail((d: any) =>
-                                d ? { ...d, statusId: prevStatusId } : d,
-                              );
-                              replyForm.setFieldValue('statusId', prevStatusId);
-                              message.error(res?.message || '客户状态更新失败');
-                            }
-                          } catch (e: any) {
-                            setDetail((d: any) =>
-                              d ? { ...d, statusId: prevStatusId } : d,
-                            );
-                            replyForm.setFieldValue('statusId', prevStatusId);
-                            message.error(e?.message || '客户状态更新失败');
-                          } finally {
-                            setSavingStatusId(null);
-                          }
-                        }}
+                        onChange={(value) => void handleStatusChange(value)}
                       />
                     </Form.Item>
                   </Col>
