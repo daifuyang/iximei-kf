@@ -4,14 +4,20 @@ import { HospitalsRepository } from '../repositories/hospitals.repository.js'
 import { crmCustomer, crmCustomerStatus, crmDispatch, crmDispatchStatus, crmHospital } from '../db/schema.js'
 import { eq, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
-import type { DataScopeCode } from '@/core/repositories/permission.repository.js'
+import { DATA_SCOPE, type DataScopeCode } from '@/core/repositories/permission.repository.js'
 import { ROLE_IDS } from '@/constants/permission-codes.js'
+import { BusinessError } from '@/exceptions/business-error.js'
+import { AuthErrorCode } from '@/constants/business-codes/auth.js'
 
 /** 看板查询参数（来自 query string） */
 export interface DashboardQuery {
   startDate?: string
   endDate?: string
   hospitalId?: number
+  category?: 'oral' | 'plastic' | 'unknown'
+  provinceCode?: number
+  cityCode?: number
+  status?: number
 }
 
 /** 获取客服名下所有客户 ID（用于派单过滤） */
@@ -139,6 +145,35 @@ function buildDateRange(startDate?: string, endDate?: string): DateRange | undef
 }
 
 export class DashboardService {
+  static async getHospitalOverview(
+    _userId: number,
+    roleIds: ReadonlyArray<number>,
+    scope: DataScopeCode,
+    query: DashboardQuery = {},
+  ) {
+    if (roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '医院账号不能访问运营总览')
+    }
+    if (scope !== DATA_SCOPE.ALL) {
+      throw new BusinessError(AuthErrorCode.FORBIDDEN, '当前数据范围不能访问运营总览')
+    }
+
+    const dateRange = buildDateRange(query.startDate, query.endDate)
+    const overview = await DashboardRepository.getHospitalOverview({
+      startDate: dateRange?.startDate,
+      endDate: dateRange?.endDate,
+      category: query.category,
+      provinceCode: query.provinceCode === undefined ? undefined : Number(query.provinceCode),
+      cityCode: query.cityCode === undefined ? undefined : Number(query.cityCode),
+      status: query.status === undefined ? undefined : Number(query.status),
+    })
+
+    return {
+      generatedAt: new Date().toISOString(),
+      ...overview,
+    }
+  }
+
   static async getStats(
     userId: number,
     roleIds: ReadonlyArray<number>,

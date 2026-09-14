@@ -5,7 +5,7 @@ import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import { DashboardService } from '../../../services/dashboard.service.js'
-import { DashboardStatsSchema } from '../../../schemas/dashboard.schema.js'
+import { CrmHospitalOverviewSchema, DashboardStatsSchema } from '../../../schemas/dashboard.schema.js'
 import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
@@ -17,6 +17,77 @@ const dashboard: FastifyPluginAsync = async (app) => {
   // NOTE: Do NOT addSchema CrmHospitalRankingsRespSchema / CrmHospitalRankingsItemSchema
   // separately — DashboardStatsSchema already embeds them, and Ajv rejects duplicate $id.
   app.addSchema(DashboardStatsSchema)
+  app.addSchema(CrmHospitalOverviewSchema)
+
+  route.get(
+    '/dashboard/hospital-overview',
+    {
+      access: { permission: PERMS.DASHBOARD_VIEW },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: 'CRM 医院资源与经营总览',
+        operationId: 'getCrmHospitalOverview',
+        querystring: Type.Object({
+          startDate: Type.Optional(Type.String()),
+          endDate: Type.Optional(Type.String()),
+          category: Type.Optional(Type.Union([
+            Type.Literal('oral'),
+            Type.Literal('plastic'),
+            Type.Literal('unknown'),
+          ])),
+          provinceCode: Type.Optional(Type.Integer({ minimum: 1 })),
+          cityCode: Type.Optional(Type.Integer({ minimum: 1 })),
+          status: Type.Optional(Type.Integer()),
+        }),
+        response: {
+          200: Type.Object({
+            success: Type.Boolean(),
+            code: Type.Integer(),
+            message: Type.String(),
+            data: CrmHospitalOverviewSchema,
+          }),
+        },
+      },
+    },
+    async (req: any, reply: any) => {
+      const query = req.query as {
+        startDate?: string
+        endDate?: string
+        category?: 'oral' | 'plastic' | 'unknown'
+        provinceCode?: number
+        cityCode?: number
+        status?: number
+      }
+      if ((query.startDate && !query.endDate) || (!query.startDate && query.endDate)) {
+        return reply.status(400).send({
+          success: false,
+          message: 'startDate 和 endDate 必须同时传递或同时省略',
+        })
+      }
+      if (query.startDate && query.endDate) {
+        if (!DATE_REGEX.test(query.startDate) || !DATE_REGEX.test(query.endDate)) {
+          return reply.status(400).send({
+            success: false,
+            message: '日期格式无效，必须为 YYYY-MM-DD',
+          })
+        }
+        if (query.startDate > query.endDate) {
+          return reply.status(400).send({
+            success: false,
+            message: 'startDate 不能晚于 endDate',
+          })
+        }
+      }
+
+      const data = await DashboardService.getHospitalOverview(
+        req.currentUser.id,
+        req.currentUser.roleIds ?? [],
+        req.currentUser.dataScope ?? 1,
+        query,
+      )
+      return ResponseUtil.success(reply, data)
+    },
+  )
 
   route.get(
     '/dashboard/stats',

@@ -1,5 +1,49 @@
 import { Type } from '@sinclair/typebox'
 
+export const CrmHospitalOverviewCategorySchema = Type.Union([
+  Type.Literal('oral'),
+  Type.Literal('plastic'),
+  Type.Literal('unknown'),
+])
+
+export const CrmHospitalOverviewSchema = Type.Object(
+  {
+    generatedAt: Type.String({ format: 'date-time' }),
+    summary: Type.Object({
+      total: Type.Integer(),
+      oral: Type.Integer(),
+      plastic: Type.Integer(),
+      unknown: Type.Integer(),
+      periodNew: Type.Integer(),
+    }),
+    byCategory: Type.Array(Type.Object({
+      category: CrmHospitalOverviewCategorySchema,
+      hospitalCount: Type.Integer(),
+    })),
+    byProvince: Type.Array(Type.Object({
+      provinceCode: Type.Integer(),
+      provinceName: Type.String(),
+      hospitalCount: Type.Integer(),
+    })),
+    byCity: Type.Array(Type.Object({
+      provinceCode: Type.Integer(),
+      provinceName: Type.String(),
+      cityCode: Type.Integer(),
+      cityName: Type.String(),
+      hospitalCount: Type.Integer(),
+    })),
+    businessByCategory: Type.Array(Type.Object({
+      category: CrmHospitalOverviewCategorySchema,
+      dispatchCount: Type.Integer(),
+      arrivedCount: Type.Integer(),
+      dealCount: Type.Integer(),
+      arrivedRate: Type.Number(),
+      dealRate: Type.Number(),
+    })),
+  },
+  { $id: 'crmHospitalOverview' },
+)
+
 /** 单个城市的医院分布项。 */
 export const CrmHospitalDistributionItemSchema = Type.Object(
   {

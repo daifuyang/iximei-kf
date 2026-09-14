@@ -34,6 +34,61 @@ export interface DateRange {
 
 type WhereExtra = (table: any) => any[]
 
+export type HospitalOverviewCategory = 'oral' | 'plastic' | 'unknown'
+
+export interface HospitalOverviewFilters {
+  startDate?: Date
+  endDate?: Date
+  category?: HospitalOverviewCategory
+  provinceCode?: number
+  cityCode?: number
+  status?: number
+}
+
+const overviewCategories: HospitalOverviewCategory[] = ['oral', 'plastic', 'unknown']
+
+function overviewCategory(value: unknown): HospitalOverviewCategory {
+  return value === 'oral' || value === 'plastic' ? value : 'unknown'
+}
+
+function endOfOverviewDate(endDate: Date) {
+  const end = new Date(endDate)
+  end.setUTCDate(end.getUTCDate() + 1)
+  return end
+}
+
+function overviewCategoryExpression(categoryAvailable: boolean) {
+  return categoryAvailable
+    ? sql`CASE WHEN h.category IN ('oral', 'plastic') THEN h.category ELSE 'unknown' END`
+    : sql`'unknown'`
+}
+
+function overviewWhere(
+  filters: HospitalOverviewFilters,
+  includeCreatedDate = false,
+  categoryAvailable = true,
+) {
+  const conditions: any[] = [sql`h.deleted_at IS NULL`]
+  if (filters.category) {
+    conditions.push(sql`${overviewCategoryExpression(categoryAvailable)} = ${filters.category}`)
+  }
+  if (filters.provinceCode !== undefined) conditions.push(sql`h.province_id = ${filters.provinceCode}`)
+  if (filters.cityCode !== undefined) conditions.push(sql`h.city_id = ${filters.cityCode}`)
+  if (filters.status !== undefined) conditions.push(sql`h.status = ${filters.status}`)
+  if (includeCreatedDate && filters.startDate && filters.endDate) {
+    conditions.push(sql`h.created_at >= ${filters.startDate}`)
+    conditions.push(sql`h.created_at < ${endOfOverviewDate(filters.endDate)}`)
+  }
+  return sql.join(conditions, sql` AND `)
+}
+
+function isMissingCategoryColumn(error: any) {
+  const cause = error?.cause ?? error
+  const code = cause?.code ?? error?.code ?? error?.errno
+  const message = String(cause?.sqlMessage ?? error?.sqlMessage ?? error?.message ?? '')
+  return code === 'ER_BAD_FIELD_ERROR' || code === 1054 || /Unknown column.*category/i.test(message)
+}
+
 export class DashboardRepository {
   /**
    * 从 drizzleDb.execute(sql\`...\`) 的返回值里提取 row 数组。
@@ -457,5 +512,137 @@ export class DashboardRepository {
       plasticCount: Number(r.plastic_count ?? 0),
       total: Number(r.total ?? 0),
     }))
+  }
+
+  static async getHospitalOverview(
+    filters: HospitalOverviewFilters,
+    db: { execute: (query: any) => Promise<any> } = drizzleDb,
+  ) {
+    try {
+      return await DashboardRepository.queryHospitalOverview(filters, db, true)
+    } catch (error) {
+      if (!isMissingCategoryColumn(error)) throw error
+      return DashboardRepository.queryHospitalOverview(filters, db, false)
+    }
+  }
+
+  private static async queryHospitalOverview(
+    filters: HospitalOverviewFilters,
+    db: { execute: (query: any) => Promise<any> },
+    categoryAvailable: boolean,
+  ) {
+    const categoryExpression = overviewCategoryExpression(categoryAvailable)
+    const hospitalWhere = overviewWhere(filters, false, categoryAvailable)
+    const periodWhere = overviewWhere(filters, true, categoryAvailable)
+    const dispatchDateFilter = filters.startDate && filters.endDate
+      ? sql` AND d.created_at >= ${filters.startDate} AND d.created_at < ${endOfOverviewDate(filters.endDate)}`
+      : sql``
+
+    const [summaryResult, categoryResult, provinceResult, cityResult, businessResult] = await Promise.all([
+      db.execute(sql`
+        SELECT
+          COUNT(*) AS total,
+          SUM(CASE WHEN ${categoryExpression} = 'oral' THEN 1 ELSE 0 END) AS oral_count,
+          SUM(CASE WHEN ${categoryExpression} = 'plastic' THEN 1 ELSE 0 END) AS plastic_count,
+          SUM(CASE WHEN ${categoryExpression} = 'unknown' THEN 1 ELSE 0 END) AS unknown_count,
+          (SELECT COUNT(*) FROM crm_hospital h WHERE ${periodWhere}) AS period_new
+        FROM crm_hospital h
+        WHERE ${hospitalWhere}
+      `),
+      db.execute(sql`
+        SELECT
+          ${categoryExpression} AS category,
+          COUNT(*) AS hospital_count
+        FROM crm_hospital h
+        WHERE ${hospitalWhere}
+        GROUP BY ${categoryExpression}
+      `),
+      db.execute(sql`
+        SELECT
+          h.province_id AS province_code,
+          COALESCE(province.name, '') AS province_name,
+          COUNT(*) AS hospital_count
+        FROM crm_hospital h
+        LEFT JOIN sys_region province ON province.code = h.province_id
+        WHERE ${hospitalWhere}
+        GROUP BY h.province_id, province.name
+        ORDER BY hospital_count DESC, h.province_id ASC
+      `),
+      db.execute(sql`
+        SELECT
+          h.province_id AS province_code,
+          COALESCE(province.name, '') AS province_name,
+          h.city_id AS city_code,
+          COALESCE(city.name, '') AS city_name,
+          COUNT(*) AS hospital_count
+        FROM crm_hospital h
+        LEFT JOIN sys_region province ON province.code = h.province_id
+        LEFT JOIN sys_region city ON city.code = h.city_id
+        WHERE ${hospitalWhere}
+        GROUP BY h.province_id, province.name, h.city_id, city.name
+        ORDER BY hospital_count DESC, h.province_id ASC, h.city_id ASC
+      `),
+      db.execute(sql`
+        SELECT
+          ${categoryExpression} AS category,
+          COUNT(d.id) AS dispatch_count,
+          SUM(CASE WHEN d.status_id = 3 THEN 1 ELSE 0 END) AS arrived_count,
+          SUM(CASE WHEN d.status_id = 4 THEN 1 ELSE 0 END) AS deal_count
+        FROM crm_hospital h
+        LEFT JOIN crm_dispatch d ON d.hospital_id = h.id AND d.deleted_at IS NULL${dispatchDateFilter}
+        WHERE ${hospitalWhere}
+        GROUP BY ${categoryExpression}
+      `),
+    ])
+
+    const summaryRow = DashboardRepository.extractRows(summaryResult)[0] ?? {}
+    const categoryCounts = new Map<HospitalOverviewCategory, number>()
+    for (const row of DashboardRepository.extractRows(categoryResult)) {
+      categoryCounts.set(overviewCategory(row.category), Number(row.hospital_count ?? 0))
+    }
+    const businessRows = new Map<HospitalOverviewCategory, any>()
+    for (const row of DashboardRepository.extractRows(businessResult)) {
+      businessRows.set(overviewCategory(row.category), row)
+    }
+
+    return {
+      summary: {
+        total: Number(summaryRow.total ?? 0),
+        oral: Number(summaryRow.oral_count ?? 0),
+        plastic: Number(summaryRow.plastic_count ?? 0),
+        unknown: Number(summaryRow.unknown_count ?? 0),
+        periodNew: Number(summaryRow.period_new ?? 0),
+      },
+      byCategory: overviewCategories.map((category) => ({
+        category,
+        hospitalCount: categoryCounts.get(category) ?? 0,
+      })),
+      byProvince: DashboardRepository.extractRows(provinceResult).map((row) => ({
+        provinceCode: Number(row.province_code ?? 0),
+        provinceName: String(row.province_name ?? ''),
+        hospitalCount: Number(row.hospital_count ?? 0),
+      })),
+      byCity: DashboardRepository.extractRows(cityResult).map((row) => ({
+        provinceCode: Number(row.province_code ?? 0),
+        provinceName: String(row.province_name ?? ''),
+        cityCode: Number(row.city_code ?? 0),
+        cityName: String(row.city_name ?? ''),
+        hospitalCount: Number(row.hospital_count ?? 0),
+      })),
+      businessByCategory: overviewCategories.map((category) => {
+        const row = businessRows.get(category) ?? {}
+        const dispatchCount = Number(row.dispatch_count ?? 0)
+        const arrivedCount = Number(row.arrived_count ?? 0)
+        const dealCount = Number(row.deal_count ?? 0)
+        return {
+          category,
+          dispatchCount,
+          arrivedCount,
+          dealCount,
+          arrivedRate: dispatchCount > 0 ? Number(((arrivedCount / dispatchCount) * 100).toFixed(1)) : 0,
+          dealRate: dispatchCount > 0 ? Number(((dealCount / dispatchCount) * 100).toFixed(1)) : 0,
+        }
+      }),
+    }
   }
 }
