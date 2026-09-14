@@ -37,16 +37,14 @@ jest.mock('@umijs/max', () => {
 
 jest.mock('@ant-design/pro-components', () => ({
   PageContainer: ({ children }: any) => <main>{children}</main>,
-  ProCard: ({ children }: any) => <section>{children}</section>,
+  ProCard: ({ children, extra }: any) => <section>{extra}{children}</section>,
 }));
 
 jest.mock('../components/LegacyCrmDashboardSection', () => () => null);
 
-jest.mock('../components/HospitalDistributionCard', () => ({ byProvince = [], onSelect }: any) => (
-  byProvince.length > 0
-    ? <button type="button" onClick={() => onSelect({ provinceCode: 11 })}>Select Beijing</button>
-    : <div>暂无医院数据</div>
-));
+jest.mock('@ant-design/charts', () => ({
+  Bar: () => <div data-testid="distribution-chart" />,
+}));
 
 jest.mock('@/modules/crm/api', () => ({
   getHospitalOverview: jest.fn(),
@@ -80,6 +78,15 @@ describe('hospital overview dashboard flow', () => {
     getHospitalOverviewDetailsMock.mockReset();
   });
 
+  it('does not send a status filter on the initial request without URL filters', async () => {
+    mockLocation = { pathname: '/crm/dashboard', search: '' };
+    getHospitalOverviewMock.mockResolvedValue({ success: true, data: overview });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => expect(getHospitalOverviewMock).toHaveBeenCalledWith({}));
+  });
+
   it('carries a KPI filter through province, city, and hospital drilldown', async () => {
     getHospitalOverviewMock.mockResolvedValue({ success: true, data: overview });
     getHospitalOverviewDetailsMock.mockResolvedValue({
@@ -97,7 +104,8 @@ describe('hospital overview dashboard flow', () => {
       status: 1,
     })));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select Beijing' }));
+    fireEvent.click(screen.getByText('表格'));
+    fireEvent.click(screen.getByRole('button', { name: 'Beijing' }));
     expect(await screen.findByRole('button', { name: 'Beijing City' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Beijing City' }));

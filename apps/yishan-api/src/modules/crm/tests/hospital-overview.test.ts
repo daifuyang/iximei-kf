@@ -119,36 +119,60 @@ describe('DashboardRepository.getHospitalOverview', () => {
     expect(statements[4]).toContain('2026-01-31T16:00:00.000Z')
   })
 
-  it('reconciles category and regional rollups for a filtered hospital set', async () => {
-    const execute = vi.fn()
-      .mockResolvedValueOnce(result([{
-        total: '2', oral_count: '2', plastic_count: '0', unknown_count: '0', period_new: '1',
-      }]))
-      .mockResolvedValueOnce(result([{ category: 'oral', hospital_count: '2' }]))
-      .mockResolvedValueOnce(result([
-        { province_code: 11, province_name: 'Beijing', hospital_count: '1' },
-        { province_code: 31, province_name: 'Shanghai', hospital_count: '1' },
-      ]))
-      .mockResolvedValueOnce(result([
-        { province_code: 11, province_name: 'Beijing', city_code: 1101, city_name: 'Beijing', hospital_count: '1' },
-        { province_code: 31, province_name: 'Shanghai', city_code: 3101, city_name: 'Shanghai', hospital_count: '1' },
-      ]))
-      .mockResolvedValueOnce(result([]))
-
-    const overview = await (DashboardRepository as any).getHospitalOverview({
-      category: 'oral',
+  it('reconciles aggregate and detail totals from the same filtered hospital fixture', async () => {
+    const filters = {
+      startDate: new Date('2025-12-31T16:00:00.000Z'),
+      endDate: new Date('2026-01-30T16:00:00.000Z'),
+      category: 'oral' as const,
+      provinceCode: 11,
+      cityCode: 1101,
       status: 1,
-    }, { execute })
+    }
+    const hospitals = [
+      { id: 1, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1 },
+      { id: 2, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1 },
+      { id: 3, category: 'plastic', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 1 },
+      { id: 4, category: 'oral', provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing', status: 0 },
+      { id: 5, category: 'oral', provinceCode: 31, provinceName: 'Shanghai', cityCode: 3101, cityName: 'Shanghai', status: 1 },
+    ]
+    const matchingHospitals = hospitals.filter((hospital) => (
+      hospital.category === filters.category
+      && hospital.provinceCode === filters.provinceCode
+      && hospital.cityCode === filters.cityCode
+      && hospital.status === filters.status
+    ))
+    const countBy = (key: 'category' | 'provinceCode' | 'cityCode') => Array.from(
+      matchingHospitals.reduce((groups, hospital) => {
+        const value = String(hospital[key])
+        groups.set(value, (groups.get(value) ?? 0) + 1)
+        return groups
+      }, new Map<string, number>()),
+    )
+    let calls = 0
+    const execute = vi.fn(async () => {
+      calls += 1
+      if (calls === 1) return result([{
+        total: String(matchingHospitals.length), oral_count: String(matchingHospitals.length), plastic_count: '0', unknown_count: '0', period_new: String(matchingHospitals.length),
+      }])
+      if (calls === 2) return result(countBy('category').map(([category, hospitalCount]) => ({ category, hospital_count: hospitalCount })))
+      if (calls === 3) return result(countBy('provinceCode').map(([provinceCode, hospitalCount]) => ({ province_code: provinceCode, province_name: 'Beijing', hospital_count: hospitalCount })))
+      if (calls === 4) return result(countBy('cityCode').map(([cityCode, hospitalCount]) => ({ province_code: 11, province_name: 'Beijing', city_code: cityCode, city_name: 'Beijing', hospital_count: hospitalCount })))
+      if (calls === 5) return result([])
+      if (calls === 6) return result(matchingHospitals.map((hospital) => ({
+        id: hospital.id, hospital_name: `Hospital ${hospital.id}`, category: hospital.category,
+        province_name: hospital.provinceName, city_name: hospital.cityName, status: hospital.status,
+        dispatch_count: 0, arrived_count: 0, deal_count: 0, latest_dispatch_at: null,
+      })))
+      return result([{ total: String(matchingHospitals.length) }])
+    })
 
-    expect(overview.summary).toEqual({ total: 2, oral: 2, plastic: 0, unknown: 0, periodNew: 1 })
-    expect(overview.byCategory).toEqual([
-      { category: 'oral', hospitalCount: 2 },
-      { category: 'plastic', hospitalCount: 0 },
-      { category: 'unknown', hospitalCount: 0 },
-    ])
-    expect(overview.byCategory.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(2)
-    expect(overview.byProvince.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(2)
-    expect(overview.byCity.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(2)
+    const overview = await (DashboardRepository as any).getHospitalOverview(filters, { execute })
+    const details = await (DashboardRepository as any).getHospitalOverviewDetails({ ...filters, page: 1, pageSize: 10 }, { execute })
+
+    expect(overview.summary.total).toBe(2)
+    expect(overview.byCategory.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
+    expect(overview.byProvince.reduce((total: number, row: any) => total + row.hospitalCount, 0)).toBe(overview.summary.total)
+    expect(details.total).toBe(overview.summary.total)
   })
 
   it('falls back to unknown when the deferred category column is unavailable', async () => {

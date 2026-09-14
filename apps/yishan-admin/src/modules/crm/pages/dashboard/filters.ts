@@ -1,6 +1,7 @@
 import type { HospitalOverviewCategory, HospitalOverviewFilters } from './types';
 
 const numberParam = (value: string | null, min: number, max?: number): number | undefined => {
+  if (value === null || value.trim() === '') return undefined;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= min && (max === undefined || parsed <= max)
     ? parsed

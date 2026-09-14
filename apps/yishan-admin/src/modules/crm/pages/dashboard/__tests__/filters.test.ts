@@ -1,6 +1,19 @@
 import { readFilters } from '../filters';
 
 describe('hospital overview URL filters', () => {
+  it('leaves absent and empty numeric filters undefined', () => {
+    expect(readFilters('')).toMatchObject({
+      provinceCode: undefined,
+      cityCode: undefined,
+      status: undefined,
+    });
+    expect(readFilters('?provinceCode=&cityCode=&status=')).toMatchObject({
+      provinceCode: undefined,
+      cityCode: undefined,
+      status: undefined,
+    });
+  });
+
   it('drops values that the overview endpoint would reject', () => {
     expect(readFilters('?provinceCode=0&cityCode=-1&status=2&category=other')).toEqual({
       startDate: undefined,
