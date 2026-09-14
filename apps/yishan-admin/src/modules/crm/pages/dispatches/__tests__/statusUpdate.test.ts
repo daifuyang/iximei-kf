@@ -1,4 +1,7 @@
-import { persistDispatchStatusChange } from '../statusUpdate';
+import {
+  persistDispatchStatusChange,
+  resolveDispatchStatusUpdater,
+} from '../statusUpdate';
 
 describe('persistDispatchStatusChange', () => {
   it('persists a changed status and refreshes the dispatch list', async () => {
@@ -17,5 +20,14 @@ describe('persistDispatchStatusChange', () => {
 
     expect(update).toHaveBeenCalledWith(7, { statusId: 3 });
     expect(refresh).toHaveBeenCalledWith({ id: 7, statusId: 3 });
+  });
+});
+
+describe('resolveDispatchStatusUpdater', () => {
+  it('uses the reply endpoint for hospital accounts', () => {
+    const update = jest.fn();
+    const reply = jest.fn();
+
+    expect(resolveDispatchStatusUpdater(false, update, reply)).toBe(reply);
   });
 });

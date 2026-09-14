@@ -1,5 +1,13 @@
 type UpdateDispatch = (id: number, body: { statusId: number }) => Promise<any>;
 
+export function resolveDispatchStatusUpdater(
+  canUpdate: boolean,
+  update: UpdateDispatch,
+  reply: UpdateDispatch,
+): UpdateDispatch {
+  return canUpdate ? update : reply;
+}
+
 type PersistStatusChangeArgs = {
   id: number;
   previousStatusId?: number;

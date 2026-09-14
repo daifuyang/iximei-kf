@@ -48,7 +48,10 @@ import {
   updateDispatch,
   viewDispatchMobile,
 } from '../../api';
-import { persistDispatchStatusChange } from './statusUpdate';
+import {
+  persistDispatchStatusChange,
+  resolveDispatchStatusUpdater,
+} from './statusUpdate';
 
 const formatUser = (user: any) => user?.realName || user?.username || '系统';
 
@@ -374,7 +377,7 @@ const DispatchPage: React.FC = () => {
   };
 
   const handleStatusChange = async (statusId: number) => {
-    if (!canUpdateDispatch || !detail?.id || savingStatusId === detail.id) return;
+    if (!detail?.id || savingStatusId === detail.id) return;
     const previousStatusId = detail.statusId;
     setSavingStatusId(detail.id);
     try {
@@ -382,12 +385,15 @@ const DispatchPage: React.FC = () => {
         id: detail.id,
         previousStatusId,
         statusId,
-        update: updateDispatch,
-        refresh: async (updated) => {
-          if (updated) {
-            setDetail(updated);
-          } else {
-            await loadDetail(detail.id);
+        update: resolveDispatchStatusUpdater(
+          canUpdateDispatch,
+          updateDispatch,
+          (id, body) => addDispatchReply(id, body),
+        ),
+        refresh: async () => {
+          const latest = await getDispatch(detail.id);
+          if (latest.success) {
+            setDetail(latest.data);
           }
           actionRef.current?.reload();
         },
