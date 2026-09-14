@@ -45,6 +45,11 @@ export interface HospitalOverviewFilters {
   status?: number
 }
 
+export interface HospitalOverviewDetailsQuery extends HospitalOverviewFilters {
+  page: number
+  pageSize: number
+}
+
 const overviewCategories: HospitalOverviewCategory[] = ['oral', 'plastic', 'unknown']
 
 function overviewCategory(value: unknown): HospitalOverviewCategory {
@@ -523,6 +528,66 @@ export class DashboardRepository {
     } catch (error) {
       if (!isMissingCategoryColumn(error)) throw error
       return DashboardRepository.queryHospitalOverview(filters, db, false)
+    }
+  }
+
+  static async getHospitalOverviewDetails(
+    query: HospitalOverviewDetailsQuery,
+    db: { execute: (query: any) => Promise<any> } = drizzleDb,
+  ) {
+    try {
+      return await DashboardRepository.queryHospitalOverviewDetails(query, db, true)
+    } catch (error) {
+      if (!isMissingCategoryColumn(error)) throw error
+      return DashboardRepository.queryHospitalOverviewDetails(query, db, false)
+    }
+  }
+
+  private static async queryHospitalOverviewDetails(
+    query: HospitalOverviewDetailsQuery,
+    db: { execute: (query: any) => Promise<any> },
+    categoryAvailable: boolean,
+  ) {
+    const categoryExpression = overviewCategoryExpression(categoryAvailable)
+    const hospitalWhere = overviewWhere(query, false, categoryAvailable)
+    const dispatchDateFilter = query.startDate && query.endDate
+      ? sql` AND d.created_at >= ${query.startDate} AND d.created_at < ${endOfOverviewDate(query.endDate)}`
+      : sql``
+    const offset = (query.page - 1) * query.pageSize
+    const [rowsResult, totalResult] = await Promise.all([
+      db.execute(sql`
+        SELECT h.id, h.hospital_name, ${categoryExpression} AS category,
+          COALESCE(province.name, '') AS province_name, COALESCE(city.name, '') AS city_name, h.status,
+          COUNT(d.id) AS dispatch_count,
+          SUM(CASE WHEN d.status_id = 3 THEN 1 ELSE 0 END) AS arrived_count,
+          SUM(CASE WHEN d.status_id = 4 THEN 1 ELSE 0 END) AS deal_count,
+          MAX(d.created_at) AS latest_dispatch_at
+        FROM crm_hospital h
+        LEFT JOIN sys_region province ON province.code = h.province_id
+        LEFT JOIN sys_region city ON city.code = h.city_id
+        LEFT JOIN crm_dispatch d ON d.hospital_id = h.id AND d.deleted_at IS NULL${dispatchDateFilter}
+        WHERE ${hospitalWhere}
+        GROUP BY h.id, h.hospital_name, ${categoryExpression}, province.name, city.name, h.status
+        ORDER BY h.id DESC
+        LIMIT ${query.pageSize} OFFSET ${offset}
+      `),
+      db.execute(sql`SELECT COUNT(*) AS total FROM crm_hospital h WHERE ${hospitalWhere}`),
+    ])
+
+    return {
+      list: DashboardRepository.extractRows(rowsResult).map((row) => ({
+        id: Number(row.id),
+        hospitalName: String(row.hospital_name ?? ''),
+        category: overviewCategory(row.category),
+        provinceName: String(row.province_name ?? ''),
+        cityName: String(row.city_name ?? ''),
+        status: Number(row.status ?? 0),
+        dispatchCount: Number(row.dispatch_count ?? 0),
+        arrivedCount: Number(row.arrived_count ?? 0),
+        dealCount: Number(row.deal_count ?? 0),
+        latestDispatchAt: row.latest_dispatch_at ? new Date(row.latest_dispatch_at).toISOString() : null,
+      })),
+      total: Number(DashboardRepository.extractRows(totalResult)[0]?.total ?? 0),
     }
   }
 

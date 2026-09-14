@@ -247,6 +247,17 @@ export const getHospitalOverview = (params: {
   status?: number;
 } = {}) => request<any>('/api/crm/v1/dashboard/hospital-overview', { params });
 
+export const getHospitalOverviewDetails = (params: {
+  page?: number;
+  pageSize?: number;
+  startDate?: string;
+  endDate?: string;
+  category?: 'oral' | 'plastic' | 'unknown';
+  provinceCode?: number;
+  cityCode?: number;
+  status?: number;
+} = {}) => request<any>('/api/crm/v1/dashboard/hospital-overview/details', { params });
+
 /**
  * 医院数据看板。
  *

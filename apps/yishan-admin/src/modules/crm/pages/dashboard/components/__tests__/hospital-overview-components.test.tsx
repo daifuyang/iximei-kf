@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import * as React from 'react';
-import { getHospitals } from '@/modules/crm/api';
+import { getHospitalOverviewDetails } from '@/modules/crm/api';
 import HospitalDistributionCard from '../HospitalDistributionCard';
+import HospitalCityDrilldownDrawer from '../HospitalCityDrilldownDrawer';
 import HospitalDrilldownDrawer from '../HospitalDrilldownDrawer';
 import HospitalOverviewKpis from '../HospitalOverviewKpis';
 
@@ -10,10 +11,10 @@ jest.mock('@ant-design/charts', () => ({
 }));
 
 jest.mock('@/modules/crm/api', () => ({
-  getHospitals: jest.fn(),
+  getHospitalOverviewDetails: jest.fn(),
 }));
 
-const getHospitalsMock = getHospitals as jest.Mock;
+const getHospitalOverviewDetailsMock = getHospitalOverviewDetails as jest.Mock;
 
 describe('hospital overview linked components', () => {
   it('changes the global category filter when a KPI is selected', () => {
@@ -56,8 +57,24 @@ describe('hospital overview linked components', () => {
     expect(onSelect).toHaveBeenCalledWith({ provinceCode: 11 });
   });
 
+  it('requires a city selection before opening hospital rows for a province', () => {
+    const onSelectCity = jest.fn();
+    render(
+      <HospitalCityDrilldownDrawer
+        open
+        onClose={jest.fn()}
+        cities={[{ provinceCode: 11, provinceName: 'Beijing', cityCode: 1101, cityName: 'Beijing City', hospitalCount: 8 }]}
+        onSelectCity={onSelectCity}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Beijing City' }));
+
+    expect(onSelectCity).toHaveBeenCalledWith({ provinceCode: 11, cityCode: 1101 });
+  });
+
   it('loads a paginated drilldown with its inherited overview filters', async () => {
-    getHospitalsMock.mockResolvedValue({
+    getHospitalOverviewDetailsMock.mockResolvedValue({
       success: true,
       data: [{ id: 9, hospitalName: '协和医院', status: 1 }],
       pagination: { total: 1 },
@@ -78,8 +95,8 @@ describe('hospital overview linked components', () => {
       />,
     );
 
-    await waitFor(() => expect(getHospitalsMock).toHaveBeenCalled());
-    expect(getHospitalsMock).toHaveBeenCalledWith({
+    await waitFor(() => expect(getHospitalOverviewDetailsMock).toHaveBeenCalled());
+    expect(getHospitalOverviewDetailsMock).toHaveBeenCalledWith({
       page: 1,
       pageSize: 10,
       startDate: '2026-01-01',
@@ -90,10 +107,14 @@ describe('hospital overview linked components', () => {
       status: 1,
     });
     expect(screen.getByText('协和医院')).toBeTruthy();
+    expect(screen.getByText('Dispatch')).toBeTruthy();
+    expect(screen.getByText('Arrivals')).toBeTruthy();
+    expect(screen.getByText('Deals')).toBeTruthy();
+    expect(screen.getByText('Latest dispatch')).toBeTruthy();
   });
 
   it('shows an empty state and a retryable error in the drilldown', async () => {
-    getHospitalsMock.mockResolvedValueOnce({
+    getHospitalOverviewDetailsMock.mockResolvedValueOnce({
       success: true,
       data: [],
       pagination: { total: 0 },
@@ -104,7 +125,7 @@ describe('hospital overview linked components', () => {
 
     expect(await screen.findByText('暂无医院数据')).toBeTruthy();
 
-    getHospitalsMock.mockRejectedValueOnce(new Error('network failed'));
+    getHospitalOverviewDetailsMock.mockRejectedValueOnce(new Error('network failed'));
     rerender(
       <HospitalDrilldownDrawer open onClose={jest.fn()} filters={{ provinceCode: 11 }} />,
     );

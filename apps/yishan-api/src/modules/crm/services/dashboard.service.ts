@@ -155,6 +155,16 @@ function buildDateRange(startDate?: string, endDate?: string): DateRange | undef
   return { startDate: start, endDate: end }
 }
 
+function assertHospitalOverviewAccess(roleIds: ReadonlyArray<number>, scope: DataScopeCode) {
+  const isSuperAdmin = roleIds.includes(ROLE_IDS.SUPER_ADMIN)
+  if (!isSuperAdmin && roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
+    throw new BusinessError(AuthErrorCode.FORBIDDEN, 'Hospital accounts cannot access the operations overview')
+  }
+  if (!isSuperAdmin && scope !== DATA_SCOPE.ALL) {
+    throw new BusinessError(AuthErrorCode.FORBIDDEN, 'The current data scope cannot access the operations overview')
+  }
+}
+
 export class DashboardService {
   static async getHospitalOverview(
     _userId: number,
@@ -162,13 +172,7 @@ export class DashboardService {
     scope: DataScopeCode,
     query: DashboardQuery = {},
   ) {
-    const isSuperAdmin = roleIds.includes(ROLE_IDS.SUPER_ADMIN)
-    if (!isSuperAdmin && roleIds.includes(ROLE_IDS.HOSPITAL_ACCOUNT)) {
-      throw new BusinessError(AuthErrorCode.FORBIDDEN, '医院账号不能访问运营总览')
-    }
-    if (!isSuperAdmin && scope !== DATA_SCOPE.ALL) {
-      throw new BusinessError(AuthErrorCode.FORBIDDEN, '当前数据范围不能访问运营总览')
-    }
+    assertHospitalOverviewAccess(roleIds, scope)
 
     const dateRange = buildDateRange(query.startDate, query.endDate)
     const filters = {
@@ -193,6 +197,27 @@ export class DashboardService {
       filters,
       ...overview,
     }
+  }
+
+  static async getHospitalOverviewDetails(
+    userId: number,
+    roleIds: ReadonlyArray<number>,
+    scope: DataScopeCode,
+    query: DashboardQuery & { page?: number; pageSize?: number } = {},
+  ) {
+    void userId
+    assertHospitalOverviewAccess(roleIds, scope)
+    const dateRange = buildDateRange(query.startDate, query.endDate)
+    return DashboardRepository.getHospitalOverviewDetails({
+      startDate: dateRange?.startDate,
+      endDate: dateRange?.endDate,
+      category: query.category,
+      provinceCode: query.provinceCode,
+      cityCode: query.cityCode,
+      status: query.status,
+      page: Math.max(1, Number(query.page ?? 1)),
+      pageSize: Math.min(100, Math.max(1, Number(query.pageSize ?? 10))),
+    })
   }
 
   static async getStats(

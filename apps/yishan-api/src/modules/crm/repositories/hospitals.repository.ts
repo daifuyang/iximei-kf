@@ -1,4 +1,4 @@
-import { and, count, desc, eq, getTableColumns, inArray, isNull, like, ne, or } from 'drizzle-orm'
+import { and, count, desc, eq, getTableColumns, inArray, isNull, like, ne, or, sql } from 'drizzle-orm'
 import { drizzleDb, type AppQueryDb } from '@/db'
 import { crmHospital } from '../db/schema.js'
 import { sysRole, sysUser, sysUserRole } from '@/db/schema'
@@ -19,6 +19,11 @@ export class HospitalsRepository {
 
   static async list(query: any, db: AppQueryDb = drizzleDb) {
     const c: any[] = [active(crmHospital)]
+    if (query.category) {
+      const categoryIds = await HospitalsRepository.idsByCategory(query.category, db as any)
+      if (categoryIds.length) c.push(inArray(crmHospital.id, categoryIds))
+      else c.push(eq(crmHospital.id, -1))
+    }
     if (query.status !== undefined) c.push(eq(crmHospital.status, Number(query.status)))
     if (query.keyword)
       c.push(
@@ -43,6 +48,36 @@ export class HospitalsRepository {
       db.select({ total: count() }).from(crmHospital).where(where),
     ])
     return { list: items, total: Number(totals[0]?.total ?? 0) }
+  }
+
+  private static async idsByCategory(
+    category: 'oral' | 'plastic' | 'unknown',
+    db: { execute: (query: any) => Promise<any> },
+  ): Promise<number[]> {
+    try {
+      const result = await db.execute(sql`
+        SELECT h.id
+        FROM crm_hospital h
+        WHERE h.deleted_at IS NULL
+          AND CASE WHEN h.category IN ('oral', 'plastic') THEN h.category ELSE 'unknown' END = ${category}
+      `)
+      const rows = Array.isArray(result) && Array.isArray(result[0])
+        ? result[0]
+        : Array.isArray((result as any)?.rows)
+          ? (result as any).rows
+          : []
+      return rows.map((row: any) => Number(row.id)).filter(Number.isFinite)
+    } catch (error: any) {
+      const cause = error?.cause ?? error
+      const code = cause?.code ?? error?.code ?? error?.errno
+      const message = String(cause?.sqlMessage ?? error?.sqlMessage ?? error?.message ?? '')
+      if (code === 'ER_BAD_FIELD_ERROR' || code === 1054 || /Unknown column.*category/i.test(message)) {
+        return category === 'unknown'
+          ? await HospitalsRepository.allActiveHospitalIds(db as any).then((rows) => rows.map((row) => row.id))
+          : []
+      }
+      throw error
+    }
   }
 
   static async findById(id: number, db: AppQueryDb = drizzleDb) {

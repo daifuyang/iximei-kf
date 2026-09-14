@@ -52,6 +52,22 @@ export const CrmHospitalOverviewSchema = Type.Object(
   { $id: 'crmHospitalOverview' },
 )
 
+export const CrmHospitalOverviewDetailSchema = Type.Object(
+  {
+    id: Type.Integer(),
+    hospitalName: Type.String(),
+    category: CrmHospitalOverviewCategorySchema,
+    provinceName: Type.String(),
+    cityName: Type.String(),
+    status: Type.Integer({ minimum: 0, maximum: 1 }),
+    dispatchCount: Type.Integer(),
+    arrivedCount: Type.Integer(),
+    dealCount: Type.Integer(),
+    latestDispatchAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
+  },
+  { $id: 'crmHospitalOverviewDetail' },
+)
+
 /** 单个城市的医院分布项。 */
 export const CrmHospitalDistributionItemSchema = Type.Object(
   {

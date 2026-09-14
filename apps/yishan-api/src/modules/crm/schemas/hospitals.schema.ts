@@ -1,5 +1,18 @@
 import { Type } from '@sinclair/typebox'
 import { passwordTypeBoxProps } from '../../../core/utils/password-policy.js'
+import { CrmPageQuerySchema } from './shared.schema.js'
+
+export const CrmHospitalListQuerySchema = Type.Intersect([
+  CrmPageQuerySchema,
+  Type.Object({
+    status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
+    category: Type.Optional(Type.Union([
+      Type.Literal('oral'),
+      Type.Literal('plastic'),
+      Type.Literal('unknown'),
+    ])),
+  }),
+], { $id: 'crmHospitalListQuery' })
 
 /**
  * 医院搜索下拉查询 schema。
@@ -132,6 +145,7 @@ export const CrmHospitalAccountResetPasswordReqSchema = Type.Object(
 export type CrmHospitalReq = import('@sinclair/typebox').Static<typeof CrmHospitalReqSchema>
 export type CrmHospitalUpdateReq = import('@sinclair/typebox').Static<typeof CrmHospitalUpdateReqSchema>
 export type CrmHospitalSearchQuery = import('@sinclair/typebox').Static<typeof CrmHospitalSearchQuerySchema>
+export type CrmHospitalListQuery = import('@sinclair/typebox').Static<typeof CrmHospitalListQuerySchema>
 export type CrmHospitalAccountResp = import('@sinclair/typebox').Static<typeof CrmHospitalAccountRespSchema>
 export type CrmHospitalAccountUpdateReq = import('@sinclair/typebox').Static<typeof CrmHospitalAccountUpdateReqSchema>
 export type CrmHospitalAccountResetPasswordReq = import('@sinclair/typebox').Static<typeof CrmHospitalAccountResetPasswordReqSchema>

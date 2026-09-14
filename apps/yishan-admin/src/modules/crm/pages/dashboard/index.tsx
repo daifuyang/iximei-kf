@@ -5,8 +5,10 @@ import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getHospitalOverview } from '../../api';
 import HospitalDistributionCard from './components/HospitalDistributionCard';
+import HospitalCityDrilldownDrawer from './components/HospitalCityDrilldownDrawer';
 import HospitalDrilldownDrawer from './components/HospitalDrilldownDrawer';
 import HospitalOverviewKpis from './components/HospitalOverviewKpis';
+import LegacyCrmDashboardSection from './components/LegacyCrmDashboardSection';
 import styles from './index.module.less';
 import type {
   HospitalDistributionSelection,
@@ -15,6 +17,7 @@ import type {
   HospitalOverviewFilters,
 } from './types';
 import { normalizeHospitalOverview } from './types';
+import { readFilters, writeFilters } from './filters';
 
 const { RangePicker } = DatePicker;
 
@@ -24,32 +27,6 @@ const categories: Array<{ label: string; value: HospitalOverviewCategory }> = [
   { label: '未分类医院', value: 'unknown' },
 ];
 
-const numberParam = (value: string | null): number | undefined => {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
-};
-
-const readFilters = (search: string): HospitalOverviewFilters => {
-  const params = new URLSearchParams(search);
-  const category = params.get('category');
-  return {
-    startDate: params.get('startDate') || undefined,
-    endDate: params.get('endDate') || undefined,
-    category: category === 'oral' || category === 'plastic' || category === 'unknown' ? category : undefined,
-    provinceCode: numberParam(params.get('provinceCode')),
-    cityCode: numberParam(params.get('cityCode')),
-    status: numberParam(params.get('status')),
-  };
-};
-
-const writeFilters = (filters: HospitalOverviewFilters) => {
-  const params = new URLSearchParams();
-  (Object.entries(filters) as Array<[keyof HospitalOverviewFilters, string | number | undefined]>).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') params.set(key, String(value));
-  });
-  return params.toString();
-};
-
 const DashboardPage: React.FC = () => {
   const location = useLocation();
   const filters = useMemo(() => readFilters(location.search), [location.search]);
@@ -57,6 +34,7 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [cityDrawerOpen, setCityDrawerOpen] = useState(false);
   const requestRef = useRef(0);
 
   const updateFilters = useCallback((next: HospitalOverviewFilters) => {
@@ -97,7 +75,13 @@ const DashboardPage: React.FC = () => {
       next.cityCode = selection.cityCode;
     }
     updateFilters(next);
-    if (openDrawer) setDrawerOpen(true);
+    if (openDrawer) {
+      if (selection.provinceCode !== undefined && selection.cityCode === undefined) {
+        setCityDrawerOpen(true);
+      } else {
+        setDrawerOpen(true);
+      }
+    }
   }, [filters, updateFilters]);
 
   const cities = useMemo(() => {
@@ -222,7 +206,18 @@ const DashboardPage: React.FC = () => {
         </Card>
       </div>
 
+      <LegacyCrmDashboardSection />
       <HospitalDrilldownDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} filters={filters} />
+      <HospitalCityDrilldownDrawer
+        open={cityDrawerOpen}
+        onClose={() => setCityDrawerOpen(false)}
+        cities={cities}
+        onSelectCity={(city) => {
+          updateFilters({ ...filters, provinceCode: city.provinceCode, cityCode: city.cityCode });
+          setCityDrawerOpen(false);
+          setDrawerOpen(true);
+        }}
+      />
     </PageContainer>
   );
 };

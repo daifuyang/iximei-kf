@@ -5,7 +5,7 @@ import {
   type ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { useModel } from '@umijs/max';
+import { useLocation, useModel } from '@umijs/max';
 import {
   Alert,
   App,
@@ -96,6 +96,11 @@ const toRegionOptions = (nodes: any[] = []): any[] =>
 
 const HospitalPage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
+  const location = useLocation();
+  const requestedCategory = new URLSearchParams(location.search).get('category');
+  const category = requestedCategory === 'oral' || requestedCategory === 'plastic' || requestedCategory === 'unknown'
+    ? requestedCategory
+    : undefined;
   const { message: antMessage, modal } = App.useApp();
   // STRICT-SPEC §4.1 / §7.3 / §7.4：基于权限码判断，不依赖 roleCodes 字符串。
   const { initialState } = useModel('@@initialState');
@@ -398,6 +403,7 @@ const HospitalPage: React.FC = () => {
             pageSize: params.pageSize,
             keyword: params.hospitalName,
             status: params.status,
+            category,
           });
           return {
             data: res.data || [],

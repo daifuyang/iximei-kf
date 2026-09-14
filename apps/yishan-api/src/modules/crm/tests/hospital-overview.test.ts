@@ -147,6 +147,62 @@ describe('DashboardRepository.getHospitalOverview', () => {
   })
 })
 
+describe('DashboardRepository.getHospitalOverviewDetails', () => {
+  it('uses the overview filters and returns per-hospital operating metrics', async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce(result([{
+        id: 9,
+        hospital_name: 'Union Hospital',
+        category: 'oral',
+        province_name: 'Beijing',
+        city_name: 'Beijing',
+        status: 1,
+        dispatch_count: '3',
+        arrived_count: '2',
+        deal_count: '1',
+        latest_dispatch_at: '2026-01-20T00:00:00.000Z',
+      }]))
+      .mockResolvedValueOnce(result([{ total: '1' }]))
+
+    const details = await (DashboardRepository as any).getHospitalOverviewDetails({
+      startDate: new Date('2025-12-31T16:00:00.000Z'),
+      endDate: new Date('2026-01-30T16:00:00.000Z'),
+      category: 'oral',
+      provinceCode: 11,
+      cityCode: 1101,
+      status: 1,
+      page: 1,
+      pageSize: 10,
+    }, { execute })
+
+    expect(details).toEqual({
+      list: [{
+        id: 9,
+        hospitalName: 'Union Hospital',
+        category: 'oral',
+        provinceName: 'Beijing',
+        cityName: 'Beijing',
+        status: 1,
+        dispatchCount: 3,
+        arrivedCount: 2,
+        dealCount: 1,
+        latestDispatchAt: '2026-01-20T00:00:00.000Z',
+      }],
+      total: 1,
+    })
+
+    const statements = execute.mock.calls.map(([query]: any[]) => dumpSql(query))
+    expect(statements[0]).toContain('h.deleted_at IS NULL')
+    expect(statements[0]).toContain('h.category')
+    expect(statements[0]).toContain('h.province_id')
+    expect(statements[0]).toContain('h.city_id')
+    expect(statements[0]).toContain('h.status')
+    expect(statements[0]).toContain('d.created_at')
+    expect(statements[0]).toContain('2025-12-31T16:00:00.000Z')
+    expect(statements[0]).toContain('2026-01-31T16:00:00.000Z')
+  })
+})
+
 describe('DashboardService.getHospitalOverview', () => {
   it('passes inclusive Shanghai date boundaries to the repository', async () => {
     const overview = {
@@ -268,4 +324,62 @@ describe('hospital overview route', () => {
     expect(service).not.toHaveBeenCalled()
     await app.close()
   })
+
+  it('returns a paginated hospital detail response with the overview metric fields', async () => {
+    vi.spyOn(DashboardService as any, 'getHospitalOverviewDetails').mockResolvedValue({
+      list: [{
+        id: 9,
+        hospitalName: 'Union Hospital',
+        category: 'oral',
+        provinceName: 'Beijing',
+        cityName: 'Beijing',
+        status: 1,
+        dispatchCount: 3,
+        arrivedCount: 2,
+        dealCount: 1,
+        latestDispatchAt: '2026-01-20T00:00:00.000Z',
+      }],
+      total: 1,
+    })
+    const app = Fastify()
+    app.decorate('authenticate', async (request: any) => {
+      request.currentUser = { id: 1, roleIds: [ROLE_IDS.SUPER_ADMIN], dataScope: 1 }
+    })
+    app.decorate('requirePermission', () => async () => {})
+    await app.register(dashboardRoutes, { prefix: '/api/crm/v1' })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/crm/v1/dashboard/hospital-overview/details?page=1&pageSize=10&category=oral',
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      data: [{ dispatchCount: 3, arrivedCount: 2, dealCount: 1, latestDispatchAt: '2026-01-20T00:00:00.000Z' }],
+      pagination: { page: 1, pageSize: 10, total: 1 },
+    })
+    await app.close()
+  })
+
+  it.each(['provinceCode=0', 'cityCode=0', 'status=2'])(
+    'rejects invalid overview filter %s before invoking the service',
+    async (query) => {
+      const service = vi.spyOn(DashboardService as any, 'getHospitalOverview')
+      const app = Fastify()
+      app.decorate('authenticate', async (request: any) => {
+        request.currentUser = { id: 1, roleIds: [ROLE_IDS.SUPER_ADMIN], dataScope: 1 }
+      })
+      app.decorate('requirePermission', () => async () => {})
+      await app.register(dashboardRoutes, { prefix: '/api/crm/v1' })
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/crm/v1/dashboard/hospital-overview?${query}`,
+      })
+
+      expect(response.statusCode).toBe(400)
+      expect(service).not.toHaveBeenCalled()
+      await app.close()
+    },
+  )
 })

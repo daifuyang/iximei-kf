@@ -5,7 +5,7 @@ import { ResponseUtil } from '@/utils/response.js'
 import { PERMS } from '../../../permissions.js'
 import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import { DashboardService } from '../../../services/dashboard.service.js'
-import { CrmHospitalOverviewSchema, DashboardStatsSchema } from '../../../schemas/dashboard.schema.js'
+import { CrmHospitalOverviewDetailSchema, CrmHospitalOverviewSchema, DashboardStatsSchema } from '../../../schemas/dashboard.schema.js'
 import { ROLE_IDS } from '@/constants/permission-codes.js'
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
@@ -46,7 +46,7 @@ const dashboard: FastifyPluginAsync = async (app) => {
           ])),
           provinceCode: Type.Optional(Type.Integer({ minimum: 1 })),
           cityCode: Type.Optional(Type.Integer({ minimum: 1 })),
-          status: Type.Optional(Type.Integer()),
+          status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
         }),
         response: {
           200: Type.Object({
@@ -95,6 +95,64 @@ const dashboard: FastifyPluginAsync = async (app) => {
         query,
       )
       return ResponseUtil.success(reply, data)
+    },
+  )
+
+  route.get(
+    '/dashboard/hospital-overview/details',
+    {
+      access: { permission: PERMS.DASHBOARD_VIEW },
+      schema: {
+        tags: [ROUTE_TAG],
+        summary: 'CRM hospital overview drilldown details',
+        operationId: 'listCrmHospitalOverviewDetails',
+        querystring: Type.Object({
+          page: Type.Optional(Type.Integer({ minimum: 1, default: 1 })),
+          pageSize: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 10 })),
+          startDate: Type.Optional(Type.String()),
+          endDate: Type.Optional(Type.String()),
+          category: Type.Optional(Type.Union([
+            Type.Literal('oral'),
+            Type.Literal('plastic'),
+            Type.Literal('unknown'),
+          ])),
+          provinceCode: Type.Optional(Type.Integer({ minimum: 1 })),
+          cityCode: Type.Optional(Type.Integer({ minimum: 1 })),
+          status: Type.Optional(Type.Integer({ minimum: 0, maximum: 1 })),
+        }),
+        response: {
+          200: Type.Object({
+            success: Type.Boolean(),
+            code: Type.Integer(),
+            message: Type.String(),
+            data: Type.Array(CrmHospitalOverviewDetailSchema),
+            pagination: Type.Object({
+              page: Type.Integer(),
+              pageSize: Type.Integer(),
+              total: Type.Integer(),
+              totalPages: Type.Integer(),
+            }),
+          }),
+        },
+      },
+    },
+    async (req: any, reply: any) => {
+      const query = req.query as any
+      if ((query.startDate && !query.endDate) || (!query.startDate && query.endDate)) {
+        return reply.status(400).send({ success: false, message: 'startDate and endDate must be provided together' })
+      }
+      if (query.startDate && query.endDate && (
+        !isCalendarDate(query.startDate) || !isCalendarDate(query.endDate) || query.startDate > query.endDate
+      )) {
+        return reply.status(400).send({ success: false, message: 'invalid date range' })
+      }
+      const result = await DashboardService.getHospitalOverviewDetails(
+        req.currentUser.id,
+        req.currentUser.roleIds ?? [],
+        req.currentUser.dataScope ?? 1,
+        query,
+      )
+      return ResponseUtil.paginated(reply, result.list, Number(query.page ?? 1), Number(query.pageSize ?? 10), result.total)
     },
   )
 

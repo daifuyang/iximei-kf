@@ -1,6 +1,6 @@
 import { Alert, Button, Drawer, Empty, Table } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getHospitals } from '@/modules/crm/api';
+import { getHospitalOverviewDetails } from '@/modules/crm/api';
 import type { HospitalOverviewFilters } from '../types';
 
 interface Props {
@@ -29,7 +29,7 @@ const HospitalDrilldownDrawer: React.FC<Props> = ({ open, onClose, filters }) =>
     setLoading(true);
     setError(null);
     try {
-      const response = await getHospitals({ page, pageSize: 10, ...filters } as object);
+      const response = await getHospitalOverviewDetails({ page, pageSize: 10, ...filters });
       if (request !== requestRef.current) return;
       if (!response?.success) throw new Error(response?.message || '加载失败');
       setRows(response.data ?? []);
@@ -78,6 +78,10 @@ const HospitalDrilldownDrawer: React.FC<Props> = ({ open, onClose, filters }) =>
             onChange: setPage,
           }}
           columns={[
+            { title: 'Dispatch', dataIndex: 'dispatchCount', key: 'dispatchCount' },
+            { title: 'Arrivals', dataIndex: 'arrivedCount', key: 'arrivedCount' },
+            { title: 'Deals', dataIndex: 'dealCount', key: 'dealCount' },
+            { title: 'Latest dispatch', dataIndex: 'latestDispatchAt', key: 'latestDispatchAt', render: (value: string | null) => value ?? '-' },
             { title: '医院', dataIndex: 'hospitalName', key: 'hospitalName' },
             {
               title: '类型',

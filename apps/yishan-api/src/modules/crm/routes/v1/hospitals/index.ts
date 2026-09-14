@@ -19,6 +19,7 @@ import { ROUTE_TAG } from '../../../schemas/routes.schema.js'
 import {
   CrmHospitalAccountResetPasswordReqSchema,
   CrmHospitalAccountUpdateReqSchema,
+  CrmHospitalListQuerySchema,
   CrmHospitalRenameReqSchema,
   CrmHospitalReqSchema,
   CrmHospitalSearchQuerySchema,
@@ -26,7 +27,6 @@ import {
 } from '../../../schemas/hospitals.schema.js'
 import {
   CrmIdParamsSchema,
-  CrmPageQuerySchema,
 } from '../../../schemas/shared.schema.js'
 
 const hospitals: FastifyPluginAsync = async (app) => {
@@ -73,7 +73,7 @@ const hospitals: FastifyPluginAsync = async (app) => {
         tags: [ROUTE_TAG],
         summary: '医院列表',
         operationId: 'listCrmHospitals',
-        querystring: CrmPageQuerySchema,
+        querystring: CrmHospitalListQuerySchema,
       },
     },
     async (req: any, reply: any) => {
