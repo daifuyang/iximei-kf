@@ -24,7 +24,11 @@ function buildDatabaseUrl(): string | undefined {
  */
 export const pool: Pool = (() => {
   const url = buildDatabaseUrl()
-  if (url) return createPool(url)
+  // The CRM stores business timestamps in MySQL's local wall-clock time
+  // (the production database runs in China Standard Time). Explicitly tell
+  // mysql2 how to decode/encode DATETIME values so API ISO timestamps do not
+  // drift by eight hours when the Node process runs in UTC.
+  if (url) return (createPool as any)(url, { timezone: '+08:00' })
   return createPool({
     host: process.env.DATABASE_HOST,
     user: process.env.DATABASE_USER,
@@ -33,6 +37,7 @@ export const pool: Pool = (() => {
     port: process.env.DATABASE_PORT ? Number(process.env.DATABASE_PORT) : 3306,
     waitForConnections: true,
     connectionLimit: 5,
+    timezone: '+08:00',
   })
 })()
 

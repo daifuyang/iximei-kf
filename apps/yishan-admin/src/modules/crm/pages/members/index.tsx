@@ -3,6 +3,7 @@ import {
   type ActionType,
   PageContainer,
   type ProColumns,
+  ProForm,
   ProTable,
   DrawerForm,
   ProFormText,
@@ -14,7 +15,7 @@ import {
   ModalForm,
   StatisticCard,
 } from '@ant-design/pro-components';
-import { App, Button, Card, Col, Row, Space, Tag, Modal, Descriptions, Tabs, Drawer, message, Badge, Input, Table, Form, Divider, Typography, Avatar, Empty, Spin, Dropdown } from 'antd';
+import { App, Button, Card, Col, Row, Space, Tag, Modal, Descriptions, Tabs, Drawer, message, Badge, Input, Table, Form, Divider, Typography, Avatar, Empty, Spin, Dropdown, Cascader } from 'antd';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import dayjs from 'dayjs';
 import {
@@ -24,6 +25,7 @@ import {
   batchAssignMembers, batchTagMembers, batchInvalidateMembers,
   restoreMember, createMemberTag,
   getMemberOverview,
+  getRegionTree,
 } from '../../api';
 import { getCustomerServiceUsers } from '../../api';
 import { extractApiError, normalizeMemberPayload } from './utils';
@@ -88,6 +90,14 @@ const SOURCE_CHANNELS = [
   { label: '广告', value: 'ad' },
   { label: '其他', value: 'other' },
 ];
+
+const toRegionOptions = (nodes: any[] = []): any[] => nodes.map((node) => ({
+  label: node.name,
+  value: node.code,
+  children: Array.isArray(node.children) && node.children.length
+    ? toRegionOptions(node.children)
+    : undefined,
+}));
 
 // ── 辅助组件 ──
 
@@ -165,6 +175,8 @@ const MemberPage: React.FC = () => {
   const [currentMember, setCurrentMember] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
+  const [regionOptions, setRegionOptions] = useState<any[]>([]);
+  const [regionLoading, setRegionLoading] = useState(false);
 
   // ── 快捷筛选预设状态 ──
   const [activePreset, setActivePreset] = useState<string | null>(null);
@@ -227,6 +239,17 @@ const MemberPage: React.FC = () => {
   }, []);
 
   useEffect(() => { loadUsers(); loadTags(); }, [loadUsers, loadTags]);
+
+  useEffect(() => {
+    let active = true;
+    setRegionLoading(true);
+    getRegionTree({ level: 3 })
+      .then((res: any) => {
+        if (active && res?.success) setRegionOptions(toRegionOptions(res.data || []));
+      })
+      .finally(() => { if (active) setRegionLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   // ── 客户搜索 ──
   // 11 位手机号走严格精确匹配（调后端 mobile 字段），避免被 keyword 模糊匹配吞掉。
@@ -453,7 +476,15 @@ const MemberPage: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     try {
-      const payload = normalizeMemberPayload(values);
+      const { regionCodes, ...formValues } = values;
+      const payload = normalizeMemberPayload({
+        ...formValues,
+        ...(createMode === 'direct' ? {
+          provinceId: regionCodes?.[0],
+          cityId: regionCodes?.[1],
+          districtId: regionCodes?.[2],
+        } : {}),
+      });
       let res: any;
       if (createMode === 'from_customer') {
         if (!selectedCustomer) {
@@ -482,7 +513,13 @@ const MemberPage: React.FC = () => {
 
   const handleUpdate = async (values: any) => {
     try {
-      const payload = normalizeMemberPayload(values);
+      const { regionCodes, ...formValues } = values;
+      const payload = normalizeMemberPayload({
+        ...formValues,
+        provinceId: regionCodes?.[0],
+        cityId: regionCodes?.[1],
+        districtId: regionCodes?.[2],
+      });
       const res = await updateMember(editingMember.id, payload);
       if (res?.success) {
         message.success('修改成功');
@@ -971,8 +1008,11 @@ const MemberPage: React.FC = () => {
             <ProFormText name="wechat" label="微信号" placeholder="请输入微信号" />
             <ProFormRadio.Group name="gender" label="性别" options={[{ label: '男', value: 1 }, { label: '女', value: 2 }, { label: '未知', value: 0 }]} initialValue={0} />
             <ProFormDatePicker name="birthday" label="出生日期" />
+            <ProForm.Item name="regionCodes" label="所在城市">
+              <Cascader options={regionOptions} loading={regionLoading} placeholder="请选择省/市/区" />
+            </ProForm.Item>
+            <ProFormText name="address" label="详细地址" placeholder="请输入详细地址" />
             <ProFormSelect name="sourceChannel" label="来源渠道" options={SOURCE_CHANNELS} />
-            <ProFormSelect name="cityId" label="所在城市" />
             <Divider>会员信息</Divider>
             <ProFormSelect name="businessCategory" label="业务类别" options={BUSINESS_CATEGORIES} rules={[{ required: true }]} placeholder="请选择" />
             <ProFormText name="intentionProject" label="意向项目" placeholder="请输入" />
@@ -1005,6 +1045,9 @@ const MemberPage: React.FC = () => {
         onFinish={handleUpdate}
         initialValues={editingMember ? {
           ...editingMember,
+          regionCodes: editingMember.provinceId && editingMember.cityId
+            ? [editingMember.provinceId, editingMember.cityId, editingMember.districtId].filter(Boolean)
+            : undefined,
           // 把标签数组反序列化成逗号串形式回显（纯文本编辑）
           tagsText: (editingMember.tags?.map((t: any) => t.name).filter(Boolean) || []).join(', '),
         } : undefined}
@@ -1021,9 +1064,13 @@ const MemberPage: React.FC = () => {
         <Divider>基本资料</Divider>
         <ProFormText name="name" label="姓名" rules={[{ max: 50 }]} placeholder="请输入" />
         <ProFormText name="mobile" label="手机号" rules={[{ pattern: /^1\d{10}$/, message: '请输入正确的手机号' }]} placeholder="请输入" />
-        <ProFormText name="wechat" label="微信号" />
-        <ProFormRadio.Group name="gender" label="性别" options={[{ label: '男', value: 1 }, { label: '女', value: 2 }, { label: '未知', value: 0 }]} />
-        <ProFormDatePicker name="birthday" label="出生日期" />
+            <ProFormText name="wechat" label="微信号" />
+            <ProFormRadio.Group name="gender" label="性别" options={[{ label: '男', value: 1 }, { label: '女', value: 2 }, { label: '未知', value: 0 }]} />
+            <ProFormDatePicker name="birthday" label="出生日期" />
+            <ProForm.Item name="regionCodes" label="所在城市">
+              <Cascader options={regionOptions} loading={regionLoading} placeholder="请选择省/市/区" />
+            </ProForm.Item>
+            <ProFormText name="address" label="详细地址" />
         <ProFormSelect name="sourceChannel" label="来源渠道" options={SOURCE_CHANNELS} />
         <Divider>会员信息</Divider>
         <ProFormSelect name="businessCategory" label="业务类别" options={BUSINESS_CATEGORIES} />

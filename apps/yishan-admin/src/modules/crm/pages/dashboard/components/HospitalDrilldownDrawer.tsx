@@ -1,4 +1,5 @@
 import { Alert, Button, Drawer, Empty, Table } from 'antd';
+import { history } from '@umijs/max';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getHospitalOverviewDetails } from '@/modules/crm/api';
 import type { HospitalOverviewFilters } from '../types';
@@ -101,7 +102,15 @@ const HospitalDrilldownDrawer: React.FC<Props> = ({ open, onClose, filters }) =>
               title: '操作',
               key: 'actions',
               render: (_, record: any) => (
-                <a href={`/crm/hospitals?hospitalId=${record.id}`}>查看详情</a>
+                <Button
+                  type="link"
+                  onClick={() => {
+                    onClose();
+                    history.push(`/crm/hospitals?hospitalId=${record.id}`);
+                  }}
+                >
+                  查看详情
+                </Button>
               ),
             },
           ]}
