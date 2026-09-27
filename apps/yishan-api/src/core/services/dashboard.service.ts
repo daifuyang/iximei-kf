@@ -3,6 +3,7 @@ import { UserRepository } from "../repositories/user.repository.js";
 import { DeptRepository } from "../repositories/dept.repository.js";
 import { LoginLogRepository } from "../repositories/login-log.repository.js";
 import { DashboardStats } from "../schemas/dashboard.js";
+import { dateUtils } from "@/utils/date.js";
 
 const DASHBOARD_STATS_CACHE_KEY = 'dashboard:stats';
 const DASHBOARD_STATS_CACHE_TTL = 30;
@@ -20,8 +21,7 @@ export class DashboardService {
       }
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = dateUtils.shanghaiDayStart();
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     const [userTotal, deptTotal, todayLogin, online] = await Promise.all([

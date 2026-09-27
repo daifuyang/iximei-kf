@@ -15,15 +15,12 @@
  * - yearStart:  当年 1 月 1 日 00:00
  * - (可选) startDate/endDate: 用户筛选窗口，闭区间 [startDate 0:00, endDate+1 0:00)
  *
- * 注：进程 runtime 时区通常为 UTC，这里采用本地 Date 构造，
- * 数据库侧仍按写入时间的字符串比较；如未来有跨时区需求再改用
- * server-side timezone-aware 的 SQL `CONVERT_TZ`。
- *
  * 注 2：hospitalIds 入参由 service 层负责校验（hospitalAccount 越权检查）。
  */
 
 import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { drizzleDb } from '@/db'
+import { dateUtils } from '@/utils/date.js'
 import {
   crmCustomer,
   crmDispatch,
@@ -70,26 +67,18 @@ function notInCompletedStatusSql(completedIds: number[]) {
   )})`
 }
 
-/** 在 Asia/Shanghai 时区下构造当日/当月/当年起点。 */
 function getTimeBucketStarts(now: Date = new Date()): { todayStart: Date; monthStart: Date; yearStart: Date } {
-  const todayStart = new Date(now)
-  todayStart.setHours(0, 0, 0, 0)
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const yearStart = new Date(now.getFullYear(), 0, 1)
-  return { todayStart, monthStart, yearStart }
+  return {
+    todayStart: dateUtils.shanghaiDayStart(now),
+    monthStart: dateUtils.shanghaiMonthStart(now),
+    yearStart: dateUtils.shanghaiYearStart(now),
+  }
 }
 
-/**
- * 把 YYYY-MM-DD 字符串转成 Date 对象，endDate + 1 天（下界闭/上界开）。
- * 输入 '2026-08-22' 转 '2026-08-22T00:00:00.000Z' (UTC 0 点)。
- * 非法字符串返回 null，调用方负责忽略。
- */
+/** YYYY-MM-DD → Asia/Shanghai 当天 00:00。非法字符串返回 null。 */
 function parseDateOpt(s: unknown): Date | null {
   if (typeof s !== 'string' || !s.trim()) return null
-  // 接受 YYYY-MM-DD
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
-  const d = new Date(`${s}T00:00:00.000Z`)
-  return Number.isNaN(d.getTime()) ? null : d
+  return dateUtils.parseShanghaiDate(s)
 }
 
 export class HospitalDashboardRepository {
@@ -123,7 +112,7 @@ export class HospitalDashboardRepository {
 
     const dateFilter =
       ed !== null
-        ? and(gte(crmDispatch.createdAt, sd ?? todayStart), lt(crmDispatch.createdAt, new Date(ed.getTime() + 86400000)))
+        ? and(gte(crmDispatch.createdAt, sd ?? todayStart), lt(crmDispatch.createdAt, dateUtils.shanghaiNextDayStart(ed)))
         : sd !== null
           ? gte(crmDispatch.createdAt, sd)
           : undefined
@@ -220,43 +209,33 @@ export class HospitalDashboardRepository {
       }
     }
 
-    // 1) 生成日期序列（YYYY-MM-DD）
+    // 1) 生成日期序列（YYYY-MM-DD，Asia/Shanghai 日历日）
     const dates: string[] = []
     let periodStart: Date
     let periodEndExclusive: Date
+    const fillDays = (start: Date, endExclusive: Date) => {
+      for (let t = start.getTime(); t < endExclusive.getTime(); t += 86400000) {
+        dates.push(dateUtils.formatShanghaiYmd(new Date(t)))
+      }
+    }
     if (startDate && endDate) {
       const sd = parseDateOpt(startDate)
       const ed = parseDateOpt(endDate)
       if (sd && ed && ed >= sd) {
         periodStart = sd
-        periodEndExclusive = new Date(ed.getTime() + 86400000)
-        for (let d = sd.getTime(); d < periodEndExclusive.getTime(); d += 86400000) {
-          dates.push(new Date(d).toISOString().slice(0, 10))
-        }
+        periodEndExclusive = dateUtils.shanghaiNextDayStart(ed)
+        fillDays(periodStart, periodEndExclusive)
       } else {
-        // 非法区段：回退 days
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        periodStart = new Date(today)
-        periodStart.setDate(periodStart.getDate() - (days - 1))
-        periodEndExclusive = new Date(today.getTime() + 86400000)
-        for (let i = days - 1; i >= 0; i--) {
-          const d = new Date(today)
-          d.setDate(d.getDate() - i)
-          dates.push(d.toISOString().slice(0, 10))
-        }
+        const today = dateUtils.shanghaiDayStart()
+        periodStart = new Date(today.getTime() - (days - 1) * 86400000)
+        periodEndExclusive = dateUtils.shanghaiNextDayStart(today)
+        fillDays(periodStart, periodEndExclusive)
       }
     } else {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      periodStart = new Date(today)
-      periodStart.setDate(periodStart.getDate() - (days - 1))
-      periodEndExclusive = new Date(today.getTime() + 86400000)
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(today)
-        d.setDate(d.getDate() - i)
-        dates.push(d.toISOString().slice(0, 10))
-      }
+      const today = dateUtils.shanghaiDayStart()
+      periodStart = new Date(today.getTime() - (days - 1) * 86400000)
+      periodEndExclusive = dateUtils.shanghaiNextDayStart(today)
+      fillDays(periodStart, periodEndExclusive)
     }
 
     // 2) 一次 SQL 聚合：按 DATE(createdAt) 分组

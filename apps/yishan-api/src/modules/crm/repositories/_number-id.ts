@@ -15,6 +15,7 @@
  */
 
 import { randomInt } from 'node:crypto'
+import { dateUtils } from '@/utils/date.js'
 
 const BASE36 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
@@ -25,12 +26,9 @@ function randomTail(len = 6): string {
   return s
 }
 
-/** 把 Date 格式化成 YYYYMMDD（用本地时区，与客服/CN 用户认知一致） */
+/** 把 Date 格式化成 YYYYMMDD（Asia/Shanghai 日历日，与客服认知一致） */
 export function ymdOf(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}${m}${day}`
+  return dateUtils.formatShanghaiYmd(d).replaceAll('-', '')
 }
 
 /** 本地时区今日 YYYYMMDD */

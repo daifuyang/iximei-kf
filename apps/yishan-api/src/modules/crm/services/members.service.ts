@@ -16,6 +16,7 @@ import {
   parseDateOrThrow,
   trimOrNull,
 } from '../_validation.js'
+import { dateUtils } from '@/utils/date.js'
 
 /** owner 字段过滤：SELF 限定，其它档位(ALL)保留全量 */
 function ownerScopeFor(scope: DataScopeCode, userId: number): number | undefined {
@@ -86,27 +87,11 @@ export class MembersService {
   static async overview(userId: number, scope: DataScopeCode = DATA_SCOPE.ALL) {
     const ownerUserId = ownerScopeFor(scope, userId)
 
-    // Compute Asia/Shanghai date boundaries
     const now = new Date()
-    // Convert current time to Shanghai date for "today" boundaries
-    const shNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
-    const shTodayStart = new Date(shNow)
-    shTodayStart.setHours(0, 0, 0, 0)
-    const shTodayEnd = new Date(shNow)
-    shTodayEnd.setHours(23, 59, 59, 999)
-
-    // Convert Shanghai today to UTC for DB query
-    const todayStart = new Date(shTodayStart.toUTCString())
-    const todayEnd = new Date(shTodayEnd.toUTCString())
-
-    // Month start/end in Shanghai
-    const shMonthStart = new Date(shNow.getFullYear(), shNow.getMonth(), 1)
-    shMonthStart.setHours(0, 0, 0, 0)
-    const shMonthEnd = new Date(shNow.getFullYear(), shNow.getMonth() + 1, 0)
-    shMonthEnd.setHours(23, 59, 59, 999)
-
-    const monthStart = new Date(shMonthStart.toUTCString())
-    const monthEnd = new Date(shMonthEnd.toUTCString())
+    const todayStart = dateUtils.shanghaiDayStart(now)
+    const todayEnd = new Date(dateUtils.shanghaiNextDayStart(now).getTime() - 1)
+    const monthStart = dateUtils.shanghaiMonthStart(now)
+    const monthEnd = new Date(dateUtils.shanghaiAddMonths(monthStart, 1).getTime() - 1)
 
     const stats = await MembersRepository.overview({
       todayStart, todayEnd, monthStart, monthEnd, now, ownerUserId,

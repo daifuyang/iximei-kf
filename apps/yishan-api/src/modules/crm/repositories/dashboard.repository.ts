@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
 import { drizzleDb, type AppQueryDb } from '@/db'
+import { dateUtils } from '@/utils/date.js'
 import {
   crmDispatch,
   crmDispatchViewLog,
@@ -8,24 +9,10 @@ import {
 
 const active = (t: any) => isNull(t.deletedAt)
 
-function monthStart(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
-}
-
-function weekStart(date = new Date()) {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function dayStart(date = new Date()) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
+const monthStart = (date = new Date()) => dateUtils.shanghaiMonthStart(date)
+const weekStart = (date = new Date()) => dateUtils.shanghaiWeekStart(date)
+const dayStart = (date = new Date()) => dateUtils.shanghaiDayStart(date)
+const exclusiveEnd = (date: Date) => dateUtils.shanghaiNextDayStart(date)
 
 export interface DateRange {
   startDate: Date
@@ -58,9 +45,7 @@ function overviewCategory(value: unknown): HospitalOverviewCategory {
 }
 
 function endOfOverviewDate(endDate: Date) {
-  const end = new Date(endDate)
-  end.setUTCDate(end.getUTCDate() + 1)
-  return end
+  return dateUtils.shanghaiNextDayStart(endDate)
 }
 
 function overviewCategoryExpression(categoryAvailable: boolean) {
@@ -147,9 +132,8 @@ export class DashboardRepository {
   ) {
     const start = dateRange?.startDate ?? monthStart()
     const end = dateRange?.endDate ?? new Date()
-    // 半开区间：< endDate 次日 00:00:00
-    const endUpper = new Date(end.getTime() + 86400000)
-    endUpper.setHours(0, 0, 0, 0)
+    // 半开区间：< Asia/Shanghai 次日 00:00:00
+    const endUpper = exclusiveEnd(end)
     const c: any[] = [
       active(table),
       gte(table.createdAt, start),
@@ -219,8 +203,7 @@ export class DashboardRepository {
   ) {
     const start = dateRange?.startDate ?? monthStart()
     const end = dateRange?.endDate ?? new Date()
-    const endUpper = new Date(end.getTime() + 86400000)
-    endUpper.setHours(0, 0, 0, 0)
+    const endUpper = exclusiveEnd(end)
     const c: any[] = [
       active(table),
       gte(table.finishedAt, start),
@@ -259,10 +242,8 @@ export class DashboardRepository {
   ) {
     const c: any[] = [active(table)]
     if (dateRange) {
-      const endUpper = new Date(dateRange.endDate.getTime() + 86400000)
-      endUpper.setHours(0, 0, 0, 0)
       c.push(gte(table.createdAt, dateRange.startDate))
-      c.push(lt(table.createdAt, endUpper))
+      c.push(lt(table.createdAt, exclusiveEnd(dateRange.endDate)))
     }
     if (whereExtra) c.push(...whereExtra(table))
     const rows = await db
@@ -291,10 +272,9 @@ export class DashboardRepository {
   ) {
     const now = new Date()
     const rangeStart = dateRange?.startDate
-      ?? new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
+      ?? dateUtils.shanghaiAddMonths(dateUtils.shanghaiMonthStart(now), -(months - 1))
     const rangeEnd = dateRange?.endDate ?? now
-    const endUpper = new Date(rangeEnd.getTime() + 86400000)
-    endUpper.setHours(0, 0, 0, 0)
+    const endUpper = exclusiveEnd(rangeEnd)
 
     const c: any[] = [active(table), gte(table.createdAt, rangeStart), lt(table.createdAt, endUpper)]
     if (whereExtra) c.push(...whereExtra(table))
@@ -317,16 +297,18 @@ export class DashboardRepository {
       map.set(key, Number(r.count))
     }
 
-    // 计算需要生成的月份数
+    const startParts = dateUtils.formatShanghaiYmd(rangeStart).slice(0, 7)
+    const endParts = dateUtils.formatShanghaiYmd(rangeEnd).slice(0, 7)
+    const [sy, sm] = startParts.split('-').map(Number)
+    const [ey, em] = endParts.split('-').map(Number)
     const trendMonths = dateRange
-      ? (rangeEnd.getFullYear() - rangeStart.getFullYear()) * 12 +
-        (rangeEnd.getMonth() - rangeStart.getMonth()) + 1
+      ? (ey - sy) * 12 + (em - sm) + 1
       : months
 
     const result: { month: string; count: number }[] = []
     for (let i = trendMonths - 1; i >= 0; i--) {
-      const d = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth() - i, 1)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const d = dateUtils.shanghaiAddMonths(dateUtils.shanghaiMonthStart(rangeEnd), -i)
+      const key = dateUtils.formatShanghaiYmd(d).slice(0, 7)
       result.push({
         month: key,
         count: map.get(key) ?? 0,
@@ -343,10 +325,8 @@ export class DashboardRepository {
   ) {
     const c: any[] = [active(crmHospital), eq(crmHospital.status, 1)]
     if (dateRange) {
-      const endUpper = new Date(dateRange.endDate.getTime() + 86400000)
-      endUpper.setHours(0, 0, 0, 0)
       c.push(gte(crmHospital.createdAt, dateRange.startDate))
-      c.push(lt(crmHospital.createdAt, endUpper))
+      c.push(lt(crmHospital.createdAt, exclusiveEnd(dateRange.endDate)))
     }
     if (whereExtra) c.push(...whereExtra(crmHospital))
     const [r] = await db

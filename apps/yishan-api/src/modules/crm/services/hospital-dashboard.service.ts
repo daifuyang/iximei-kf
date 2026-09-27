@@ -21,6 +21,7 @@
 import { BusinessError } from '@/exceptions/business-error.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
 import { ROLE_IDS } from '@/constants/permission-codes.js'
+import { dateUtils } from '@/utils/date.js'
 import { HospitalDashboardRepository } from '../repositories/hospital-dashboard.repository.js'
 import { HospitalsRepository } from '../repositories/hospitals.repository.js'
 
@@ -37,12 +38,10 @@ const EMPTY_STATS = {
 /** 用户没绑定医院时返回的占位 daily：days 个全 0 的日期序列（从最早到今天）。 */
 function emptyDaily(days: number) {
   const out: Array<{ date: string; count: number }> = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = dateUtils.shanghaiDayStart()
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    out.push({ date: d.toISOString().slice(0, 10), count: 0 })
+    const d = new Date(today.getTime() - i * 86400000)
+    out.push({ date: dateUtils.formatShanghaiYmd(d), count: 0 })
   }
   return out
 }

@@ -8,6 +8,7 @@ import { DATA_SCOPE, type DataScopeCode } from '@/core/repositories/permission.r
 import { ROLE_IDS } from '@/constants/permission-codes.js'
 import { BusinessError } from '@/exceptions/business-error.js'
 import { AuthErrorCode } from '@/constants/business-codes/auth.js'
+import { dateUtils } from '@/utils/date.js'
 
 /** 看板查询参数（来自 query string） */
 export interface DashboardQuery {
@@ -124,34 +125,12 @@ async function dashboardFilters(
   return { customerFilter, dispatchFilter }
 }
 
-/**
- * 将 YYYY-MM-DD 字符串解析为 Asia/Shanghai 时区的 Date 对象。
- * 结果为该日期在 Shanghai 时区的午夜时刻对应的 UTC 时间戳。
- */
-function toShanghaiDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  // Asia/Shanghai = UTC+8，构造该日期 Shanghai 午夜对应的 UTC 毫秒数
-  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 8 * 3600000)
-}
-
-function isCalendarDate(dateStr: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
-  if (!match) return false
-  const [, year, month, day] = match
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
-  return date.getUTCFullYear() === Number(year)
-    && date.getUTCMonth() === Number(month) - 1
-    && date.getUTCDate() === Number(day)
-}
-
 /** 校验并构建 DateRange（Asia/Shanghai 时区，半开区间 [start, end+1day)） */
 function buildDateRange(startDate?: string, endDate?: string): DateRange | undefined {
   if (!startDate || !endDate) return undefined
-  if (!isCalendarDate(startDate) || !isCalendarDate(endDate)) return undefined
-  const start = toShanghaiDate(startDate)
-  const end = toShanghaiDate(endDate)
-  // 校验：日期字符串必须格式正确（toShanghaiDate 不会返回 Invalid Date）
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return undefined
+  const start = dateUtils.parseShanghaiDate(startDate)
+  const end = dateUtils.parseShanghaiDate(endDate)
+  if (!start || !end) return undefined
   if (start > end) return undefined
   return { startDate: start, endDate: end }
 }
