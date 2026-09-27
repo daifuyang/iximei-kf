@@ -44,6 +44,12 @@ const CrmHospitalFieldsSchema = Type.Object(
     hospitalSelling: Type.Optional(Type.String({ maxLength: 255 })),
     hospitalWebsite: Type.Optional(Type.String({ maxLength: 255 })),
     hospitalNature: Type.Optional(Type.Integer()),
+    // 医院分类：'oral' 口腔 / 'plastic' 整形。
+    // 'unknown' 是 dashboard 派生值（NULL 或其它值归入），不允许显式写入。
+    category: Type.Optional(Type.Union([
+      Type.Literal('oral'),
+      Type.Literal('plastic'),
+    ])),
     doctorName: Type.Optional(Type.String({ maxLength: 50 })),
     doctorPhone: Type.Optional(Type.String({ maxLength: 50 })),
     doctorQq: Type.Optional(Type.String({ maxLength: 50 })),

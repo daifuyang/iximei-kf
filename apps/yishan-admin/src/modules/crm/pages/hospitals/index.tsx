@@ -62,6 +62,14 @@ const natureMap: Record<number, string> = {
   0: '民营',
   1: '公立',
 };
+
+// 医院分类映射：与后端 crmHospital.category 枚举 ('oral' | 'plastic') 一一对应。
+// 'unknown' 是 dashboard 派生值（DB NULL 或其它值归入），不允许显式写入。
+const categoryMap: Record<'oral' | 'plastic' | 'unknown', { label: string; color: string }> = {
+  oral: { label: '口腔', color: 'blue' },
+  plastic: { label: '整形', color: 'magenta' },
+  unknown: { label: '未分类', color: 'default' },
+};
 const formGutter: [number, number] = [16, 0];
 const thirdCol = { xs: 24, md: 8 };
 const addressRegionCol = { xs: 24, md: 8 };
@@ -182,7 +190,7 @@ const HospitalPage: React.FC = () => {
         ? [record.provinceId, record.cityId, record.districtId]
         : undefined;
     form.setFieldsValue(
-      record ? { ...record, regionCodes } : { hospitalNature: -1, status: 1 },
+      record ? { ...record, regionCodes } : { hospitalNature: -1, status: 1, category: undefined },
     );
     setOpen(true);
   };
@@ -371,6 +379,20 @@ const HospitalPage: React.FC = () => {
       render: (_, r) => natureMap[r.hospitalNature] || '-',
     },
     {
+      // 医院分类：与后端 crmHospital.category 枚举对齐。
+      // dashboard 上的"口腔/整形/未分类"卡片直接读这个字段。
+      title: '分类',
+      dataIndex: 'category',
+      search: false,
+      width: 90,
+      render: (_, r) => {
+        const key: 'oral' | 'plastic' | 'unknown' =
+          r.category === 'oral' || r.category === 'plastic' ? r.category : 'unknown';
+        const meta = categoryMap[key];
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
       title: '微信绑定',
       dataIndex: 'wechatOpenid',
       search: false,
@@ -524,6 +546,22 @@ const HospitalPage: React.FC = () => {
                 />
               </Form.Item>
             </Col>
+            {/* 医院分类：仅超管/管理员可编辑；医院账号对自己资料无权改分类。
+                留空 = "未分类"（DB NULL），dashboard 派生为 unknown。 */}
+            {!isHospitalAccount && (
+              <Col {...thirdCol}>
+                <Form.Item name="category" label="医院分类">
+                  <Select
+                    allowClear
+                    placeholder="未分类"
+                    options={[
+                      { label: '口腔', value: 'oral' },
+                      { label: '整形', value: 'plastic' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            )}
           </Row>
 
           {/* 仅新建时需要账号字段 */}

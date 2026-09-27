@@ -62,6 +62,9 @@ export class HospitalsService {
       hospitalSelling: optionalString(input.hospitalSelling, { field: '营销卖点', max: 255 }) ?? undefined,
       hospitalWebsite: optionalString(input.hospitalWebsite, { field: '官网', max: 255 }) ?? undefined,
       hospitalNature: input.hospitalNature,
+      // category 经 TypeBox schema 校验为 'oral' | 'plastic' | undefined；
+      // undefined 被 compact() 剔除，对应 DB NULL（dashboard 派生为 unknown）。
+      category: input.category,
       doctorName: optionalString(input.doctorName, { field: '就医联系人', max: 50 }) ?? undefined,
       doctorPhone: optionalString(input.doctorPhone, { field: '就医电话', max: 50 }) ?? undefined,
       doctorQq: optionalString(input.doctorQq, { field: '就医 QQ', max: 50 }) ?? undefined,
@@ -110,6 +113,9 @@ export class HospitalsService {
       hospitalSelling: optionalString(input.hospitalSelling, { field: '营销卖点', max: 255 }) ?? undefined,
       hospitalWebsite: optionalString(input.hospitalWebsite, { field: '官网', max: 255 }) ?? undefined,
       hospitalNature: input.hospitalNature,
+      // category 经 TypeBox schema 校验为 'oral' | 'plastic' | undefined；
+      // undefined 被 compact() 剔除，对应 DB NULL（dashboard 派生为 unknown）。
+      category: input.category,
       doctorName: optionalString(input.doctorName, { field: '就医联系人', max: 50 }) ?? undefined,
       doctorPhone: optionalString(input.doctorPhone, { field: '就医电话', max: 50 }) ?? undefined,
       doctorQq: optionalString(input.doctorQq, { field: '就医 QQ', max: 50 }) ?? undefined,
