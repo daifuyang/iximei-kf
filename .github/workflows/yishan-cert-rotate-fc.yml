@@ -17,9 +17,14 @@ jobs:
     env:
       DOMAIN: ${{ vars.CUSTOM_DOMAIN || 'fastify.zerocmf.com' }}
       CERT_MIN_AGE_DAYS: '30'
-      ACME_MODE: ${{ vars.ACME_MODE || 'staging' }}
+      # 默认必须是 production：staging 证书不被浏览器信任，一旦部署到生产域名
+      # 等于把站点整站打挂（历史默认值曾是 staging）。
+      ACME_MODE: ${{ vars.ACME_MODE || 'production' }}
       ACME_CA: ${{ vars.ACME_CA || 'letsencrypt' }}
       FC_REGION: ${{ vars.FUNCTION_REGION || 'cn-shanghai' }}
+      # domain.yaml / deploy-domain.sh 读的是 FUNCTION_REGION。只定义 FC_REGION
+      # 会让 s 报 env('FUNCTION_REGION') not found（这是 2026-10 连续失败的直接原因）。
+      FUNCTION_REGION: ${{ vars.FUNCTION_REGION || 'cn-shanghai' }}
       FUNCTION_NAME: ${{ vars.FUNCTION_NAME }}
       CERT_NAME: ${{ vars.CERT_NAME }}
     steps:
@@ -209,8 +214,14 @@ jobs:
         working-directory: apps/yishan-api
         run: |
           set -euo pipefail
-          export CUSTOM_DOMAIN="$DOMAIN"
-          s deploy -y -t deploy/fc3/templates/domain.yaml -a enterprise
+          # 直接读 acme.sh --install-cert 落盘的 PEM；不再走 CAS certName 引用
+          # （fc3-domain 要求 certificate + privateKey 同时提供）。
+          bash ./deploy/fc3/scripts/deploy-domain.sh \
+            "$DOMAIN" "$FUNCTION_REGION" "$FUNCTION_NAME" \
+            deploy/fc3/certs/fullchain.cer \
+            deploy/fc3/certs/private.key \
+            "crm-iximei-cn-$(date -u +%Y%m%d)" \
+            enterprise
 
       - name: Verify cert after deploy
         if: steps.cert_age.outputs.rotate == 'true'

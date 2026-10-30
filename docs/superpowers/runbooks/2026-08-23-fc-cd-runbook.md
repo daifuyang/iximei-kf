@@ -1,8 +1,30 @@
 # iximei-kf FC 部署 Runbook
 
-> **状态**: 2026-08-23 现行
+> **状态**: 2026-10-30 修订（函数改名 iximei-crm + 证书绑定方式变更）
 > **范围**: `main` 分支 push 触发 `yishan-fullstack-cd-fc` workflow；DDL migrate 走 `yishan-fc-migrate`
 > **所有凭证已脱敏**，原文参见 `~/.config/env-config/iximei-kf.yaml`
+
+## 0. 2026-10-30 变更（事故后修正）
+
+2026-10-17 起 `crm.iximei.cn` HTTPS 证书过期，站点被浏览器拦截 12 天，两个定时 workflow 连续 16 天失败。
+根因与修正记录：
+
+1. **函数改名**：`yishan-crm` → **`iximei-crm`**。FC 不支持改名，实际路径是"新建同配置函数 → 切域名路由
+   → 更新 GitHub Environment 变量 `FUNCTION_NAME` → 删旧函数（先删 trigger）"。新函数与原函数同代码包、
+   同 Layer 版本、同 VPC 与环境变量，仅名字与 `FUNCTION_NAME` 环境变量不同。
+2. **证书绑定方式改了**：`fc3-domain` 只给 `certName`（即便带 `cret-` 前缀）会报
+   `certConfig must contain certName, certificate and privateKey simultaneously`。
+   现在统一用 `deploy/fc3/scripts/deploy-domain.sh`，本地读 fullchain + key，把 PEM 正文写进模板再 `s deploy`。
+   旧的 `yishan-crm-cd-fc` 就是卡在这一步（而且它根本没装 `s`，报 `s: command not found`）。
+3. **续签阈值判断**：`steps.*.outputs.days_left < env.RENEW_DAYS` 在 YAML 里是字符串比较
+   （`'4' < '30'` 为 false）。10-13 证书只剩 4 天时被静默跳过，直到过期后 `days_left` 变负才触发。
+   现在判断放在 bash 里用 `-lt` 完成，输出 `renew=true/false`。
+4. **staging 默认值**：`yishan-cert-rotate-fc` 的 `ACME_MODE` 默认曾是 `staging`，一旦修好其它问题会把不受信
+   证书挂到生产域名。默认已改为 `production`。
+
+> 事故复盘要点：CI 每天"成功失败"没人看，证书过期靠用户发现。建议给 `crm.iximei.cn` 加一条
+> 到期监控（< 14 天告警），不要只依赖 workflow 的最后一步 verify。
+
 
 ---
 
@@ -12,7 +34,7 @@
 main push ──► yishan-fullstack-cd-fc.yml
                 │
                 ├─ Admin (yishan-admin) 静态资源 ─► 七牛 CDN（/admin/*）
-                └─ API (yishan-function)   ─────► 阿里云 FC 函数 yishan-crm
+                └─ API (iximei-crm 函数)  ─────► 阿里云 FC 函数 iximei-crm
 
 人工触发  ──► yishan-fc-migrate.yml
                 │
@@ -20,7 +42,7 @@ main push ──► yishan-fullstack-cd-fc.yml
 ```
 
 - **生产域**: `crm.iximei.cn`
-- **生产函数**: `yishan-crm` (region `cn-shanghai`)
+- **生产函数**: `iximei-crm` (region `cn-shanghai`)（2026-10-30 前为 `yishan-crm`）
 - **临时函数**: `yishan-migration-runner` (每次 migrate 后 `s remove` 销毁)
 - **证书**: `crm-iximei-cert` (阿里云 CAS, LE 由 cron 自动续)
 
@@ -43,7 +65,7 @@ cert-renew (auto, 每天 20:15 UTC)
                                                         ▲
                                                         │ 下次 fullstack-cd 拉新 cert
                                                         │
-yishan-fullstack-cd-fc (auto on push) ──── s deploy ──► FC 函数 yishan-crm
+yishan-fullstack-cd-fc (auto on push) ──── s deploy ──► FC 函数 iximei-crm
                                           │
                                           └─► Auto-run db:seed (轻量 RBAC 重绑)
                                                 SEED_MINIMAL=true
@@ -254,7 +276,7 @@ curl -sk https://crm.iximei.cn/api/build | jq .
 
 ```bash
 # 看函数 invoke 错误日志
-s cli fc3 function logs --function-name yishan-crm \
+s cli fc3 function logs --function-name iximei-crm \
   --region cn-shanghai --tail 200
 
 # 看 build identity
@@ -319,10 +341,10 @@ drizzle 不支持自动回滚。手工:
 
 ```bash
 # 列出最近版本
-s cli fc3 version list --function-name yishan-crm --region cn-shanghai
+s cli fc3 version list --function-name iximei-crm --region cn-shanghai
 
 # 切回老版本
-s cli fc3 version set --function-name yishan-crm --version-id <old_version_id> \
+s cli fc3 version set --function-name iximei-crm --version-id <old_version_id> \
   --region cn-shanghai
 ```
 
@@ -335,7 +357,7 @@ s cli fc3 version set --function-name yishan-crm --version-id <old_version_id> \
 | Variable | 来源 / 含义 |
 |---|---|
 | `FUNCTION_REGION` | `cn-shanghai` |
-| `FUNCTION_NAME` | `yishan-crm` |
+| `FUNCTION_NAME` | `iximei-crm` |
 | `FUNCTION_DESCRIPTION` | `Yishan CRM - crm.iximei.cn` |
 | `FUNCTION_VPC_ID` | `vpc-uf65...zszs1db` |
 | `FUNCTION_VSWITCH_ID` | `vsw-uf6f...wfioz1c2` |
@@ -380,7 +402,7 @@ s cli fc3 version set --function-name yishan-crm --version-id <old_version_id> \
 
 ### 8.4 阿里云资源
 
-- **FC 函数**: `yishan-crm` (region cn-shanghai), runtime custom.debian12, 1 vCPU / 2048 MB / 512 MB disk, instanceConcurrency 100
+- **FC 函数**: `iximei-crm` (region cn-shanghai), runtime custom.debian12, 1 vCPU / 2048 MB / 512 MB disk, instanceConcurrency 100
 - **临时函数**: `yishan-migration-runner` (fc-migrate workflow 部署 / 销毁)
 - **Serverless Layer**: `yishan-api-runtime-layer` (版本化, 引用 lock 在 `apps/yishan-api/deploy/fc3/layer-lock.json`)
 - **CAS 证书**: `crm-iximei-cert` (aliyun cert id, 由 cert-rotate workflow 更新)
@@ -408,7 +430,7 @@ s cli fc3 version set --function-name yishan-crm --version-id <old_version_id> \
   yishan-fullstack-cd-fc.yml        # 全栈部署 (push 触发)
   yishan-fc-migrate.yml            # DDL 部署 (手动 dispatch)
   yishan-cert-rotate-fc.yml        # 证书续签 (cron + 手动)
-  yishan-crm-cd-fc.yml             # 旧证书 workflow (兼容保留)
+  yishan-crm-cd-fc.yml             # 每日证书续签 + 绑定（2026-10-30 已修复）
 
 apps/yishan-api/
   deploy/fc3/

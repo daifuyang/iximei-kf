@@ -1,5 +1,5 @@
 edition: 3.0.0
-name: yishan-function
+name: iximei-crm-function
 access: "enterprise"
 vars:
   region: ${env(FUNCTION_REGION)}
@@ -25,6 +25,9 @@ resources:
       layers:
         - ${vars.runtimeLayerArn}
       environmentVariables:
+        # 函数名回读：/api/build 与请求日志用它在线上自报家门，
+        # 避免 build.ts 的兜底默认值与实际函数名不一致。
+        FUNCTION_NAME: ${vars.functionName}
         NODE_ENV: production
         LOG_LEVEL: ${env(LOG_LEVEL)}
         PATH: /var/fc/lang/nodejs22/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin:/code:/code/bin

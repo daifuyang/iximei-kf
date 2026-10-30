@@ -70,7 +70,7 @@ const build: FastifyPluginAsync = async (fastify): Promise<void> => {
         builtAt: info.builtAt,
         nodeVersion: process.versions.node,
         uptimeSeconds: Math.round(process.uptime()),
-        functionName: process.env.FUNCTION_NAME ?? "yishan-crm",
+        functionName: process.env.FUNCTION_NAME ?? "iximei-crm",
       });
     },
   );

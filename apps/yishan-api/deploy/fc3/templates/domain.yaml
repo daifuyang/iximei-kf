@@ -1,23 +1,27 @@
 edition: 3.0.0
-name: yishan-domain
+name: iximei-crm-domain
 access: enterprise
 vars:
   region: ${env(FUNCTION_REGION)}
   functionName: ${env(FUNCTION_NAME)}
   domainName: ${env(CUSTOM_DOMAIN)}
 resources:
-  yishan_domain:
+  iximei_crm_domain:
     component: fc3-domain
     props:
       region: ${vars.region}
       domainName: ${vars.domainName}
       protocol: HTTPS
       certConfig:
-        # CRM CD 走 aic + CAS：先 aic aliyun-cert:upload 上传证书拿到 certId，
-        # 再 export CAS_CERT_NAME=cret-${CERT_ID}，由 s deploy 把域名绑定/更新
-        # 一起做（首次 CreateCustomDomain，后续 UpdateCustomDomain 幂等）。
-        # certName 必须带 cret- 前缀才能引用 CAS 证书。
+        # 2026-10-30 实测：fc3-domain 不接受"只给 certName 走 CAS 引用"。
+        # 只传 certName（即使带 cret- 前缀）会直接报
+        #   certConfig must contain certName, certificate and privateKey simultaneously
+        # 因此本模板仅作结构参考；实际部署统一走
+        #   scripts/deploy-domain.sh <domain> <region> <functionName> <certFile> <keyFile> [certName]
+        # 该脚本把 PEM 正文一起写进 certConfig 后再执行 s deploy。
         certName: ${env(CAS_CERT_NAME)}
+        certificate: ${env(CERT_PEM)}
+        privateKey: ${env(CERT_KEY)}
       routeConfig:
         routes:
           - path: /

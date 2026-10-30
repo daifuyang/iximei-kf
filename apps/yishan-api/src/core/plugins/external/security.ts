@@ -77,7 +77,7 @@ export default fp(
       reply.header(REQUEST_ID_HEADER, requestId);
       // 把 requestId + build identity 注入到 pino 日志子结构，**每条** HTTP log
       // 自带 { commitSha, version, builtAt }，下次"线上行为不符预期"时：
-      //   grep 'commitSha' /var/log/.../yishan-crm.*.log
+      //   grep 'commitSha' /var/log/.../iximei-crm.*.log
       // 立刻定位到具体 commit；不需要再反推 deploy 时间。
       const childLog = request.log.child({
         requestId,

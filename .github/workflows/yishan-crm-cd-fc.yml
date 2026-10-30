@@ -115,19 +115,29 @@ jobs:
           cert_end_date=$(echo | openssl s_client -connect "${{ env.CUSTOM_DOMAIN }}:443" -servername "${{ env.CUSTOM_DOMAIN }}" 2>/dev/null \
             | openssl x509 -noout -enddate 2>/dev/null \
             | cut -d= -f2- || true)
+          renew=false
           if [ -n "$cert_end_date" ]; then
             cert_end_epoch=$(date -d "$cert_end_date" +%s)
             now_epoch=$(date +%s)
             days_left=$(( (cert_end_epoch - now_epoch) / 86400 ))
             echo "days_left=$days_left" >> "$GITHUB_OUTPUT"
             echo "Certificate expires in ${days_left} day(s): $cert_end_date"
+            # 必须用整数比较。-lt 在 bash 里做数值比较；写回 YAML 表达式里会退化成
+            # 字符串比较（'4' < '30' 为 false），2026-10-13 证书只剩 4 天时就被静默
+            # 跳过，一直等到过期后 days_left 变负才触发，此时已经救不回来。
+            if [ "$days_left" -lt "${RENEW_DAYS}" ]; then
+              renew=true
+            fi
           else
             echo "days_left=0" >> "$GITHUB_OUTPUT"
             echo "No existing certificate found, will issue new one"
+            renew=true
           fi
+          echo "renew=$renew" >> "$GITHUB_OUTPUT"
+          echo "Renew needed: $renew (threshold ${RENEW_DAYS} days)"
 
       - name: Issue certificate (DNS-01)
-        if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.days_left == '0' || steps.cert_check.outputs.days_left < env.RENEW_DAYS
+        if: github.event.inputs.force_renew_cert == 'true' || steps.cert_check.outputs.renew == 'true'
         env:
           # DNS-01 验证用 personal AK（与 aic config default profile 等价；
           # 但绕过 aic 的 2 分钟硬编码超时——直接调 acme.sh）
@@ -144,11 +154,14 @@ jobs:
           fi
           ~/.acme.sh/acme.sh $ACME_ARGS
 
-      - name: Upload certificate to CAS
+      - name: Upload certificate to CAS (best effort)
+        # CAS 只作证书存档，不再是部署依赖：fc3-domain 不接受"只给 certName
+        # （cret-<id>）"的写法，绑定必须带 certificate + privateKey 正文。
+        # 所以这一步失败不阻断上线。
+        continue-on-error: true
         if: >-
           (github.event.inputs.force_renew_cert == 'true'
-            || steps.cert_check.outputs.days_left == '0'
-            || steps.cert_check.outputs.days_left < env.RENEW_DAYS)
+            || steps.cert_check.outputs.renew == 'true')
           && github.event.inputs.use_staging != 'true'
         id: cas_upload
         run: |
@@ -167,33 +180,30 @@ jobs:
           echo "$upload_result"
           CERT_ID=$(echo "$upload_result" | jq -r '.certId // empty')
           if [ -z "$CERT_ID" ] || [ "$CERT_ID" == "null" ]; then
-            echo "Error: Failed to upload certificate to CAS"
-            exit 1
+            echo "::warning::CAS upload failed, continuing (CAS is not a deploy dependency)"
+            exit 0
           fi
           echo "cert_id=$CERT_ID" >> "$GITHUB_OUTPUT"
           echo "Certificate uploaded with ID: $CERT_ID"
 
-      - name: Deploy domain with renewed cert (CAS reference)
+      - name: Install Serverless Devs
         if: >-
           (github.event.inputs.force_renew_cert == 'true'
-            || steps.cert_check.outputs.days_left == '0'
-            || steps.cert_check.outputs.days_left < env.RENEW_DAYS)
+            || steps.cert_check.outputs.renew == 'true')
+          && github.event.inputs.use_staging != 'true'
+        run: npm i -g @serverless-devs/s
+
+      - name: Configure Serverless Devs Access
+        if: >-
+          (github.event.inputs.force_renew_cert == 'true'
+            || steps.cert_check.outputs.renew == 'true')
           && github.event.inputs.use_staging != 'true'
         env:
-          CERT_ID: ${{ steps.cas_upload.outputs.cert_id }}
           ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           ALIBABA_CLOUD_ACCOUNT_ID: ${{ secrets.ALIBABA_CLOUD_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          if [ -z "${CERT_ID:-}" ]; then
-            echo "No certificate ID, skip domain deploy"
-            exit 0
-          fi
-          # CAS 引用必须带 cret- 前缀
-          export CAS_CERT_NAME="cret-${CERT_ID}"
-          echo "Deploying FC custom domain ${{ env.CUSTOM_DOMAIN }} with certName: $CAS_CERT_NAME"
-          # 先把 s cli 凭据准备好
           ACCOUNT_ID_CLEAN="$(echo "${ALIBABA_CLOUD_ACCOUNT_ID:-}" | tr -d '[:space:]')"
           if [ -n "${ACCOUNT_ID_CLEAN}" ] && echo "${ACCOUNT_ID_CLEAN}" | grep -Eq '^[0-9]{16,32}$'; then
             s config add \
@@ -209,19 +219,35 @@ jobs:
               -a enterprise \
               -f
           fi
-          # s deploy fc3-domain 组件是幂等的：首次 CreateCustomDomain，后续 UpdateCustomDomain。
-          # certName 走 ${env(CAS_CERT_NAME)} 注入到 domain.yaml 模板。
+
+      - name: Deploy domain with renewed cert
+        # 不再走 CAS 引用：直接用 acme.sh 产出的 fullchain + key 生成域名模板，
+        # 由 scripts/deploy-domain.sh 把 PEM 正文写进 certConfig 后 s deploy。
+        if: >-
+          (github.event.inputs.force_renew_cert == 'true'
+            || steps.cert_check.outputs.renew == 'true')
+          && github.event.inputs.use_staging != 'true'
+        env:
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIBABA_CLOUD_ACCOUNT_ID: ${{ secrets.ALIBABA_CLOUD_ACCOUNT_ID }}
+          CUSTOM_DOMAIN: ${{ env.CUSTOM_DOMAIN }}
+          FUNCTION_REGION: ${{ env.FUNCTION_REGION }}
+          FUNCTION_NAME: ${{ env.FUNCTION_NAME }}
+        run: |
+          set -euo pipefail
           cd "$GITHUB_WORKSPACE/apps/yishan-api"
-          export CUSTOM_DOMAIN="${{ env.CUSTOM_DOMAIN }}"
-          export FUNCTION_REGION="${{ env.FUNCTION_REGION }}"
-          export FUNCTION_NAME="${{ env.FUNCTION_NAME }}"
-          s deploy -y -t deploy/fc3/templates/domain.yaml -a enterprise
+          bash ./deploy/fc3/scripts/deploy-domain.sh \
+            "$CUSTOM_DOMAIN" "$FUNCTION_REGION" "$FUNCTION_NAME" \
+            "$HOME/.acme.sh/${CUSTOM_DOMAIN}/fullchain.cer" \
+            "$HOME/.acme.sh/${CUSTOM_DOMAIN}/${CUSTOM_DOMAIN}.key" \
+            "crm-iximei-cn-$(date -u +%Y%m%d)" \
+            enterprise
 
       - name: Verify cert after deploy
         if: >-
           (github.event.inputs.force_renew_cert == 'true'
-            || steps.cert_check.outputs.days_left == '0'
-            || steps.cert_check.outputs.days_left < env.RENEW_DAYS)
+            || steps.cert_check.outputs.renew == 'true')
           && github.event.inputs.use_staging != 'true'
         run: |
           set -euo pipefail
